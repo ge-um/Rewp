@@ -75,6 +75,9 @@ Carthage/Build/
 **/.claude/
 claude.md
 
+# Needle generated
+NeedleGenerated.swift
+
 # Accio dependency management
 Dependencies/
 .accio/

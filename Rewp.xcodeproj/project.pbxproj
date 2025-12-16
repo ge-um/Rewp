@@ -8,6 +8,18 @@
 
 /* Begin PBXBuildFile section */
 		03AF7B312EF1290200BDF529 /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 03AF7B302EF1290200BDF529 /* .gitignore */; };
+		03AF7B3D2EF13BCC00BDF529 /* FlexLayout in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7B3C2EF13BCC00BDF529 /* FlexLayout */; };
+		03AF7B402EF13BDD00BDF529 /* PinLayout in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7B3F2EF13BDD00BDF529 /* PinLayout */; };
+		03AF7D0F2EF14F5F00BDF529 /* iamport-ios in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7D0E2EF14F5F00BDF529 /* iamport-ios */; };
+		03AF7D122EF14F7D00BDF529 /* RxMoya in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7D112EF14F7D00BDF529 /* RxMoya */; };
+		03AF7D152EF1513000BDF529 /* RIBs in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7D142EF1513000BDF529 /* RIBs */; };
+		03AF7D182EF1516600BDF529 /* NeedleFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7D172EF1516600BDF529 /* NeedleFoundation */; };
+		03AF7D1B2EF152AD00BDF529 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7D1A2EF152AD00BDF529 /* SocketIO */; };
+		03AF7D1E2EF1537700BDF529 /* RxKakaoSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7D1D2EF1537700BDF529 /* RxKakaoSDK */; };
+		03AF7D212EF153D500BDF529 /* RealmSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7D202EF153D500BDF529 /* RealmSwift */; };
+		03AF7E912EF154A300BDF529 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7E902EF154A300BDF529 /* FirebaseAnalytics */; };
+		03AF7E932EF154A300BDF529 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7E922EF154A300BDF529 /* FirebaseCrashlytics */; };
+		03AF7E952EF154A300BDF529 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7E942EF154A300BDF529 /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,6 +53,18 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				03AF7E952EF154A300BDF529 /* FirebaseMessaging in Frameworks */,
+				03AF7D152EF1513000BDF529 /* RIBs in Frameworks */,
+				03AF7D0F2EF14F5F00BDF529 /* iamport-ios in Frameworks */,
+				03AF7D1B2EF152AD00BDF529 /* SocketIO in Frameworks */,
+				03AF7D212EF153D500BDF529 /* RealmSwift in Frameworks */,
+				03AF7B402EF13BDD00BDF529 /* PinLayout in Frameworks */,
+				03AF7E932EF154A300BDF529 /* FirebaseCrashlytics in Frameworks */,
+				03AF7D122EF14F7D00BDF529 /* RxMoya in Frameworks */,
+				03AF7D1E2EF1537700BDF529 /* RxKakaoSDK in Frameworks */,
+				03AF7D182EF1516600BDF529 /* NeedleFoundation in Frameworks */,
+				03AF7E912EF154A300BDF529 /* FirebaseAnalytics in Frameworks */,
+				03AF7B3D2EF13BCC00BDF529 /* FlexLayout in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -84,6 +108,18 @@
 			);
 			name = Rewp;
 			packageProductDependencies = (
+				03AF7B3C2EF13BCC00BDF529 /* FlexLayout */,
+				03AF7B3F2EF13BDD00BDF529 /* PinLayout */,
+				03AF7D0E2EF14F5F00BDF529 /* iamport-ios */,
+				03AF7D112EF14F7D00BDF529 /* RxMoya */,
+				03AF7D142EF1513000BDF529 /* RIBs */,
+				03AF7D172EF1516600BDF529 /* NeedleFoundation */,
+				03AF7D1A2EF152AD00BDF529 /* SocketIO */,
+				03AF7D1D2EF1537700BDF529 /* RxKakaoSDK */,
+				03AF7D202EF153D500BDF529 /* RealmSwift */,
+				03AF7E902EF154A300BDF529 /* FirebaseAnalytics */,
+				03AF7E922EF154A300BDF529 /* FirebaseCrashlytics */,
+				03AF7E942EF154A300BDF529 /* FirebaseMessaging */,
 			);
 			productName = Rewp;
 			productReference = 03AF7B182EF128FA00BDF529 /* Rewp.app */;
@@ -113,6 +149,18 @@
 			);
 			mainGroup = 03AF7B0F2EF128FA00BDF529;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				03AF7B3B2EF13BCC00BDF529 /* XCRemoteSwiftPackageReference "FlexLayout" */,
+				03AF7B3E2EF13BDD00BDF529 /* XCRemoteSwiftPackageReference "PinLayout" */,
+				03AF7D0D2EF14F5F00BDF529 /* XCRemoteSwiftPackageReference "iamport-ios" */,
+				03AF7D102EF14F7D00BDF529 /* XCRemoteSwiftPackageReference "Moya" */,
+				03AF7D132EF1513000BDF529 /* XCRemoteSwiftPackageReference "RIBs-iOS" */,
+				03AF7D162EF1516600BDF529 /* XCRemoteSwiftPackageReference "needle" */,
+				03AF7D192EF152AD00BDF529 /* XCRemoteSwiftPackageReference "socket.io-client-swift" */,
+				03AF7D1C2EF1537700BDF529 /* XCRemoteSwiftPackageReference "kakao-ios-sdk-rx" */,
+				03AF7D1F2EF153D500BDF529 /* XCRemoteSwiftPackageReference "realm-swift" */,
+				03AF7E8F2EF154A300BDF529 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 03AF7B192EF128FA00BDF529 /* Products */;
 			projectDirPath = "";
@@ -352,6 +400,152 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		03AF7B3B2EF13BCC00BDF529 /* XCRemoteSwiftPackageReference "FlexLayout" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/layoutBox/FlexLayout";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.2.2;
+			};
+		};
+		03AF7B3E2EF13BDD00BDF529 /* XCRemoteSwiftPackageReference "PinLayout" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/layoutBox/PinLayout";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.10.6;
+			};
+		};
+		03AF7D0D2EF14F5F00BDF529 /* XCRemoteSwiftPackageReference "iamport-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/iamport/iamport-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.4.7;
+			};
+		};
+		03AF7D102EF14F7D00BDF529 /* XCRemoteSwiftPackageReference "Moya" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Moya/Moya";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 15.0.3;
+			};
+		};
+		03AF7D132EF1513000BDF529 /* XCRemoteSwiftPackageReference "RIBs-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/uber/RIBs-iOS.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+		03AF7D162EF1516600BDF529 /* XCRemoteSwiftPackageReference "needle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/uber/needle.git";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+		03AF7D192EF152AD00BDF529 /* XCRemoteSwiftPackageReference "socket.io-client-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/socketio/socket.io-client-swift.git";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+		03AF7D1C2EF1537700BDF529 /* XCRemoteSwiftPackageReference "kakao-ios-sdk-rx" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kakao/kakao-ios-sdk-rx";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.26.0;
+			};
+		};
+		03AF7D1F2EF153D500BDF529 /* XCRemoteSwiftPackageReference "realm-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/realm/realm-swift.git";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+		03AF7E8F2EF154A300BDF529 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.7.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		03AF7B3C2EF13BCC00BDF529 /* FlexLayout */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 03AF7B3B2EF13BCC00BDF529 /* XCRemoteSwiftPackageReference "FlexLayout" */;
+			productName = FlexLayout;
+		};
+		03AF7B3F2EF13BDD00BDF529 /* PinLayout */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 03AF7B3E2EF13BDD00BDF529 /* XCRemoteSwiftPackageReference "PinLayout" */;
+			productName = PinLayout;
+		};
+		03AF7D0E2EF14F5F00BDF529 /* iamport-ios */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 03AF7D0D2EF14F5F00BDF529 /* XCRemoteSwiftPackageReference "iamport-ios" */;
+			productName = "iamport-ios";
+		};
+		03AF7D112EF14F7D00BDF529 /* RxMoya */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 03AF7D102EF14F7D00BDF529 /* XCRemoteSwiftPackageReference "Moya" */;
+			productName = RxMoya;
+		};
+		03AF7D142EF1513000BDF529 /* RIBs */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 03AF7D132EF1513000BDF529 /* XCRemoteSwiftPackageReference "RIBs-iOS" */;
+			productName = RIBs;
+		};
+		03AF7D172EF1516600BDF529 /* NeedleFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 03AF7D162EF1516600BDF529 /* XCRemoteSwiftPackageReference "needle" */;
+			productName = NeedleFoundation;
+		};
+		03AF7D1A2EF152AD00BDF529 /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 03AF7D192EF152AD00BDF529 /* XCRemoteSwiftPackageReference "socket.io-client-swift" */;
+			productName = SocketIO;
+		};
+		03AF7D1D2EF1537700BDF529 /* RxKakaoSDK */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 03AF7D1C2EF1537700BDF529 /* XCRemoteSwiftPackageReference "kakao-ios-sdk-rx" */;
+			productName = RxKakaoSDK;
+		};
+		03AF7D202EF153D500BDF529 /* RealmSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 03AF7D1F2EF153D500BDF529 /* XCRemoteSwiftPackageReference "realm-swift" */;
+			productName = RealmSwift;
+		};
+		03AF7E902EF154A300BDF529 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 03AF7E8F2EF154A300BDF529 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		03AF7E922EF154A300BDF529 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 03AF7E8F2EF154A300BDF529 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+		03AF7E942EF154A300BDF529 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 03AF7E8F2EF154A300BDF529 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 03AF7B102EF128FA00BDF529 /* Project object */;
 }
