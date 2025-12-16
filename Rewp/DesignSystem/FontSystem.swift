@@ -124,3 +124,17 @@ extension String {
         )
     }
 }
+
+extension UITextField {
+    func typography(_ typography: Typography, placeholder: String? = nil) {
+        self.font = typography.font
+        self.defaultTextAttributes = [
+            .font: typography.font,
+            .kern: typography.kerning
+        ]
+
+        if let placeholder = placeholder ?? self.placeholder {
+            self.attributedPlaceholder = placeholder.typography(typography)
+        }
+    }
+}
