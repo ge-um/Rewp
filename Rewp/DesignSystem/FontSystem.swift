@@ -72,14 +72,14 @@ enum FontSystem {
 
     enum YeongdeokHaeparang {
         static let title1 = Typography(
-            fontName: "YeongdeokHaeparang",
+            fontName: "Yeongdeok-Haeparang",
             size: 22,
             lineHeight: 150,
             kerning: 0
         )
 
         static let caption1 = Typography(
-            fontName: "YeongdeokHaeparang",
+            fontName: "Yeongdeok-Haeparang",
             size: 12,
             lineHeight: 180,
             kerning: 0
