@@ -2,7 +2,7 @@ import UIKit
 import PinLayout
 import Then
 
-final class Option: UIView {
+final class OptionLabel: UIView {
     private let iconName: String
     private let title: String
 
@@ -72,12 +72,12 @@ final class Option: UIView {
 
 @available(iOS 17.0, *)
 #Preview("Not Selected") {
-    Option(iconName: "Refrigerator", title: "냉장고")
+    OptionLabel(iconName: "Refrigerator", title: "냉장고")
 }
 
 @available(iOS 17.0, *)
 #Preview("Selected") {
-    Option(iconName: "Refrigerator", title: "냉장고").then {
+    OptionLabel(iconName: "Refrigerator", title: "냉장고").then {
         $0.isSelected = true
     }
 }
