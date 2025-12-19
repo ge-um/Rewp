@@ -7,13 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		038BCC4B2EF4F98100803F55 /* RealmSwift in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7D202EF153D500BDF529 /* RealmSwift */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		03AF7B312EF1290200BDF529 /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 03AF7B302EF1290200BDF529 /* .gitignore */; };
 		03AF7B3D2EF13BCC00BDF529 /* FlexLayout in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7B3C2EF13BCC00BDF529 /* FlexLayout */; };
 		03AF7B402EF13BDD00BDF529 /* PinLayout in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7B3F2EF13BDD00BDF529 /* PinLayout */; };
 		03AF7D0F2EF14F5F00BDF529 /* iamport-ios in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7D0E2EF14F5F00BDF529 /* iamport-ios */; };
 		03AF7D122EF14F7D00BDF529 /* RxMoya in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7D112EF14F7D00BDF529 /* RxMoya */; };
-		03AF7D152EF1513000BDF529 /* RIBs in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7D142EF1513000BDF529 /* RIBs */; };
-		03AF7D182EF1516600BDF529 /* NeedleFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7D172EF1516600BDF529 /* NeedleFoundation */; };
 		03AF7D1B2EF152AD00BDF529 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7D1A2EF152AD00BDF529 /* SocketIO */; };
 		03AF7D1E2EF1537700BDF529 /* RxKakaoSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7D1D2EF1537700BDF529 /* RxKakaoSDK */; };
 		03AF7D212EF153D500BDF529 /* RealmSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7D202EF153D500BDF529 /* RealmSwift */; };
@@ -21,6 +20,20 @@
 		03AF7E932EF154A300BDF529 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7E922EF154A300BDF529 /* FirebaseCrashlytics */; };
 		03AF7E952EF154A300BDF529 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7E942EF154A300BDF529 /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		038BCC4C2EF4F98100803F55 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				038BCC4B2EF4F98100803F55 /* RealmSwift in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		03AF7B182EF128FA00BDF529 /* Rewp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Rewp.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -54,7 +67,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				03AF7E952EF154A300BDF529 /* FirebaseMessaging in Frameworks */,
-				03AF7D152EF1513000BDF529 /* RIBs in Frameworks */,
 				03AF7D0F2EF14F5F00BDF529 /* iamport-ios in Frameworks */,
 				03AF7D1B2EF152AD00BDF529 /* SocketIO in Frameworks */,
 				03AF7D212EF153D500BDF529 /* RealmSwift in Frameworks */,
@@ -62,7 +74,6 @@
 				03AF7E932EF154A300BDF529 /* FirebaseCrashlytics in Frameworks */,
 				03AF7D122EF14F7D00BDF529 /* RxMoya in Frameworks */,
 				03AF7D1E2EF1537700BDF529 /* RxKakaoSDK in Frameworks */,
-				03AF7D182EF1516600BDF529 /* NeedleFoundation in Frameworks */,
 				03AF7E912EF154A300BDF529 /* FirebaseAnalytics in Frameworks */,
 				03AF7B3D2EF13BCC00BDF529 /* FlexLayout in Frameworks */,
 			);
@@ -98,6 +109,7 @@
 				03AF7B142EF128FA00BDF529 /* Sources */,
 				03AF7B152EF128FA00BDF529 /* Frameworks */,
 				03AF7B162EF128FA00BDF529 /* Resources */,
+				038BCC4C2EF4F98100803F55 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -112,8 +124,6 @@
 				03AF7B3F2EF13BDD00BDF529 /* PinLayout */,
 				03AF7D0E2EF14F5F00BDF529 /* iamport-ios */,
 				03AF7D112EF14F7D00BDF529 /* RxMoya */,
-				03AF7D142EF1513000BDF529 /* RIBs */,
-				03AF7D172EF1516600BDF529 /* NeedleFoundation */,
 				03AF7D1A2EF152AD00BDF529 /* SocketIO */,
 				03AF7D1D2EF1537700BDF529 /* RxKakaoSDK */,
 				03AF7D202EF153D500BDF529 /* RealmSwift */,
@@ -154,8 +164,6 @@
 				03AF7B3E2EF13BDD00BDF529 /* XCRemoteSwiftPackageReference "PinLayout" */,
 				03AF7D0D2EF14F5F00BDF529 /* XCRemoteSwiftPackageReference "iamport-ios" */,
 				03AF7D102EF14F7D00BDF529 /* XCRemoteSwiftPackageReference "Moya" */,
-				03AF7D132EF1513000BDF529 /* XCRemoteSwiftPackageReference "RIBs-iOS" */,
-				03AF7D162EF1516600BDF529 /* XCRemoteSwiftPackageReference "needle" */,
 				03AF7D192EF152AD00BDF529 /* XCRemoteSwiftPackageReference "socket.io-client-swift" */,
 				03AF7D1C2EF1537700BDF529 /* XCRemoteSwiftPackageReference "kakao-ios-sdk-rx" */,
 				03AF7D1F2EF153D500BDF529 /* XCRemoteSwiftPackageReference "realm-swift" */,
@@ -434,22 +442,6 @@
 				minimumVersion = 15.0.3;
 			};
 		};
-		03AF7D132EF1513000BDF529 /* XCRemoteSwiftPackageReference "RIBs-iOS" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/uber/RIBs-iOS.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
-			};
-		};
-		03AF7D162EF1516600BDF529 /* XCRemoteSwiftPackageReference "needle" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/uber/needle.git";
-			requirement = {
-				branch = master;
-				kind = branch;
-			};
-		};
 		03AF7D192EF152AD00BDF529 /* XCRemoteSwiftPackageReference "socket.io-client-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/socketio/socket.io-client-swift.git";
@@ -504,16 +496,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 03AF7D102EF14F7D00BDF529 /* XCRemoteSwiftPackageReference "Moya" */;
 			productName = RxMoya;
-		};
-		03AF7D142EF1513000BDF529 /* RIBs */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 03AF7D132EF1513000BDF529 /* XCRemoteSwiftPackageReference "RIBs-iOS" */;
-			productName = RIBs;
-		};
-		03AF7D172EF1516600BDF529 /* NeedleFoundation */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 03AF7D162EF1516600BDF529 /* XCRemoteSwiftPackageReference "needle" */;
-			productName = NeedleFoundation;
 		};
 		03AF7D1A2EF152AD00BDF529 /* SocketIO */ = {
 			isa = XCSwiftPackageProductDependency;
