@@ -5,11 +5,9 @@ import Then
 final class SearchBar: UIView {
     private let containerView = UIView().then {
         $0.backgroundColor = ColorSystem.gray0
-        $0.layer.cornerRadius = 12
-        $0.layer.shadowColor = ColorSystem.gray100.cgColor
-        $0.layer.shadowOpacity = 0.08
-        $0.layer.shadowOffset = CGSize(width: 0, height: 2)
-        $0.layer.shadowRadius = 8
+        $0.layer.cornerRadius = 20
+        $0.layer.borderColor = ColorSystem.gray45.cgColor
+        $0.layer.borderWidth = 1
     }
 
     private let iconImageView = UIImageView().then {
@@ -58,7 +56,7 @@ final class SearchBar: UIView {
     }
 
     override var intrinsicContentSize: CGSize {
-        return CGSize(width: UIView.noIntrinsicMetric, height: 56)
+        return CGSize(width: 350, height: 40)
     }
 }
 
