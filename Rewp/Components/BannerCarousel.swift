@@ -11,6 +11,17 @@ final class BannerCarouselCell: UICollectionViewCell {
         $0.backgroundColor = ColorSystem.gray15
     }
 
+    private let locationBackground = UIView().then {
+        $0.backgroundColor = ColorSystem.gray60.withAlphaComponent(0.5)
+        $0.layer.cornerRadius = 10
+    }
+
+    private let locationIcon = UIImageView().then {
+        $0.image = UIImage(named: "Location")?.withRenderingMode(.alwaysTemplate)
+        $0.tintColor = .white
+        $0.contentMode = .scaleAspectFit
+    }
+
     private let locationLabel = UILabel().then {
         $0.typography(FontSystem.Pretendard.caption2, text: "")
         $0.textColor = .white
@@ -39,6 +50,8 @@ final class BannerCarouselCell: UICollectionViewCell {
 
     private func setupUI() {
         contentView.addSubview(imageView)
+        contentView.addSubview(locationBackground)
+        contentView.addSubview(locationIcon)
         contentView.addSubview(locationLabel)
         contentView.addSubview(titleLabel)
         contentView.addSubview(descriptionLabel)
@@ -62,10 +75,22 @@ final class BannerCarouselCell: UICollectionViewCell {
             .marginBottom(8)
             .sizeToFit(.width)
 
-        locationLabel.pin
+        locationBackground.pin
             .left(20)
             .above(of: titleLabel)
             .marginBottom(4)
+            .width(76)
+            .height(20)
+
+        locationIcon.pin
+            .left(24)
+            .vCenter(to: locationBackground.edge.vCenter)
+            .size(16)
+
+        locationLabel.pin
+            .after(of: locationIcon)
+            .marginLeft(2)
+            .vCenter(to: locationIcon.edge.vCenter)
             .sizeToFit(.widthFlexible)
     }
     
