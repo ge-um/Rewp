@@ -54,7 +54,7 @@ final class CategoryButton: UIView {
     }
 
     override var intrinsicContentSize: CGSize {
-        return CGSize(width: 64, height: 88)
+        return CGSize(width: 56, height: 76)
     }
 }
 
