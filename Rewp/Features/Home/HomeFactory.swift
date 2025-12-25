@@ -5,7 +5,6 @@ class HomeFactory {
         let presenter = HomePresenter()
         let viewController = HomeViewController()
 
-        presenter.view = viewController
         viewController.presenter = presenter
 
         return viewController
