@@ -38,6 +38,19 @@ class HomeViewController: UIViewController {
         RecentSearchItem(category: "원룸", price: "월세 3,000/50", area: "면적 49.5m²")
     ]
 
+    private let hotTitleLabel = SectionTitleLabel(title: "Hot 매물")
+
+    private let hotScrollView = UIScrollView().then {
+        $0.showsHorizontalScrollIndicator = false
+    }
+
+    private let hotContainerView = UIView()
+
+    private lazy var hotItems: [HotItem] = [
+        HotItem(title: "고즈넉 매물, 여기가 천국", price: "월세 7,000/50", status: "34명이 함께 보는 중", info: "면적 152.4m²"),
+        HotItem(title: "따끈따끈 새 매물", price: "전세 3,000/20", status: "12명이 함께 보는 중", info: "면적 89.5m²")
+    ]
+
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let disposeBag = DisposeBag()
 
@@ -57,6 +70,8 @@ class HomeViewController: UIViewController {
         view.addSubview(categoryScrollView)
         view.addSubview(recentSearchTitleLabel)
         view.addSubview(recentSearchScrollView)
+        view.addSubview(hotTitleLabel)
+        view.addSubview(hotScrollView)
 
         categoryScrollView.addSubview(categoryContainerView)
         categoryContainerView.flex
@@ -79,6 +94,19 @@ class HomeViewController: UIViewController {
                 recentSearchItems.forEach { item in
                     flex.addItem(item)
                         .width(190)
+                        .height(88)
+                        .marginRight(12)
+                }
+            }
+
+        hotScrollView.addSubview(hotContainerView)
+        hotContainerView.flex
+            .direction(.row)
+            .alignItems(.center)
+            .define { flex in
+                hotItems.forEach { item in
+                    flex.addItem(item)
+                        .width(240)
                         .height(88)
                         .marginRight(12)
                 }
@@ -138,14 +166,34 @@ class HomeViewController: UIViewController {
             .below(of: recentSearchTitleLabel)
             .horizontally(20)
             .height(96)
-        
+
         recentSearchContainerView.pin
             .top()
             .left()
             .height(96)
 
         recentSearchContainerView.flex.layout(mode: .adjustWidth)
-        
+
         recentSearchScrollView.contentSize = recentSearchContainerView.frame.size
+
+        hotTitleLabel.pin
+            .below(of: recentSearchScrollView)
+            .marginTop(16)
+            .horizontally(20)
+            .height(32)
+
+        hotScrollView.pin
+            .below(of: hotTitleLabel)
+            .horizontally(20)
+            .height(96)
+
+        hotContainerView.pin
+            .top()
+            .left()
+            .height(96)
+
+        hotContainerView.flex.layout(mode: .adjustWidth)
+
+        hotScrollView.contentSize = hotContainerView.frame.size
     }
 }

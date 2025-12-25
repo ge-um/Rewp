@@ -15,7 +15,8 @@ final class HotItem: UIView {
 
     private let iconImageView = UIImageView().then {
         $0.contentMode = .scaleAspectFit
-        $0.image = UIImage(named: "Fire")
+        $0.image = UIImage(named: "Fire")?.withRenderingMode(.alwaysTemplate)
+        $0.tintColor = ColorSystem.gray0
     }
 
     private lazy var titleLabel = UILabel().then {
