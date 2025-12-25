@@ -1,6 +1,7 @@
 import UIKit
 import PinLayout
 import RxSwift
+import RxCocoa
 import Then
 
 class HomeViewController: UIViewController {
@@ -9,6 +10,7 @@ class HomeViewController: UIViewController {
     private let searchBar = SearchBar()
     private let bannerCarousel = BannerCarousel()
 
+    private let viewDidLoadTrigger = PublishSubject<Void>()
     private let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
@@ -18,7 +20,7 @@ class HomeViewController: UIViewController {
         extendedLayoutIncludesOpaqueBars = true
         setupUI()
         bind()
-        presenter.viewDidLoad()
+        viewDidLoadTrigger.onNext(())
     }
 
     private func setupUI() {
@@ -27,10 +29,15 @@ class HomeViewController: UIViewController {
     }
 
     private func bind() {
-        presenter.banners
-            .withUnretained(self)
-            .subscribe(onNext: { owner, banners in
-                owner.bannerCarousel.configure(with: banners)
+        let input = HomePresenter.Input(
+            viewDidLoad: viewDidLoadTrigger.asObservable()
+        )
+
+        let output = presenter.transform(input: input)
+
+        output.banners
+            .drive(onNext: { [weak self] banners in
+                self?.bannerCarousel.configure(with: banners)
             })
             .disposed(by: disposeBag)
     }

@@ -81,7 +81,7 @@ final class BannerCarousel: UIView {
     private let bannersRelay = BehaviorRelay<[BannerItem]>(value: [])
     private let disposeBag = DisposeBag()
 
-    private lazy var collectionView: UICollectionView = {
+    lazy var collectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
         layout.scrollDirection = .horizontal
         layout.minimumLineSpacing = 0

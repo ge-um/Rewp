@@ -3,18 +3,31 @@ import RxSwift
 import RxCocoa
 
 class HomePresenter {
-    private let bannersRelay = BehaviorRelay<[BannerItem]>(value: [])
+    private let disposeBag = DisposeBag()
 
-    var banners: Observable<[BannerItem]> {
-        return bannersRelay.asObservable()
+    struct Input {
+        let viewDidLoad: Observable<Void>
     }
 
-    func viewDidLoad() {
-        loadBanners()
+    struct Output {
+        let banners: Driver<[BannerItem]>
     }
 
-    private func loadBanners() {
-        let banners = [
+    func transform(input: Input) -> Output {
+        let banners = input.viewDidLoad
+            .flatMapLatest { [weak self] _ -> Observable<[BannerItem]> in
+                guard let self = self else { return .empty() }
+                return self.fetchBanners()
+            }
+            .asDriver(onErrorJustReturn: [])
+
+        return Output(
+            banners: banners
+        )
+    }
+
+    private func fetchBanners() -> Observable<[BannerItem]> {
+        return Observable.just([
             BannerItem(
                 id: "1",
                 imageURL: nil,
@@ -36,8 +49,6 @@ class HomePresenter {
                 title: "홍대 원룸\n즉시 입주 가능",
                 description: "홍대입구역 3분"
             )
-        ]
-
-        bannersRelay.accept(banners)
+        ])
     }
 }
