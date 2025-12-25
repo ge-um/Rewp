@@ -1,5 +1,6 @@
 import UIKit
 import PinLayout
+import FlexLayout
 import RxSwift
 import RxCocoa
 import Then
@@ -14,13 +15,6 @@ class HomeViewController: UIViewController {
         $0.showsHorizontalScrollIndicator = false
     }
 
-    private let categoryStackView = UIStackView().then {
-        $0.axis = .horizontal
-        $0.spacing = 17.5
-        $0.distribution = .equalSpacing
-        $0.translatesAutoresizingMaskIntoConstraints = false
-    }
-
     private lazy var categoryButtons: [CategoryButton] = [
         CategoryButton(icon: UIImage(named: "OneRoom"), title: "원룸"),
         CategoryButton(icon: UIImage(named: "Officetel"), title: "오피스텔"),
@@ -28,6 +22,8 @@ class HomeViewController: UIViewController {
         CategoryButton(icon: UIImage(named: "Villa"), title: "빌라"),
         CategoryButton(icon: UIImage(named: "Storefront"), title: "상가")
     ]
+
+    private let recentSearchTitleLabel = SectionTitleLabel(title: "최근검색 매물")
 
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let disposeBag = DisposeBag()
@@ -46,18 +42,19 @@ class HomeViewController: UIViewController {
         view.addSubview(bannerCarousel)
         view.addSubview(searchBar)
         view.addSubview(categoryScrollView)
+        view.addSubview(recentSearchTitleLabel)
 
-        categoryScrollView.addSubview(categoryStackView)
-
-        categoryButtons.forEach { categoryStackView.addArrangedSubview($0) }
-
-        NSLayoutConstraint.activate([
-            categoryStackView.leadingAnchor.constraint(equalTo: categoryScrollView.leadingAnchor),
-            categoryStackView.trailingAnchor.constraint(equalTo: categoryScrollView.trailingAnchor),
-            categoryStackView.topAnchor.constraint(equalTo: categoryScrollView.topAnchor),
-            categoryStackView.bottomAnchor.constraint(equalTo: categoryScrollView.bottomAnchor),
-            categoryStackView.heightAnchor.constraint(equalTo: categoryScrollView.heightAnchor)
-        ])
+        categoryScrollView.flex
+            .direction(.row)
+            .alignItems(.center)
+            .define { flex in
+                categoryButtons.enumerated().forEach { index, button in
+                    flex.addItem(button)
+                        .width(56)
+                        .height(76)
+                        .marginRight(17.5)
+                }
+            }
     }
 
     private func bind() {
@@ -91,8 +88,16 @@ class HomeViewController: UIViewController {
 
         categoryScrollView.pin
             .below(of: bannerCarousel)
-            .marginTop(24)
             .horizontally(20)
             .height(116)
+
+        categoryScrollView.flex.layout(mode: .adjustWidth)
+        categoryScrollView.contentSize = categoryScrollView.flex.intrinsicSize
+
+        recentSearchTitleLabel.pin
+            .below(of: categoryScrollView)
+            .marginTop(16)
+            .horizontally(20)
+            .height(32)
     }
 }
