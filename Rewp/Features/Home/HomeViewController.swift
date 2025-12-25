@@ -51,6 +51,10 @@ class HomeViewController: UIViewController {
         HotItem(title: "따끈따끈 새 매물", price: "전세 3,000/20", status: "12명이 함께 보는 중", info: "면적 89.5m²")
     ]
 
+    private let tabBar = TabBar().then {
+        $0.selectTab(at: 0)
+    }
+
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let disposeBag = DisposeBag()
 
@@ -72,6 +76,7 @@ class HomeViewController: UIViewController {
         view.addSubview(recentSearchScrollView)
         view.addSubview(hotTitleLabel)
         view.addSubview(hotScrollView)
+        view.addSubview(tabBar)
 
         categoryScrollView.addSubview(categoryContainerView)
         categoryContainerView.flex
@@ -195,5 +200,10 @@ class HomeViewController: UIViewController {
         hotContainerView.flex.layout(mode: .adjustWidth)
 
         hotScrollView.contentSize = hotContainerView.frame.size
+
+        tabBar.pin
+            .bottom()
+            .horizontally()
+            .height(80)
     }
 }
