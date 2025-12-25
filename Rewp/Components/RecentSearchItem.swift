@@ -1,4 +1,5 @@
 import UIKit
+import FlexLayout
 import PinLayout
 import Then
 
@@ -6,10 +7,12 @@ final class RecentSearchItem: UIView {
     private let containerView = UIView().then {
         $0.backgroundColor = ColorSystem.gray0
         $0.layer.cornerRadius = 12
-        $0.layer.shadowColor = ColorSystem.gray100.cgColor
+        $0.layer.borderWidth = 1
+        $0.layer.borderColor = ColorSystem.gray30.cgColor
+        $0.layer.shadowColor = ColorSystem.shadow.cgColor
         $0.layer.shadowOpacity = 0.08
-        $0.layer.shadowOffset = CGSize(width: 0, height: 2)
-        $0.layer.shadowRadius = 8
+        $0.layer.shadowOffset = CGSize(width: 0, height: 4)
+        $0.layer.shadowRadius = 12
     }
 
     private let thumbnailImageView = UIImageView().then {
@@ -25,12 +28,13 @@ final class RecentSearchItem: UIView {
         $0.layer.cornerRadius = 4
         $0.clipsToBounds = true
         $0.textAlignment = .center
-        $0.isHidden = true
     }
 
-    private let typeLabel = UILabel().then {
-        $0.textColor = ColorSystem.gray75
+    private let categoryLabel = UILabel().then {
+        $0.textColor = ColorSystem.deepWood
     }
+
+    private var hasRecommend = false
 
     private let priceLabel = UILabel().then {
         $0.textColor = ColorSystem.gray90
@@ -40,13 +44,15 @@ final class RecentSearchItem: UIView {
         $0.textColor = ColorSystem.gray45
     }
 
-    init(recommend: String?, type: String, price: String, area: String, image: UIImage? = nil) {
+    init(recommend: String? = nil, category: String, price: String, area: String, image: UIImage? = nil) {
         super.init(frame: .zero)
-        if recommend != nil {
-            recommendBadge.typography(FontSystem.Pretendard.caption3, text: "추천")
-            recommendBadge.isHidden = false
+
+        if let recommend = recommend {
+            hasRecommend = true
+            recommendBadge.typography(FontSystem.Pretendard.caption3, text: recommend)
         }
-        typeLabel.typography(FontSystem.Pretendard.caption2, text: type)
+
+        categoryLabel.typography(FontSystem.Pretendard.caption2, text: category)
         priceLabel.typography(FontSystem.Pretendard.body3, text: price)
         areaLabel.typography(FontSystem.Pretendard.caption1, text: area)
         thumbnailImageView.image = image
@@ -59,59 +65,45 @@ final class RecentSearchItem: UIView {
 
     private func setupUI() {
         addSubview(containerView)
-        containerView.addSubview(thumbnailImageView)
-        containerView.addSubview(recommendBadge)
-        containerView.addSubview(typeLabel)
-        containerView.addSubview(priceLabel)
-        containerView.addSubview(areaLabel)
+
+        containerView.flex
+            .direction(.row)
+            .padding(12)
+            .alignItems(.center)
+            .define { flex in
+                flex.addItem(thumbnailImageView)
+                    .width(64)
+                    .height(64)
+                    .marginRight(12)
+
+                flex.addItem()
+                    .direction(.column)
+                    .justifyContent(.center)
+                    .grow(1)
+                    .define { flex in
+                        flex.addItem()
+                            .direction(.row)
+                            .marginBottom(4)
+                            .define { flex in
+                                if hasRecommend {
+                                    flex.addItem(recommendBadge)
+                                        .width(24)
+                                        .height(14)
+                                        .marginRight(4)
+                                }
+                                flex.addItem(categoryLabel)
+                            }
+
+                        flex.addItem(priceLabel).marginBottom(4)
+                        flex.addItem(areaLabel)
+                    }
+            }
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-
         containerView.pin.all()
-
-        thumbnailImageView.pin
-            .left(12)
-            .vCenter()
-            .size(68)
-
-        if !recommendBadge.isHidden {
-            recommendBadge.pin
-                .after(of: thumbnailImageView)
-                .marginLeft(12)
-                .top(thumbnailImageView.frame.minY)
-                .width(24)
-                .height(14)
-
-            typeLabel.pin
-                .after(of: recommendBadge)
-                .marginLeft(4)
-                .vCenter(to: recommendBadge.edge.vCenter)
-                .sizeToFit()
-        } else {
-            typeLabel.pin
-                .after(of: thumbnailImageView)
-                .marginLeft(12)
-                .top(thumbnailImageView.frame.minY)
-                .sizeToFit()
-        }
-
-        priceLabel.pin
-            .after(of: thumbnailImageView)
-            .marginLeft(12)
-            .below(of: recommendBadge.isHidden ? typeLabel : recommendBadge)
-            .marginTop(8)
-            .right(12)
-            .sizeToFit(.width)
-
-        areaLabel.pin
-            .after(of: thumbnailImageView)
-            .marginLeft(12)
-            .below(of: priceLabel)
-            .marginTop(8)
-            .right(12)
-            .sizeToFit(.width)
+        containerView.flex.layout()
     }
 
     override var intrinsicContentSize: CGSize {
@@ -123,9 +115,9 @@ final class RecentSearchItem: UIView {
 #Preview("추천 있음") {
     RecentSearchItem(
         recommend: "추천",
-        type: "분리형 원룸",
-        price: "월세 3,000/20",
-        area: "면적 112.4m²",
+        category: "원룸",
+        price: "전세 3,000/20",
+        area: "면적 49.5m²",
         image: nil
     )
 }
@@ -133,9 +125,8 @@ final class RecentSearchItem: UIView {
 @available(iOS 17.0, *)
 #Preview("추천 없음") {
     RecentSearchItem(
-        recommend: nil,
-        type: "분리형 원룸",
-        price: "월세 3,000/20",
+        category: "원룸",
+        price: "월세 3,000/50",
         area: "면적 112.4m²",
         image: nil
     )

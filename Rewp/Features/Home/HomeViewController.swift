@@ -15,6 +15,8 @@ class HomeViewController: UIViewController {
         $0.showsHorizontalScrollIndicator = false
     }
 
+    private let categoryContainerView = UIView()
+
     private lazy var categoryButtons: [CategoryButton] = [
         CategoryButton(icon: UIImage(named: "OneRoom"), title: "원룸"),
         CategoryButton(icon: UIImage(named: "Officetel"), title: "오피스텔"),
@@ -25,12 +27,23 @@ class HomeViewController: UIViewController {
 
     private let recentSearchTitleLabel = SectionTitleLabel(title: "최근검색 매물")
 
+    private let recentSearchScrollView = UIScrollView().then {
+        $0.showsHorizontalScrollIndicator = false
+    }
+
+    private let recentSearchContainerView = UIView()
+
+    private lazy var recentSearchItems: [RecentSearchItem] = [
+        RecentSearchItem(recommend: "추천", category: "원룸", price: "전세 3,000/20", area: "면적 112.4m²"),
+        RecentSearchItem(category: "원룸", price: "월세 3,000/50", area: "면적 49.5m²")
+    ]
+
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = ColorSystem.gray0
+        view.backgroundColor = ColorSystem.gray5
         edgesForExtendedLayout = .all
         extendedLayoutIncludesOpaqueBars = true
         setupUI()
@@ -43,16 +56,31 @@ class HomeViewController: UIViewController {
         view.addSubview(searchBar)
         view.addSubview(categoryScrollView)
         view.addSubview(recentSearchTitleLabel)
+        view.addSubview(recentSearchScrollView)
 
-        categoryScrollView.flex
+        categoryScrollView.addSubview(categoryContainerView)
+        categoryContainerView.flex
             .direction(.row)
             .alignItems(.center)
             .define { flex in
-                categoryButtons.enumerated().forEach { index, button in
+                categoryButtons.forEach { button in
                     flex.addItem(button)
                         .width(56)
                         .height(76)
                         .marginRight(17.5)
+                }
+            }
+
+        recentSearchScrollView.addSubview(recentSearchContainerView)
+        recentSearchContainerView.flex
+            .direction(.row)
+            .alignItems(.center)
+            .define { flex in
+                recentSearchItems.forEach { item in
+                    flex.addItem(item)
+                        .width(190)
+                        .height(88)
+                        .marginRight(12)
                 }
             }
     }
@@ -91,13 +119,33 @@ class HomeViewController: UIViewController {
             .horizontally(20)
             .height(116)
 
-        categoryScrollView.flex.layout(mode: .adjustWidth)
-        categoryScrollView.contentSize = categoryScrollView.flex.intrinsicSize
+        categoryContainerView.pin
+            .top()
+            .left()
+            .height(116)
+
+        categoryContainerView.flex.layout(mode: .adjustWidth)
+
+        categoryScrollView.contentSize = categoryContainerView.frame.size
 
         recentSearchTitleLabel.pin
             .below(of: categoryScrollView)
             .marginTop(16)
             .horizontally(20)
             .height(32)
+
+        recentSearchScrollView.pin
+            .below(of: recentSearchTitleLabel)
+            .horizontally(20)
+            .height(96)
+        
+        recentSearchContainerView.pin
+            .top()
+            .left()
+            .height(96)
+
+        recentSearchContainerView.flex.layout(mode: .adjustWidth)
+        
+        recentSearchScrollView.contentSize = recentSearchContainerView.frame.size
     }
 }

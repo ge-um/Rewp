@@ -9,13 +9,16 @@ enum ColorSystem {
     static let brightWood = UIColor(hex: "#8C5543")
 
     static let gray0 = UIColor(hex: "#FFFFFF")
+    static let gray5 = UIColor(hex: "#F9F9F9")
     static let gray15 = UIColor(hex: "#D9D9D9")
-    static let gray30 = UIColor(hex: "#B3B3B3")
+    static let gray30 = UIColor(hex: "#EAEAEA")
     static let gray45 = UIColor(hex: "#D8D6D7")
     static let gray60 = UIColor(hex: "#ABABAE")
     static let gray75 = UIColor(hex: "#404040")
     static let gray90 = UIColor(hex: "#1A1A1A")
     static let gray100 = UIColor(hex: "#000000")
+
+    static let shadow = UIColor(hex: "#7B7886")
 }
 
 extension UIColor {
