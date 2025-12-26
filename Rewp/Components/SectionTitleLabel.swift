@@ -23,7 +23,10 @@ final class SectionTitleLabel: UIView {
         return viewAllButton.rx.tap.asObservable()
     }
 
-    init(title: String) {
+    private let showViewAll: Bool
+
+    init(title: String, showViewAll: Bool = true) {
+        self.showViewAll = showViewAll
         super.init(frame: .zero)
         titleLabel.typography(FontSystem.Pretendard.body2, text: title)
         setupUI()
@@ -42,7 +45,9 @@ final class SectionTitleLabel: UIView {
             .alignItems(.center)
             .define { flex in
                 flex.addItem(titleLabel)
-                flex.addItem(viewAllButton)
+                if showViewAll {
+                    flex.addItem(viewAllButton)
+                }
             }
     }
 

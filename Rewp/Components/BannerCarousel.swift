@@ -8,7 +8,7 @@ final class BannerCarouselCell: UICollectionViewCell {
     private let imageView = UIImageView().then {
         $0.contentMode = .scaleAspectFill
         $0.clipsToBounds = true
-        $0.backgroundColor = ColorSystem.gray15
+        $0.backgroundColor = ColorSystem.gray45
     }
 
     private let locationBackground = UIView().then {
@@ -98,7 +98,7 @@ final class BannerCarouselCell: UICollectionViewCell {
         locationLabel.typography(FontSystem.Pretendard.caption2, text: item.location)
         titleLabel.typography(FontSystem.YeongdeokHaeparang.title1, text: item.title)
         descriptionLabel.typography(FontSystem.YeongdeokHaeparang.caption1, text: item.description)
-        imageView.backgroundColor = ColorSystem.gray15
+        imageView.backgroundColor = ColorSystem.gray45
     }
 }
 

@@ -9,7 +9,7 @@ final class HotItem: UIView {
     private let info: String
 
     private let containerView = UIView().then {
-        $0.backgroundColor = ColorSystem.gray15
+        $0.backgroundColor = ColorSystem.gray45
         $0.layer.cornerRadius = 12
     }
 

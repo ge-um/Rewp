@@ -4,7 +4,7 @@ import Then
 
 final class CategoryButton: UIView {
     private let iconContainer = UIView().then {
-        $0.backgroundColor = ColorSystem.gray15
+        $0.backgroundColor = ColorSystem.gray30
         $0.layer.cornerRadius = 16
     }
 

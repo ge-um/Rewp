@@ -4,7 +4,7 @@ import Then
 
 final class NewsAdItem: UIView {
     private let containerView = UIView().then {
-        $0.backgroundColor = ColorSystem.gray0
+        $0.backgroundColor = ColorSystem.gray15
     }
 
     private let titleLabel = UILabel().then {
@@ -38,16 +38,14 @@ final class NewsAdItem: UIView {
         containerView.pin.all()
 
         titleLabel.pin
-            .top(20)
-            .left(20)
-            .right(20)
+            .top(16.5)
+            .horizontally(20)
             .sizeToFit(.width)
 
         descriptionLabel.pin
             .below(of: titleLabel)
-            .marginTop(8)
-            .left(20)
-            .right(20)
+            .marginTop(4)
+            .horizontally(20)
             .sizeToFit(.width)
     }
 
