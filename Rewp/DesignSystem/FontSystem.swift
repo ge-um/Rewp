@@ -1,3 +1,10 @@
+//
+//  FontSystem.swift
+//  Rewp
+//
+//  Created by 금가경 on 12/25/25.
+//
+
 import UIKit
 
 struct Typography {

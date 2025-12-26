@@ -1,3 +1,10 @@
+//
+//  ListItem.swift
+//  Rewp
+//
+//  Created by 금가경 on 12/20/25.
+//
+
 import UIKit
 import PinLayout
 import Then

@@ -1,3 +1,10 @@
+//
+//  ColorSystem.swift
+//  Rewp
+//
+//  Created by 금가경 on 12/26/25.
+//
+
 import UIKit
 
 enum ColorSystem {
