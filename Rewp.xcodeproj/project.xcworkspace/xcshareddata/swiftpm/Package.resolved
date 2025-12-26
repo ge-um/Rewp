@@ -1,5 +1,5 @@
 {
-  "originHash" : "6440f6fef4ccdbd222a9abd50605d3ac09ccb6a20cc48e194722f204b802784d",
+  "originHash" : "474f301859e38d16c8e7a4f05415502ffae03abf58881f1d0285481904307eb7",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -164,15 +164,6 @@
       }
     },
     {
-      "identity" : "needle",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/uber/needle.git",
-      "state" : {
-        "branch" : "master",
-        "revision" : "2a79817bc25d162eef2362f82f0fe2b005cbd3b0"
-      }
-    },
-    {
       "identity" : "ohhttpstubs",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/AliSoftware/OHHTTPStubs.git",
@@ -224,15 +215,6 @@
       "state" : {
         "branch" : "master",
         "revision" : "c22f9303d446fc3c044e4c151ed19597464b6bd7"
-      }
-    },
-    {
-      "identity" : "ribs-ios",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/uber/RIBs-iOS.git",
-      "state" : {
-        "revision" : "53f7cb391d48c385730df6ce1fb95029bca9d25a",
-        "version" : "1.0.0"
       }
     },
     {

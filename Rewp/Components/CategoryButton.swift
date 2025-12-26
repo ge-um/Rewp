@@ -4,7 +4,7 @@ import Then
 
 final class CategoryButton: UIView {
     private let iconContainer = UIView().then {
-        $0.backgroundColor = ColorSystem.gray15
+        $0.backgroundColor = ColorSystem.gray30
         $0.layer.cornerRadius = 16
     }
 
@@ -54,7 +54,7 @@ final class CategoryButton: UIView {
     }
 
     override var intrinsicContentSize: CGSize {
-        return CGSize(width: 64, height: 88)
+        return CGSize(width: 56, height: 76)
     }
 }
 

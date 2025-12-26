@@ -18,7 +18,7 @@ final class NewsHashTagItem: UIView {
     }
 
     private let dateLabel = UILabel().then {
-        $0.font = FontSystem.Pretendard.caption1.font
+        $0.font = FontSystem.Pretendard.body2.font
         $0.textColor = ColorSystem.gray75
     }
 
@@ -47,20 +47,19 @@ final class NewsHashTagItem: UIView {
         containerView.pin.all()
 
         dateLabel.pin
-            .top(20)
+            .top(24.5)
             .right(20)
             .sizeToFit()
 
         titleLabel.pin
-            .top(20)
+            .top(12)
             .left(20)
             .before(of: dateLabel)
             .marginRight(12)
             .sizeToFit(.width)
 
         descriptionLabel.pin
-            .below(of: titleLabel)
-            .marginTop(8)
+            .bottom(12)
             .left(20)
             .right(20)
             .sizeToFit(.width)
