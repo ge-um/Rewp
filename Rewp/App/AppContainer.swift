@@ -9,7 +9,7 @@ import Foundation
 
 final class AppContainer {
     // MARK: - Shared Dependencies
-
+    
     lazy var networkService: NetworkServiceProtocol = {
         return NetworkService()
     }()
@@ -18,7 +18,15 @@ final class AppContainer {
         return UserRepositoryImpl(networkService: networkService)
     }()
 
+    lazy var logRepository: LogRepository = {
+        return LogRepositoryImpl(networkService: networkService)
+    }()
+
     // MARK: - Factory Methods
+
+    func makeLoginViewController() -> LoginViewController {
+        return LoginFactory.create(container: self)
+    }
 
     func makeHomeViewController() -> HomeViewController {
         let presenter = HomePresenter()
