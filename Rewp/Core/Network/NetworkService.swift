@@ -16,14 +16,32 @@ protocol NetworkServiceProtocol {
 final class NetworkService: NetworkServiceProtocol {
     private let provider: MoyaProvider<MultiTarget>
 
-    init(provider: MoyaProvider<MultiTarget> = MoyaProvider<MultiTarget>()) {
+    init(provider: MoyaProvider<MultiTarget> = MoyaProvider<MultiTarget>(plugins: [NetworkLoggerPlugin(configuration: .init(logOptions: .verbose))])) {
         self.provider = provider
     }
 
     func request<T: Decodable>(_ target: TargetType) -> Single<T> {
         return provider.rx
             .request(MultiTarget(target))
-            .filterSuccessfulStatusCodes()
-            .map(T.self)
+            .flatMap { response -> Single<T> in
+                if (200...299).contains(response.statusCode) {
+                    if let json = try? response.mapJSON() {}
+                    
+                    do {
+                        let data = try response.map(T.self)
+                        return .just(data)
+                    } catch {
+                        return .error(NetworkError.decodingError)
+                    }
+                } else {
+                    if let errorBody = String(data: response.data, encoding: .utf8) {}
+
+                    if let errorResponse = try? response.map(ErrorResponse.self) {
+                        return .error(NetworkError.serverError(message: errorResponse.message))
+                    } else {
+                        return .error(NetworkError.serverError(message: "알 수 없는 서버 오류가 발생했습니다."))
+                    }
+                }
+            }
     }
 }
