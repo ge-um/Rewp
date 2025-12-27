@@ -12,6 +12,7 @@ enum UserRouter {
     case validateEmail(EmailValidationRequest)
     case join(JoinRequest)
     case login(LoginRequest)
+    case appleLogin(AppleLoginRequest)
 }
 
 extension UserRouter: TargetType {
@@ -27,6 +28,8 @@ extension UserRouter: TargetType {
             return "/v1/users/join"
         case .login:
             return "/v1/users/login"
+        case .appleLogin:
+            return "/v1/users/login/apple"
         }
     }
 
@@ -41,6 +44,8 @@ extension UserRouter: TargetType {
         case .join(let request):
             return .requestJSONEncodable(request)
         case .login(let request):
+            return .requestJSONEncodable(request)
+        case .appleLogin(let request):
             return .requestJSONEncodable(request)
         }
     }

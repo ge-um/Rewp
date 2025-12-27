@@ -16,7 +16,7 @@ protocol NetworkServiceProtocol {
 final class NetworkService: NetworkServiceProtocol {
     private let provider: MoyaProvider<MultiTarget>
 
-    init(provider: MoyaProvider<MultiTarget> = MoyaProvider<MultiTarget>(plugins: [NetworkLoggerPlugin(configuration: .init(logOptions: .verbose))])) {
+    init(provider: MoyaProvider<MultiTarget> = MoyaProvider<MultiTarget>()) {
         self.provider = provider
     }
 

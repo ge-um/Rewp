@@ -12,6 +12,7 @@ protocol UserRepository {
     func validateEmail(_ email: String) -> Single<EmailValidationResponse>
     func join(_ request: JoinRequest) -> Single<JoinResponse>
     func login(email: String, password: String) -> Single<LoginResponse>
+    func appleLogin(idToken: String, deviceToken: String) -> Single<AppleLoginResponse>
 }
 
 final class UserRepositoryImpl: UserRepository {
@@ -31,11 +32,20 @@ final class UserRepositoryImpl: UserRepository {
     }
 
     func login(email: String, password: String) -> Single<LoginResponse> {
+        let deviceToken = "temp-device-token"
         let request = LoginRequest(
             email: email,
             password: password,
-            deviceToken: "temp-device-token"
+            deviceToken: deviceToken
         )
         return networkService.request(UserRouter.login(request))
+    }
+
+    func appleLogin(idToken: String, deviceToken: String) -> Single<AppleLoginResponse> {
+        let request = AppleLoginRequest(
+            idToken: idToken,
+            deviceToken: deviceToken
+        )
+        return networkService.request(UserRouter.appleLogin(request))
     }
 }
