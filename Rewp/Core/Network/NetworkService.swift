@@ -25,8 +25,6 @@ final class NetworkService: NetworkServiceProtocol {
             .request(MultiTarget(target))
             .flatMap { response -> Single<T> in
                 if (200...299).contains(response.statusCode) {
-                    if let json = try? response.mapJSON() {}
-                    
                     do {
                         let data = try response.map(T.self)
                         return .just(data)
@@ -34,8 +32,6 @@ final class NetworkService: NetworkServiceProtocol {
                         return .error(NetworkError.decodingError)
                     }
                 } else {
-                    if let errorBody = String(data: response.data, encoding: .utf8) {}
-
                     if let errorResponse = try? response.map(ErrorResponse.self) {
                         return .error(NetworkError.serverError(message: errorResponse.message))
                     } else {
