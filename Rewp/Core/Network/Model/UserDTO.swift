@@ -61,6 +61,20 @@ struct AppleLoginResponse: Codable {
     let refreshToken: String
 }
 
+struct KakaoLoginRequest: Codable {
+    let oauthToken: String
+    let deviceToken: String
+}
+
+struct KakaoLoginResponse: Codable {
+    let user_id: String
+    let email: String
+    let nick: String
+    let profileImage: String?
+    let accessToken: String
+    let refreshToken: String
+}
+
 struct ErrorResponse: Codable {
     let message: String
 }

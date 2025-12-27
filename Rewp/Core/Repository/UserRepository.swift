@@ -13,6 +13,7 @@ protocol UserRepository {
     func join(_ request: JoinRequest) -> Single<JoinResponse>
     func login(email: String, password: String) -> Single<LoginResponse>
     func appleLogin(idToken: String, deviceToken: String) -> Single<AppleLoginResponse>
+    func kakaoLogin(oauthToken: String, deviceToken: String) -> Single<KakaoLoginResponse>
 }
 
 final class UserRepositoryImpl: UserRepository {
@@ -47,5 +48,13 @@ final class UserRepositoryImpl: UserRepository {
             deviceToken: deviceToken
         )
         return networkService.request(UserRouter.appleLogin(request))
+    }
+
+    func kakaoLogin(oauthToken: String, deviceToken: String) -> Single<KakaoLoginResponse> {
+        let request = KakaoLoginRequest(
+            oauthToken: oauthToken,
+            deviceToken: deviceToken
+        )
+        return networkService.request(UserRouter.kakaoLogin(request))
     }
 }
