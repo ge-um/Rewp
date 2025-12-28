@@ -46,14 +46,14 @@ final class LoginViewController: UIViewController {
     }
 
     private let kakaoLoginButton = UIButton().then {
-        $0.backgroundColor = UIColor(red: 254/255, green: 229/255, blue: 0/255, alpha: 1.0)
+        $0.backgroundColor = ColorSystem.kakaoYellow
         $0.layer.cornerRadius = 12
 
         var config = UIButton.Configuration.plain()
         config.imagePadding = 12
         config.contentInsets = NSDirectionalEdgeInsets(top: 16, leading: 20, bottom: 16, trailing: 20)
 
-        let iconConfig = UIImage.SymbolConfiguration(pointSize: 16, weight: .medium)
+        let iconConfig = UIImage.SymbolConfiguration(pointSize: 13, weight: .medium)
         let icon = UIImage(systemName: "message.fill", withConfiguration: iconConfig)
         config.image = icon
         config.imagePlacement = .leading
@@ -109,7 +109,7 @@ final class LoginViewController: UIViewController {
     }
 
     private let passwordToggleButton = UIButton().then {
-        let iconConfig = UIImage.SymbolConfiguration(pointSize: 20, weight: .regular)
+        let iconConfig = UIImage.SymbolConfiguration(pointSize: 14, weight: .regular)
         let icon = UIImage(systemName: "eye.slash.fill", withConfiguration: iconConfig)
         $0.setImage(icon, for: .normal)
         $0.tintColor = ColorSystem.gray60
@@ -286,7 +286,7 @@ final class LoginViewController: UIViewController {
             .drive(with: self) { owner, isVisible in
                 owner.passwordTextField.isSecureTextEntry = !isVisible
                 let iconName = isVisible ? "eye.fill" : "eye.slash.fill"
-                let iconConfig = UIImage.SymbolConfiguration(pointSize: 20, weight: .regular)
+                let iconConfig = UIImage.SymbolConfiguration(pointSize: 14, weight: .regular)
                 let icon = UIImage(systemName: iconName, withConfiguration: iconConfig)
                 owner.passwordToggleButton.setImage(icon, for: .normal)
             }
