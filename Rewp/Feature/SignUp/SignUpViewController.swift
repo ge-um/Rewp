@@ -17,11 +17,6 @@ final class SignUpViewController: UIViewController {
 
     private var customNavigationBar: CustomNavigationBar!
 
-    private let scrollView = UIScrollView().then {
-        $0.keyboardDismissMode = .onDrag
-        $0.showsVerticalScrollIndicator = false
-    }
-
     private let contentView = UIView()
 
     private let titleLabel = UILabel().then {
@@ -29,91 +24,25 @@ final class SignUpViewController: UIViewController {
         $0.textColor = ColorSystem.gray90
     }
 
-    private let emailTextField = UITextField().then {
-        $0.typography(FontSystem.Pretendard.body2, placeholder: "이메일")
-        $0.textColor = ColorSystem.gray90
-        $0.backgroundColor = ColorSystem.gray0
-        $0.layer.cornerRadius = 8
-        $0.layer.borderWidth = 1
-        $0.layer.borderColor = ColorSystem.gray45.cgColor
-        $0.keyboardType = .emailAddress
-        $0.autocapitalizationType = .none
-        $0.autocorrectionType = .no
-        $0.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 48))
-        $0.leftViewMode = .always
-        $0.rightView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 48))
-        $0.rightViewMode = .always
-    }
+    private let emailTextField = FormTextField(
+        placeholder: "이메일",
+        keyboardType: .emailAddress
+    )
 
-    private let emailValidationLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption1, text: "")
-        $0.textColor = .systemGreen
-        $0.isHidden = true
-    }
+    private let emailErrorLabel = ValidationLabel()
 
-    private let passwordContainer = UIView()
+    private let passwordTextField = PasswordTextField()
 
-    private let passwordTextField = UITextField().then {
-        $0.typography(FontSystem.Pretendard.body2, placeholder: "비밀번호")
-        $0.textColor = ColorSystem.gray90
-        $0.backgroundColor = ColorSystem.gray0
-        $0.layer.cornerRadius = 8
-        $0.layer.borderWidth = 1
-        $0.layer.borderColor = ColorSystem.gray45.cgColor
-        $0.isSecureTextEntry = true
-        $0.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 48))
-        $0.leftViewMode = .always
-        $0.rightView = UIView(frame: CGRect(x: 0, y: 0, width: 44, height: 48))
-        $0.rightViewMode = .always
-    }
+    private let passwordErrorLabel = ValidationLabel()
 
-    private let passwordToggleButton = UIButton().then {
-        let iconConfig = UIImage.SymbolConfiguration(pointSize: 14, weight: .regular)
-        let icon = UIImage(systemName: "eye.slash.fill", withConfiguration: iconConfig)
-        $0.setImage(icon, for: .normal)
-        $0.tintColor = ColorSystem.gray60
-    }
+    private let nicknameTextField = FormTextField(placeholder: "닉네임")
 
-    private let passwordErrorLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption1, text: "")
-        $0.textColor = .systemRed
-        $0.isHidden = true
-    }
+    private let nicknameErrorLabel = ValidationLabel()
 
-    private let nicknameTextField = UITextField().then {
-        $0.typography(FontSystem.Pretendard.body2, placeholder: "닉네임")
-        $0.textColor = ColorSystem.gray90
-        $0.backgroundColor = ColorSystem.gray0
-        $0.layer.cornerRadius = 8
-        $0.layer.borderWidth = 1
-        $0.layer.borderColor = ColorSystem.gray45.cgColor
-        $0.autocapitalizationType = .none
-        $0.autocorrectionType = .no
-        $0.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 48))
-        $0.leftViewMode = .always
-        $0.rightView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 48))
-        $0.rightViewMode = .always
-    }
-
-    private let nicknameErrorLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption1, text: "")
-        $0.textColor = .systemRed
-        $0.isHidden = true
-    }
-
-    private let phoneTextField = UITextField().then {
-        $0.typography(FontSystem.Pretendard.body2, placeholder: "전화번호 (선택)")
-        $0.textColor = ColorSystem.gray90
-        $0.backgroundColor = ColorSystem.gray0
-        $0.layer.cornerRadius = 8
-        $0.layer.borderWidth = 1
-        $0.layer.borderColor = ColorSystem.gray45.cgColor
-        $0.keyboardType = .numberPad
-        $0.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 48))
-        $0.leftViewMode = .always
-        $0.rightView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 48))
-        $0.rightViewMode = .always
-    }
+    private let phoneTextField = FormTextField(
+        placeholder: "전화번호 (선택)",
+        keyboardType: .numberPad
+    )
 
     private let introductionTextView = PlaceholderTextView().then {
         $0.placeholder = "소개 (선택)"
@@ -154,12 +83,8 @@ final class SignUpViewController: UIViewController {
     }
 
     private func setupUI() {
-        view.addSubview(scrollView)
-        scrollView.addSubview(contentView)
+        view.addSubview(contentView)
         view.addSubview(activityIndicator)
-
-        passwordContainer.addSubview(passwordTextField)
-        passwordContainer.addSubview(passwordToggleButton)
 
         contentView.flex
             .direction(.column)
@@ -171,26 +96,23 @@ final class SignUpViewController: UIViewController {
 
                 flex.addItem(emailTextField)
                     .height(48)
-                    .marginBottom(4)
-
-                flex.addItem(emailValidationLabel)
-                    .height(16)
                     .marginBottom(12)
 
-                flex.addItem(passwordContainer)
+                flex.addItem(emailErrorLabel)
+                    .marginBottom(12)
+
+                flex.addItem(passwordTextField)
                     .height(48)
-                    .marginBottom(4)
+                    .marginBottom(12)
 
                 flex.addItem(passwordErrorLabel)
-                    .height(16)
                     .marginBottom(12)
 
                 flex.addItem(nicknameTextField)
                     .height(48)
-                    .marginBottom(4)
+                    .marginBottom(12)
 
                 flex.addItem(nicknameErrorLabel)
-                    .height(16)
                     .marginBottom(12)
 
                 flex.addItem(phoneTextField)
@@ -217,16 +139,25 @@ final class SignUpViewController: UIViewController {
     }
 
     private func bind() {
+        phoneTextField.rx.text.orEmpty
+            .withUnretained(self)
+            .map { owner, text in
+                owner.formatPhoneNumber(text)
+            }
+            .bind(to: phoneTextField.rx.text)
+            .disposed(by: disposeBag)
+
         let input = SignUpPresenter.Input(
             emailText: emailTextField.rx.text.orEmpty.asObservable(),
-            passwordText: passwordTextField.rx.text.orEmpty.asObservable(),
+            passwordText: passwordTextField.text.orEmpty.asObservable(),
             nicknameText: nicknameTextField.rx.text.orEmpty.asObservable(),
             phoneText: phoneTextField.rx.text.orEmpty.asObservable(),
             introductionText: introductionTextView.rx.text.orEmpty.asObservable(),
             signUpButtonTapped: signUpButton.rx.tap.asObservable(),
-            emailEditingDidEnd: emailTextField.rx.controlEvent(.editingDidEnd).asObservable(),
-            passwordEditingDidBegin: passwordTextField.rx.controlEvent(.editingDidBegin).asObservable(),
-            nicknameEditingDidBegin: nicknameTextField.rx.controlEvent(.editingDidBegin).asObservable()
+            emailEditingDidBegin: emailTextField.rx.controlEvent(.editingDidBegin).asObservable(),
+            passwordEditingDidBegin: passwordTextField.editingDidBegin.asObservable(),
+            nicknameEditingDidBegin: nicknameTextField.rx.controlEvent(.editingDidBegin).asObservable(),
+            passwordToggleTapped: passwordTextField.toggleTapped
         )
 
         let output = presenter.transform(input: input)
@@ -242,10 +173,10 @@ final class SignUpViewController: UIViewController {
             .disposed(by: disposeBag)
 
         output.signUpSuccess
-            .drive(with: self) { owner, _ in
+            .drive(with: self) { owner, result in
                 let alert = UIAlertController(
                     title: "회원가입 완료",
-                    message: "회원가입이 완료되었습니다!",
+                    message: "\(result.nickname)님, 환영합니다!",
                     preferredStyle: .alert
                 )
                 alert.addAction(UIAlertAction(title: "확인", style: .default) { _ in
@@ -260,6 +191,71 @@ final class SignUpViewController: UIViewController {
                 owner.showError(errorMessage)
             }
             .disposed(by: disposeBag)
+
+        let emailMessage = Driver.combineLatest(
+            output.emailValidationError,
+            output.emailCheckState
+        )
+        .map { validationError, checkState -> (message: String?, type: ValidationLabel.ValidationType, hasError: Bool) in
+            if let validationError = validationError {
+                return (validationError, .error, true)
+            }
+
+            switch checkState {
+            case .none:
+                return (nil, .error, false)
+            case .available:
+                return ("사용 가능한 이메일입니다", .success, false)
+            case .unavailable:
+                return ("이미 사용 중인 이메일입니다", .error, true)
+            }
+        }
+
+        emailMessage
+            .drive(with: self) { owner, result in
+                if let message = result.message {
+                    owner.emailErrorLabel.show(message, type: result.type)
+                    owner.emailTextField.setError(result.hasError)
+                } else {
+                    owner.emailErrorLabel.hide()
+                    owner.emailTextField.setError(false)
+                }
+                owner.contentView.flex.layout()
+            }
+            .disposed(by: disposeBag)
+
+        output.passwordValidationError
+            .drive(with: self) { owner, errorMessage in
+                if let errorMessage = errorMessage {
+                    owner.passwordErrorLabel.show(errorMessage, type: .error)
+                    owner.passwordTextField.setError(true)
+                } else {
+                    owner.passwordErrorLabel.hide()
+                    owner.passwordTextField.setError(false)
+                }
+                owner.contentView.flex.layout()
+            }
+            .disposed(by: disposeBag)
+
+        output.nicknameValidationError
+            .drive(with: self) { owner, errorMessage in
+                if let errorMessage = errorMessage {
+                    owner.nicknameErrorLabel.show(errorMessage, type: .error)
+                    owner.nicknameTextField.setError(true)
+                } else {
+                    owner.nicknameErrorLabel.hide()
+                    owner.nicknameTextField.setError(false)
+                }
+                owner.contentView.flex.layout()
+            }
+            .disposed(by: disposeBag)
+
+        output.isSignUpButtonEnabled
+            .drive(with: self) { owner, isEnabled in
+                owner.signUpButton.isEnabled = isEnabled
+                owner.signUpButton.backgroundColor = isEnabled ? ColorSystem.deepCoast : ColorSystem.gray45
+            }
+            .disposed(by: disposeBag)
     }
 
     private func showError(_ message: String) {
@@ -272,6 +268,26 @@ final class SignUpViewController: UIViewController {
         present(alert, animated: true)
     }
 
+    private func formatPhoneNumber(_ text: String) -> String {
+        let digits = text.filter { $0.isNumber }
+        let maxLength = min(digits.count, 11)
+        let limitedDigits = String(digits.prefix(maxLength))
+
+        if limitedDigits.count >= 11 {
+            let index3 = limitedDigits.index(limitedDigits.startIndex, offsetBy: 3)
+            let index7 = limitedDigits.index(limitedDigits.startIndex, offsetBy: 7)
+            return "\(limitedDigits[..<index3])-\(limitedDigits[index3..<index7])-\(limitedDigits[index7...])"
+        } else if limitedDigits.count >= 7 {
+            let index3 = limitedDigits.index(limitedDigits.startIndex, offsetBy: 3)
+            let index7 = limitedDigits.index(limitedDigits.startIndex, offsetBy: 7)
+            return "\(limitedDigits[..<index3])-\(limitedDigits[index3..<index7])-\(limitedDigits[index7...])"
+        } else if limitedDigits.count >= 3 {
+            let index3 = limitedDigits.index(limitedDigits.startIndex, offsetBy: 3)
+            return "\(limitedDigits[..<index3])-\(limitedDigits[index3...])"
+        }
+        return limitedDigits
+    }
+
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
 
@@ -280,27 +296,12 @@ final class SignUpViewController: UIViewController {
             .horizontally()
             .height(56)
 
-        scrollView.pin
+        contentView.pin
             .below(of: customNavigationBar)
-            .left()
-            .right()
+            .horizontally()
             .bottom(view.pin.safeArea.bottom)
 
-        contentView.pin
-            .top()
-            .horizontally()
-
-        contentView.flex.layout(mode: .adjustHeight)
-
-        scrollView.contentSize = contentView.frame.size
-
-        passwordTextField.pin
-            .all()
-
-        passwordToggleButton.pin
-            .right(12)
-            .vCenter()
-            .size(24)
+        contentView.flex.layout()
 
         activityIndicator.pin
             .center()

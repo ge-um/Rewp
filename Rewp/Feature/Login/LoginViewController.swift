@@ -17,11 +17,6 @@ final class LoginViewController: UIViewController {
     var presenter: LoginPresenter!
     var container: AppContainer!
 
-    private let scrollView = UIScrollView().then {
-        $0.keyboardDismissMode = .onDrag
-        $0.showsVerticalScrollIndicator = false
-    }
-
     private let contentView = UIView()
 
     private let titleLabel = UILabel().then {
@@ -77,56 +72,16 @@ final class LoginViewController: UIViewController {
 
     private let emailFieldsContainer = UIView()
 
-    private let emailTextField = UITextField().then {
-        $0.typography(FontSystem.Pretendard.body2, placeholder: "이메일")
-        $0.textColor = ColorSystem.gray90
-        $0.backgroundColor = ColorSystem.gray0
-        $0.layer.cornerRadius = 8
-        $0.layer.borderWidth = 1
-        $0.layer.borderColor = ColorSystem.gray45.cgColor
-        $0.keyboardType = .emailAddress
-        $0.autocapitalizationType = .none
-        $0.autocorrectionType = .no
-        $0.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 48))
-        $0.leftViewMode = .always
-        $0.rightView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 48))
-        $0.rightViewMode = .always
-    }
+    private let emailTextField = FormTextField(
+        placeholder: "이메일",
+        keyboardType: .emailAddress
+    )
 
-    private let emailErrorLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption3, text: "")
-        $0.textColor = .systemRed
-        $0.isHidden = true
-    }
+    private let emailErrorLabel = ValidationLabel()
 
-    private let passwordContainer = UIView()
+    private let passwordTextField = PasswordTextField()
 
-    private let passwordTextField = UITextField().then {
-        $0.typography(FontSystem.Pretendard.body2, placeholder: "비밀번호")
-        $0.textColor = ColorSystem.gray90
-        $0.backgroundColor = ColorSystem.gray0
-        $0.layer.cornerRadius = 8
-        $0.layer.borderWidth = 1
-        $0.layer.borderColor = ColorSystem.gray45.cgColor
-        $0.isSecureTextEntry = true
-        $0.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 48))
-        $0.leftViewMode = .always
-        $0.rightView = UIView(frame: CGRect(x: 0, y: 0, width: 44, height: 48))
-        $0.rightViewMode = .always
-    }
-
-    private let passwordToggleButton = UIButton().then {
-        let iconConfig = UIImage.SymbolConfiguration(pointSize: 14, weight: .regular)
-        let icon = UIImage(systemName: "eye.slash.fill", withConfiguration: iconConfig)
-        $0.setImage(icon, for: .normal)
-        $0.tintColor = ColorSystem.gray60
-    }
-
-    private let passwordErrorLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption3, text: "")
-        $0.textColor = .systemRed
-        $0.isHidden = true
-    }
+    private let passwordErrorLabel = ValidationLabel()
 
     private let emailLoginButton = UIButton().then {
         $0.backgroundColor = ColorSystem.gray45
@@ -174,12 +129,8 @@ final class LoginViewController: UIViewController {
     }
 
     private func setupUI() {
-        view.addSubview(scrollView)
-        scrollView.addSubview(contentView)
+        view.addSubview(contentView)
         view.addSubview(activityIndicator)
-
-        passwordContainer.addSubview(passwordTextField)
-        passwordContainer.addSubview(passwordToggleButton)
 
         contentView.flex
             .direction(.column)
@@ -194,19 +145,17 @@ final class LoginViewController: UIViewController {
                     .define { flex in
                         flex.addItem(emailTextField)
                             .height(48)
-                            .marginBottom(4)
+                            .marginBottom(12)
 
                         flex.addItem(emailErrorLabel)
-                            .height(16)
-                            .marginBottom(8)
+                            .marginBottom(12)
 
-                        flex.addItem(passwordContainer)
+                        flex.addItem(passwordTextField)
                             .height(48)
-                            .marginBottom(4)
+                            .marginBottom(12)
 
                         flex.addItem(passwordErrorLabel)
-                            .height(16)
-                            .marginBottom(8)
+                            .marginBottom(12)
 
                         flex.addItem(emailLoginButton)
                             .height(56)
@@ -241,11 +190,11 @@ final class LoginViewController: UIViewController {
             appleLoginTapped: appleLoginButton.rx.tap.asObservable(),
             kakaoLoginTapped: kakaoLoginButton.rx.tap.asObservable(),
             emailText: emailTextField.rx.text.orEmpty.asObservable(),
-            passwordText: passwordTextField.rx.text.orEmpty.asObservable(),
+            passwordText: passwordTextField.text.orEmpty.asObservable(),
             emailLoginButtonTapped: emailLoginButton.rx.tap.asObservable(),
-            passwordToggleTapped: passwordToggleButton.rx.tap.asObservable(),
+            passwordToggleTapped: passwordTextField.toggleTapped,
             emailEditingDidBegin: emailTextField.rx.controlEvent(.editingDidBegin).asObservable(),
-            passwordEditingDidBegin: passwordTextField.rx.controlEvent(.editingDidBegin).asObservable()
+            passwordEditingDidBegin: passwordTextField.editingDidBegin.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -275,12 +224,11 @@ final class LoginViewController: UIViewController {
         output.emailValidationError
             .drive(with: self) { owner, errorMessage in
                 if let errorMessage = errorMessage {
-                    owner.emailErrorLabel.typography(FontSystem.Pretendard.caption1, text: errorMessage)
-                    owner.emailErrorLabel.isHidden = false
-                    owner.emailTextField.layer.borderColor = UIColor.systemRed.cgColor
+                    owner.emailErrorLabel.show(errorMessage, type: .error)
+                    owner.emailTextField.setError(true)
                 } else {
-                    owner.emailErrorLabel.isHidden = true
-                    owner.emailTextField.layer.borderColor = ColorSystem.gray45.cgColor
+                    owner.emailErrorLabel.hide()
+                    owner.emailTextField.setError(false)
                 }
             }
             .disposed(by: disposeBag)
@@ -288,12 +236,11 @@ final class LoginViewController: UIViewController {
         output.passwordValidationError
             .drive(with: self) { owner, errorMessage in
                 if let errorMessage = errorMessage {
-                    owner.passwordErrorLabel.typography(FontSystem.Pretendard.caption1, text: errorMessage)
-                    owner.passwordErrorLabel.isHidden = false
-                    owner.passwordTextField.layer.borderColor = UIColor.systemRed.cgColor
+                    owner.passwordErrorLabel.show(errorMessage, type: .error)
+                    owner.passwordTextField.setError(true)
                 } else {
-                    owner.passwordErrorLabel.isHidden = true
-                    owner.passwordTextField.layer.borderColor = ColorSystem.gray45.cgColor
+                    owner.passwordErrorLabel.hide()
+                    owner.passwordTextField.setError(false)
                 }
             }
             .disposed(by: disposeBag)
@@ -302,16 +249,6 @@ final class LoginViewController: UIViewController {
             .drive(with: self) { owner, isEnabled in
                 owner.emailLoginButton.isEnabled = isEnabled
                 owner.emailLoginButton.backgroundColor = isEnabled ? ColorSystem.deepCoast : ColorSystem.gray45
-            }
-            .disposed(by: disposeBag)
-
-        output.isPasswordVisible
-            .drive(with: self) { owner, isVisible in
-                owner.passwordTextField.isSecureTextEntry = !isVisible
-                let iconName = isVisible ? "eye.fill" : "eye.slash.fill"
-                let iconConfig = UIImage.SymbolConfiguration(pointSize: 14, weight: .regular)
-                let icon = UIImage(systemName: iconName, withConfiguration: iconConfig)
-                owner.passwordToggleButton.setImage(icon, for: .normal)
             }
             .disposed(by: disposeBag)
 
@@ -342,24 +279,10 @@ final class LoginViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
 
-        scrollView.pin
+        contentView.pin
             .all(view.pin.safeArea)
 
-        contentView.pin
-            .top()
-            .horizontally()
-
-        contentView.flex.layout(mode: .adjustHeight)
-
-        scrollView.contentSize = contentView.frame.size
-
-        passwordTextField.pin
-            .all()
-
-        passwordToggleButton.pin
-            .right(12)
-            .vCenter()
-            .size(24)
+        contentView.flex.layout()
 
         activityIndicator.pin
             .center()
