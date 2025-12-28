@@ -1,3 +1,10 @@
+//
+//  LoginViewController.swift
+//  Rewp
+//
+//  Created by 금가경 on 12/28/25.
+//
+
 import UIKit
 import RxSwift
 import RxCocoa
@@ -139,6 +146,18 @@ final class LoginViewController: UIViewController {
         $0.configuration = config
     }
 
+    private let signUpButton = UIButton().then {
+        var config = UIButton.Configuration.plain()
+
+        var titleAttr = AttributedString("계정이 없으신가요?")
+        titleAttr.font = FontSystem.Pretendard.caption1.font
+        titleAttr.foregroundColor = ColorSystem.gray60
+        config.attributedTitle = titleAttr
+
+        config.baseForegroundColor = ColorSystem.gray60
+        $0.configuration = config
+    }
+
     private let activityIndicator = UIActivityIndicatorView(style: .large).then {
         $0.hidesWhenStopped = true
     }
@@ -200,6 +219,10 @@ final class LoginViewController: UIViewController {
 
                 flex.addItem(appleLoginButton)
                     .height(56)
+                    .marginBottom(12)
+
+                flex.addItem(signUpButton)
+                    .height(32)
             }
     }
 
@@ -290,6 +313,14 @@ final class LoginViewController: UIViewController {
                 let icon = UIImage(systemName: iconName, withConfiguration: iconConfig)
                 owner.passwordToggleButton.setImage(icon, for: .normal)
             }
+            .disposed(by: disposeBag)
+
+        signUpButton.rx.tap
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                let signUpVC = owner.container.makeSignUpViewController()
+                owner.navigationController?.pushViewController(signUpVC, animated: true)
+            })
             .disposed(by: disposeBag)
     }
 

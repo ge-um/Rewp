@@ -28,6 +28,10 @@ final class AppContainer {
         return LoginFactory.create(container: self)
     }
 
+    func makeSignUpViewController() -> SignUpViewController {
+        return SignUpFactory.create(container: self)
+    }
+
     func makeHomeViewController() -> HomeViewController {
         let presenter = HomePresenter()
         let viewController = HomeViewController()
