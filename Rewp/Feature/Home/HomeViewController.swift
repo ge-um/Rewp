@@ -16,7 +16,7 @@ import RxMoya
 
 class HomeViewController: UIViewController {
     var presenter: HomePresenter!
-    var userRepository: UserRepository!
+    var container: AppContainer!
 
     private let scrollView = UIScrollView().then {
         $0.showsVerticalScrollIndicator = false
@@ -189,7 +189,8 @@ class HomeViewController: UIViewController {
 
     private func bind() {
         let input = HomePresenter.Input(
-            viewDidLoad: viewDidLoadTrigger.asObservable()
+            viewDidLoad: viewDidLoadTrigger.asObservable(),
+            tabSelected: tabBar.selectedIndexRelay.skip(1).asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -198,6 +199,16 @@ class HomeViewController: UIViewController {
             .drive(onNext: { [weak self] banners in
                 self?.bannerCarousel.configure(with: banners)
             })
+            .disposed(by: disposeBag)
+
+        output.navigateToSettings
+            .drive(with: self) { owner, _ in
+                let settingsVC = owner.container.makeSettingsViewController()
+                let nav = UINavigationController(rootViewController: settingsVC)
+                nav.navigationBar.isHidden = true
+                owner.view.window?.rootViewController = nav
+                owner.view.window?.makeKeyAndVisible()
+            }
             .disposed(by: disposeBag)
     }
 

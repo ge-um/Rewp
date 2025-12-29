@@ -14,22 +14,30 @@ class HomePresenter {
 
     struct Input {
         let viewDidLoad: Observable<Void>
+        let tabSelected: Observable<Int>
     }
 
     struct Output {
         let banners: Driver<[BannerItem]>
+        let navigateToSettings: Driver<Void>
     }
 
     func transform(input: Input) -> Output {
         let banners = input.viewDidLoad
-            .flatMapLatest { [weak self] _ -> Observable<[BannerItem]> in
-                guard let self = self else { return .empty() }
-                return self.fetchBanners()
+            .withUnretained(self)
+            .flatMapLatest { owner, _ in
+                return owner.fetchBanners()
             }
             .asDriver(onErrorJustReturn: [])
 
+        let navigateToSettings = input.tabSelected
+            .filter { $0 == 2 }
+            .map { _ in () }
+            .asDriver(onErrorDriveWith: .empty())
+
         return Output(
-            banners: banners
+            banners: banners,
+            navigateToSettings: navigateToSettings
         )
     }
 

@@ -8,11 +8,12 @@
 import UIKit
 
 class HomeFactory {
-    static func create() -> HomeViewController {
+    static func create(container: AppContainer) -> HomeViewController {
         let presenter = HomePresenter()
         let viewController = HomeViewController()
 
         viewController.presenter = presenter
+        viewController.container = container
 
         return viewController
     }
