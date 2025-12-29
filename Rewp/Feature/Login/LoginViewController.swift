@@ -230,6 +230,7 @@ final class LoginViewController: UIViewController {
                     owner.emailErrorLabel.hide()
                     owner.emailTextField.setError(false)
                 }
+                owner.contentView.flex.layout()
             }
             .disposed(by: disposeBag)
 
@@ -242,6 +243,7 @@ final class LoginViewController: UIViewController {
                     owner.passwordErrorLabel.hide()
                     owner.passwordTextField.setError(false)
                 }
+                owner.contentView.flex.layout()
             }
             .disposed(by: disposeBag)
 

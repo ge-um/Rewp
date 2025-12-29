@@ -16,11 +16,13 @@ final class LoginPresenter: NSObject {
     weak var presentationContextProvider: ASAuthorizationControllerPresentationContextProviding?
 
     private let userRepository: UserRepository
+    private let container: AppContainer
     private let disposeBag = DisposeBag()
     private let appleIdTokenSubject = PublishSubject<String>()
 
-    init(userRepository: UserRepository) {
+    init(userRepository: UserRepository, container: AppContainer) {
         self.userRepository = userRepository
+        self.container = container
         super.init()
     }
 
@@ -92,9 +94,12 @@ final class LoginPresenter: NSObject {
             .withUnretained(self)
             .subscribe(onNext: { owner, response in
                 loadingRelay.accept(false)
+
                 do {
-                    try KeychainManager.shared.saveAccessToken(response.accessToken)
-                    try KeychainManager.shared.saveRefreshToken(response.refreshToken)
+                    try owner.container.authService.login(
+                        accessToken: response.accessToken,
+                        refreshToken: response.refreshToken
+                    )
                     successRelay.accept((nickname: response.nick, email: response.email))
                 } catch {
                     errorRelay.accept("토큰 저장에 실패했습니다.")
@@ -122,9 +127,12 @@ final class LoginPresenter: NSObject {
             .withUnretained(self)
             .subscribe(onNext: { owner, response in
                 loadingRelay.accept(false)
+
                 do {
-                    try KeychainManager.shared.saveAccessToken(response.accessToken)
-                    try KeychainManager.shared.saveRefreshToken(response.refreshToken)
+                    try owner.container.authService.login(
+                        accessToken: response.accessToken,
+                        refreshToken: response.refreshToken
+                    )
                     successRelay.accept((nickname: response.nick, email: response.email))
                 } catch {
                     errorRelay.accept("토큰 저장에 실패했습니다.")
@@ -196,9 +204,12 @@ final class LoginPresenter: NSObject {
             .withUnretained(self)
             .subscribe(onNext: { owner, response in
                 loadingRelay.accept(false)
+
                 do {
-                    try KeychainManager.shared.saveAccessToken(response.accessToken)
-                    try KeychainManager.shared.saveRefreshToken(response.refreshToken)
+                    try owner.container.authService.login(
+                        accessToken: response.accessToken,
+                        refreshToken: response.refreshToken
+                    )
                     successRelay.accept((nickname: response.nick, email: response.email))
                 } catch {
                     errorRelay.accept("토큰 저장에 실패했습니다.")

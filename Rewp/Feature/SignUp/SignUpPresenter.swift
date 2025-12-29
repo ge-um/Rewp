@@ -11,10 +11,12 @@ import RxCocoa
 
 final class SignUpPresenter {
     private let userRepository: UserRepository
+    private let container: AppContainer
     private let disposeBag = DisposeBag()
 
-    init(userRepository: UserRepository) {
+    init(userRepository: UserRepository, container: AppContainer) {
         self.userRepository = userRepository
+        self.container = container
     }
 
     struct Input {
@@ -259,8 +261,10 @@ final class SignUpPresenter {
         errorRelay: PublishRelay<String>
     ) {
         do {
-            try KeychainManager.shared.saveAccessToken(response.accessToken)
-            try KeychainManager.shared.saveRefreshToken(response.refreshToken)
+            try container.authService.login(
+                accessToken: response.accessToken,
+                refreshToken: response.refreshToken
+            )
             successRelay.accept((nickname: response.nick, email: response.email))
         } catch {
             errorRelay.accept("토큰 저장에 실패했습니다.")

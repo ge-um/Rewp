@@ -9,7 +9,7 @@ import UIKit
 
 final class LoginFactory {
     static func create(container: AppContainer) -> LoginViewController {
-        let presenter = LoginPresenter(userRepository: container.userRepository)
+        let presenter = LoginPresenter(userRepository: container.userRepository, container: container)
         let viewController = LoginViewController()
 
         viewController.presenter = presenter

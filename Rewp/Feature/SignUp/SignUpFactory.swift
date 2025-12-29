@@ -9,7 +9,7 @@ import Foundation
 
 final class SignUpFactory {
     static func create(container: AppContainer) -> SignUpViewController {
-        let presenter = SignUpPresenter(userRepository: container.userRepository)
+        let presenter = SignUpPresenter(userRepository: container.userRepository, container: container)
         let viewController = SignUpViewController()
 
         viewController.presenter = presenter
