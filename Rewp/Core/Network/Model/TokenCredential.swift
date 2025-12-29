@@ -8,7 +8,7 @@
 import Foundation
 import Alamofire
 
-struct TokenCredential: AuthenticationCredential, @unchecked Sendable {
+struct TokenCredential: AuthenticationCredential {
     let accessToken: String
     let refreshToken: String
     let expiration: Date
