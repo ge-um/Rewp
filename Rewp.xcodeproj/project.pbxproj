@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		031C4B912F0387290012F65D /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 031C4B902F0387290012F65D /* Kingfisher */; };
 		038BCC4B2EF4F98100803F55 /* RealmSwift in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7D202EF153D500BDF529 /* RealmSwift */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		03AF7B312EF1290200BDF529 /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 03AF7B302EF1290200BDF529 /* .gitignore */; };
 		03AF7B3D2EF13BCC00BDF529 /* FlexLayout in Frameworks */ = {isa = PBXBuildFile; productRef = 03AF7B3C2EF13BCC00BDF529 /* FlexLayout */; };
@@ -74,6 +75,7 @@
 				03AF7E932EF154A300BDF529 /* FirebaseCrashlytics in Frameworks */,
 				03AF7D122EF14F7D00BDF529 /* RxMoya in Frameworks */,
 				03AF7D1E2EF1537700BDF529 /* RxKakaoSDK in Frameworks */,
+				031C4B912F0387290012F65D /* Kingfisher in Frameworks */,
 				03AF7E912EF154A300BDF529 /* FirebaseAnalytics in Frameworks */,
 				03AF7B3D2EF13BCC00BDF529 /* FlexLayout in Frameworks */,
 			);
@@ -130,6 +132,7 @@
 				03AF7E902EF154A300BDF529 /* FirebaseAnalytics */,
 				03AF7E922EF154A300BDF529 /* FirebaseCrashlytics */,
 				03AF7E942EF154A300BDF529 /* FirebaseMessaging */,
+				031C4B902F0387290012F65D /* Kingfisher */,
 			);
 			productName = Rewp;
 			productReference = 03AF7B182EF128FA00BDF529 /* Rewp.app */;
@@ -168,6 +171,7 @@
 				03AF7D1C2EF1537700BDF529 /* XCRemoteSwiftPackageReference "kakao-ios-sdk-rx" */,
 				03AF7D1F2EF153D500BDF529 /* XCRemoteSwiftPackageReference "realm-swift" */,
 				03AF7E8F2EF154A300BDF529 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				031C4B8F2F0387290012F65D /* XCRemoteSwiftPackageReference "Kingfisher" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 03AF7B192EF128FA00BDF529 /* Products */;
@@ -416,6 +420,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		031C4B8F2F0387290012F65D /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.6.2;
+			};
+		};
 		03AF7B3B2EF13BCC00BDF529 /* XCRemoteSwiftPackageReference "FlexLayout" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/layoutBox/FlexLayout";
@@ -483,6 +495,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		031C4B902F0387290012F65D /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 031C4B8F2F0387290012F65D /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
 		03AF7B3C2EF13BCC00BDF529 /* FlexLayout */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 03AF7B3B2EF13BCC00BDF529 /* XCRemoteSwiftPackageReference "FlexLayout" */;
