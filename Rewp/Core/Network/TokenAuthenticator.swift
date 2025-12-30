@@ -1,5 +1,5 @@
 //
-//  RewpAuthenticator.swift
+//  TokenAuthenticator.swift
 //  Rewp
 //
 //  Created by 금가경 on 12/29/25.
@@ -8,7 +8,7 @@
 import Foundation
 import Alamofire
 
-final class RewpAuthenticator: Authenticator {
+final class TokenAuthenticator: Authenticator {
     private let onRefreshSuccess: @Sendable (TokenCredential) -> Void
     private let onRefreshFailure: @Sendable () -> Void
 

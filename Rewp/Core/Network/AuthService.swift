@@ -33,7 +33,7 @@ final class AuthService: AuthServiceProtocol {
 
         let credential = Self.loadCredential(from: keychainManager)
 
-        let authenticator = RewpAuthenticator(
+        let authenticator = TokenAuthenticator(
             onRefreshSuccess: { credential in
                 try? keychainManager.saveAccessToken(credential.accessToken)
                 try? keychainManager.saveRefreshToken(credential.refreshToken)
