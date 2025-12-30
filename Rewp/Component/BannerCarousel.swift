@@ -114,29 +114,9 @@ final class BannerCarouselCell: UICollectionViewCell {
         titleLabel.typography(FontSystem.YeongdeokHaeparang.title1, text: item.title)
         descriptionLabel.typography(FontSystem.YeongdeokHaeparang.caption1, text: item.description)
 
-        if let imageURLString = item.imageURL,
-           let imageURL = URL(string: imageURLString) {
-            let accessToken = try? KeychainManager.shared.loadAccessToken()
+        imageView.setImage(from: item.imageURL)
 
-            imageView.kf.setImage(
-                with: .network(KF.ImageResource(downloadURL: imageURL, cacheKey: imageURL.absoluteString)),
-                placeholder: nil,
-                options: [
-                    .transition(.fade(0.2)),
-                    .cacheMemoryOnly,
-                    .backgroundDecode,
-                    .requestModifier(AnyModifier { request in
-                        var r = request
-                        r.setValue(NetworkConfig.rewpKey, forHTTPHeaderField: "SesacKey")
-                        if let token = accessToken {
-                            r.setValue(token, forHTTPHeaderField: "Authorization")
-                        }
-                        return r
-                    })
-                ]
-            )
-        } else {
-            imageView.image = nil
+        if item.imageURL == nil {
             imageView.backgroundColor = ColorSystem.gray45
         }
     }
