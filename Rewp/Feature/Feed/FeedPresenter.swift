@@ -1,5 +1,5 @@
 //
-//  HomePresenter.swift
+//  FeedPresenter.swift
 //  Rewp
 //
 //  Created by 금가경 on 12/25/25.
@@ -9,7 +9,7 @@ import Foundation
 import RxSwift
 import RxCocoa
 
-class HomePresenter {
+class FeedPresenter {
     private let disposeBag = DisposeBag()
 
     struct Input {

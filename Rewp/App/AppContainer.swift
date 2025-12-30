@@ -36,8 +36,8 @@ final class AppContainer {
         return SignUpFactory.create(container: self)
     }
 
-    func makeHomeViewController() -> HomeViewController {
-        return HomeFactory.create(container: self)
+    func makeFeedViewController() -> FeedViewController {
+        return FeedFactory.create(container: self)
     }
 
     func makeSettingsViewController() -> SettingsViewController {

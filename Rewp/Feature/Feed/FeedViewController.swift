@@ -1,5 +1,5 @@
 //
-//  HomeViewController.swift
+//  FeedViewController.swift
 //  Rewp
 //
 //  Created by 금가경 on 12/26/25.
@@ -14,8 +14,8 @@ import Then
 import Moya
 import RxMoya
 
-class HomeViewController: UIViewController {
-    var presenter: HomePresenter!
+class FeedViewController: UIViewController {
+    var presenter: FeedPresenter!
     var container: AppContainer!
 
     private let scrollView = UIScrollView().then {
@@ -188,7 +188,7 @@ class HomeViewController: UIViewController {
     }
 
     private func bind() {
-        let input = HomePresenter.Input(
+        let input = FeedPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
             tabSelected: tabBar.selectedIndexRelay.skip(1).asObservable()
         )
