@@ -10,14 +10,24 @@ import PinLayout
 import Then
 
 final class HotItem: UIView {
+    private let imageURL: String?
     private let title: String
     private let price: String
-    private let status: String
     private let info: String
 
     private let containerView = UIView().then {
         $0.backgroundColor = ColorSystem.gray45
         $0.layer.cornerRadius = 12
+        $0.clipsToBounds = true
+    }
+
+    private let imageView = UIImageView().then {
+        $0.contentMode = .scaleAspectFill
+        $0.clipsToBounds = true
+    }
+
+    private let overlayView = UIView().then {
+        $0.backgroundColor = UIColor.black.withAlphaComponent(0.4)
     }
 
     private let iconImageView = UIImageView().then {
@@ -38,16 +48,6 @@ final class HotItem: UIView {
         $0.textAlignment = .right
     }
 
-    private lazy var statusLabel = PaddingLabel().then {
-        $0.textColor = ColorSystem.gray0
-        $0.typography(FontSystem.Pretendard.caption3, text: status)
-        $0.backgroundColor = ColorSystem.gray60
-        $0.layer.cornerRadius = 4
-        $0.clipsToBounds = true
-        $0.padding = UIEdgeInsets(top: 2, left: 4, bottom: 2, right: 4)
-        $0.textAlignment = .center
-    }
-
     private lazy var infoLabel = UILabel().then {
         $0.textColor = ColorSystem.gray0
         $0.typography(FontSystem.Pretendard.caption2, text: info)
@@ -55,13 +55,14 @@ final class HotItem: UIView {
 
     }
 
-    init(title: String, price: String, status: String, info: String) {
+    init(imageURL: String? = nil, title: String, price: String, info: String) {
+        self.imageURL = imageURL
         self.title = title
         self.price = price
-        self.status = status
         self.info = info
         super.init(frame: .zero)
         setupUI()
+        loadImage()
     }
 
     required init?(coder: NSCoder) {
@@ -70,17 +71,25 @@ final class HotItem: UIView {
 
     private func setupUI() {
         addSubview(containerView)
+        containerView.addSubview(imageView)
+        containerView.addSubview(overlayView)
         containerView.addSubview(iconImageView)
         containerView.addSubview(titleLabel)
         containerView.addSubview(priceLabel)
-        containerView.addSubview(statusLabel)
         containerView.addSubview(infoLabel)
+    }
+
+    private func loadImage() {
+        imageView.setImage(from: imageURL)
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
 
         containerView.pin.all()
+
+        imageView.pin.all()
+        overlayView.pin.all()
 
         iconImageView.pin
             .left(10)
@@ -98,15 +107,10 @@ final class HotItem: UIView {
             .right(10)
             .sizeToFit(.widthFlexible)
 
-        statusLabel.pin
-            .left(10)
+        infoLabel.pin
             .below(of: priceLabel)
             .marginTop(4)
-            .sizeToFit(.widthFlexible)
-
-        infoLabel.pin
             .right(10)
-            .top(statusLabel.frame.minY + (statusLabel.frame.height - infoLabel.frame.height) / 2)
             .sizeToFit(.widthFlexible)
     }
 
@@ -160,9 +164,9 @@ final class PaddingLabel: UILabel {
 @available(iOS 17.0, *)
 #Preview {
     HotItem(
+        imageURL: nil,
         title: "고즈넉 매물, 여기가 천국",
         price: "월세 3,000/20",
-        status: "34명이 함께 보는 중",
         info: "문래동 112.4m²"
     )
 }

@@ -10,6 +10,7 @@ import RxSwift
 
 protocol EstateRepository {
     func fetchTodayEstates() -> Single<[EstateDTO]>
+    func fetchHotEstates() -> Single<[EstateDTO]>
 }
 
 final class EstateRepositoryImpl: EstateRepository {
@@ -21,6 +22,13 @@ final class EstateRepositoryImpl: EstateRepository {
 
     func fetchTodayEstates() -> Single<[EstateDTO]> {
         return authService.authenticatedRequest(EstateRouter.todayEstates)
+            .map { (response: TodayEstatesResponse) in
+                return response.data
+            }
+    }
+
+    func fetchHotEstates() -> Single<[EstateDTO]> {
+        return authService.authenticatedRequest(EstateRouter.hotEstates)
             .map { (response: TodayEstatesResponse) in
                 return response.data
             }

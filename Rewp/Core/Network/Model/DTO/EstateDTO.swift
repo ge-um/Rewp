@@ -46,4 +46,26 @@ extension EstateDTO {
             description: introduction
         )
     }
+
+    func toHotEstateItem() -> HotEstateItem {
+        let depositInManwon = deposit / 10000
+        let rentInManwon = monthly_rent / 10000
+
+        let priceText: String
+        if monthly_rent == 0 {
+            priceText = "전세 \(depositInManwon.formatted())만"
+        } else {
+            priceText = "월세 \(depositInManwon.formatted())/\(rentInManwon.formatted())"
+        }
+
+        let infoText = "면적 \(area)m²"
+
+        return HotEstateItem(
+            id: estate_id,
+            imageURL: thumbnails.first.map { "\(NetworkConfig.baseURL)\($0)" },
+            title: title,
+            price: priceText,
+            info: infoText
+        )
+    }
 }

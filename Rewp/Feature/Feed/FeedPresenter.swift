@@ -24,6 +24,7 @@ class FeedPresenter {
 
     struct Output {
         let banners: Driver<[BannerItem]>
+        let hotEstates: Driver<[HotEstateItem]>
         let navigateToSettings: Driver<Void>
     }
 
@@ -35,6 +36,13 @@ class FeedPresenter {
             }
             .asDriver(onErrorJustReturn: [])
 
+        let hotEstates = input.viewDidLoad
+            .withUnretained(self)
+            .flatMapLatest { owner, _ in
+                return owner.fetchHotEstates()
+            }
+            .asDriver(onErrorJustReturn: [])
+
         let navigateToSettings = input.tabSelected
             .filter { $0 == 2 }
             .map { _ in () }
@@ -42,6 +50,7 @@ class FeedPresenter {
 
         return Output(
             banners: banners,
+            hotEstates: hotEstates,
             navigateToSettings: navigateToSettings
         )
     }
@@ -51,6 +60,14 @@ class FeedPresenter {
             .asObservable()
             .map { estates in
                 estates.map { $0.toBannerItem() }
+            }
+    }
+
+    private func fetchHotEstates() -> Observable<[HotEstateItem]> {
+        return estateRepository.fetchHotEstates()
+            .asObservable()
+            .map { estates in
+                estates.map { $0.toHotEstateItem() }
             }
     }
 }

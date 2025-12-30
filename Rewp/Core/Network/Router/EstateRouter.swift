@@ -10,6 +10,7 @@ import Moya
 
 enum EstateRouter {
     case todayEstates
+    case hotEstates
 }
 
 extension EstateRouter: TargetType {
@@ -21,6 +22,8 @@ extension EstateRouter: TargetType {
         switch self {
         case .todayEstates:
             return "/estates/today-estates"
+        case .hotEstates:
+            return "/estates/hot-estates"
         }
     }
 

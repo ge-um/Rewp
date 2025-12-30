@@ -63,10 +63,7 @@ class FeedViewController: UIViewController {
 
     private let hotContainerView = UIView()
 
-    private lazy var hotItems: [HotItem] = [
-        HotItem(title: "고즈넉 매물, 여기가 천국", price: "월세 7,000/50", status: "34명이 함께 보는 중", info: "면적 152.4m²"),
-        HotItem(title: "따끈따끈 새 매물", price: "전세 3,000/20", status: "12명이 함께 보는 중", info: "면적 89.5m²")
-    ]
+    private var hotItems: [HotItem] = []
 
     private let newsTitleLabel = SectionTitleLabel(title: "오늘의 부동산 TOPIC", showViewAll: false)
 
@@ -155,17 +152,6 @@ class FeedViewController: UIViewController {
                 }
             }
         hotScrollView.addSubview(hotContainerView)
-        hotContainerView.flex
-            .direction(.row)
-            .alignItems(.center)
-            .define { flex in
-                hotItems.forEach { item in
-                    flex.addItem(item)
-                        .width(240)
-                        .height(88)
-                        .marginRight(12)
-                }
-            }
 
         newsContainerView.flex
             .direction(.column)
@@ -199,6 +185,33 @@ class FeedViewController: UIViewController {
         output.banners
             .drive(with: self) { owner, banners in
                 owner.bannerCarousel.configure(with: banners)
+            }
+            .disposed(by: disposeBag)
+
+        output.hotEstates
+            .drive(with: self) { owner, hotEstates in
+                owner.hotContainerView.subviews.forEach { $0.removeFromSuperview() }
+                owner.hotItems = hotEstates.map { item in
+                    HotItem(
+                        imageURL: item.imageURL,
+                        title: item.title,
+                        price: item.price,
+                        info: item.info
+                    )
+                }
+                owner.hotContainerView.flex
+                    .direction(.row)
+                    .alignItems(.center)
+                    .define { flex in
+                        owner.hotItems.forEach { item in
+                            flex.addItem(item)
+                                .width(240)
+                                .height(88)
+                                .marginRight(12)
+                        }
+                    }
+                owner.view.setNeedsLayout()
+                owner.view.layoutIfNeeded()
             }
             .disposed(by: disposeBag)
 
