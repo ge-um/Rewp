@@ -11,8 +11,6 @@ import FlexLayout
 import RxSwift
 import RxCocoa
 import Then
-import Moya
-import RxMoya
 
 class FeedViewController: UIViewController {
     var presenter: FeedPresenter!

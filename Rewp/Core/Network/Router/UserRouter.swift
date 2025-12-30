@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Moya
+import Alamofire
 
 enum UserRouter {
     case validateEmail(EmailValidationRequest)
@@ -17,7 +17,7 @@ enum UserRouter {
     case logout
 }
 
-extension UserRouter: TargetType {
+extension UserRouter: APIRouter {
     var baseURL: URL {
         return URL(string: NetworkConfig.baseURL)!
     }
@@ -39,31 +39,31 @@ extension UserRouter: TargetType {
         }
     }
 
-    var method: Moya.Method {
+    var method: HTTPMethod {
         return .post
     }
 
-    var task: Task {
-        switch self {
-        case .validateEmail(let request):
-            return .requestJSONEncodable(request)
-        case .join(let request):
-            return .requestJSONEncodable(request)
-        case .login(let request):
-            return .requestJSONEncodable(request)
-        case .appleLogin(let request):
-            return .requestJSONEncodable(request)
-        case .kakaoLogin(let request):
-            return .requestJSONEncodable(request)
-        case .logout:
-            return .requestPlain
-        }
-    }
-
-    var headers: [String: String]? {
+    var headers: HTTPHeaders? {
         return [
             "Content-Type": "application/json",
             "SesacKey": NetworkConfig.rewpKey
         ]
+    }
+
+    var body: Encodable? {
+        switch self {
+        case .validateEmail(let request):
+            return request
+        case .join(let request):
+            return request
+        case .login(let request):
+            return request
+        case .appleLogin(let request):
+            return request
+        case .kakaoLogin(let request):
+            return request
+        case .logout:
+            return nil
+        }
     }
 }

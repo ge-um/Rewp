@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Moya
+import Alamofire
 
 enum EstateRouter {
     case todayEstates
@@ -14,7 +14,7 @@ enum EstateRouter {
     case todayTopic
 }
 
-extension EstateRouter: TargetType {
+extension EstateRouter: APIRouter {
     var baseURL: URL {
         return URL(string: NetworkConfig.baseURL)!
     }
@@ -30,15 +30,11 @@ extension EstateRouter: TargetType {
         }
     }
 
-    var method: Moya.Method {
+    var method: HTTPMethod {
         return .get
     }
 
-    var task: Task {
-        return .requestPlain
-    }
-
-    var headers: [String: String]? {
+    var headers: HTTPHeaders? {
         return [
             "Content-Type": "application/json",
             "SesacKey": NetworkConfig.rewpKey

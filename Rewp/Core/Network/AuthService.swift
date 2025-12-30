@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import Moya
 import RxSwift
 import Alamofire
 
@@ -18,14 +17,14 @@ protocol AuthServiceProtocol {
     func login(accessToken: String, refreshToken: String) throws
     func logout() -> Single<Void>
     func isAuthenticated() -> Bool
-    func authenticatedRequest<T: Decodable>(_ target: TargetType) -> Single<T>
-    func authenticatedRequestEmpty(_ target: TargetType) -> Single<Void>
+    func authenticatedRequest<T: Decodable>(_ router: APIRouter) -> Single<T>
+    func authenticatedRequestEmpty(_ router: APIRouter) -> Single<Void>
 }
 
 final class AuthService: AuthServiceProtocol {
     private let networkService: NetworkServiceProtocol
     private let keychainManager: KeychainManager
-    private let authenticatedProvider: MoyaProvider<MultiTarget>
+    private let session: Session
 
     init(networkService: NetworkServiceProtocol, keychainManager: KeychainManager = .shared) {
         self.networkService = networkService
@@ -52,8 +51,7 @@ final class AuthService: AuthServiceProtocol {
             credential: credential
         )
 
-        let session = Session(interceptor: interceptor)
-        self.authenticatedProvider = MoyaProvider<MultiTarget>(session: session)
+        self.session = Session(interceptor: interceptor)
     }
 
     func login(accessToken: String, refreshToken: String) throws {
@@ -80,59 +78,81 @@ final class AuthService: AuthServiceProtocol {
         return Self.loadCredential(from: keychainManager) != nil
     }
 
-    func authenticatedRequest<T: Decodable>(_ target: TargetType) -> Single<T> {
+    func authenticatedRequest<T: Decodable>(_ router: APIRouter) -> Single<T> {
         guard Self.loadCredential(from: keychainManager) != nil else {
             return .error(AuthError.notAuthenticated)
         }
 
-        return authenticatedProvider.rx.request(MultiTarget(target))
-            .flatMap { response -> Single<T> in
-                if (200...299).contains(response.statusCode) {
-                    do {
-                        let data = try response.map(T.self)
-                        return .just(data)
-                    } catch {
-                        return .error(NetworkError.decodingError)
-                    }
-                } else {
-                    if let errorResponse = try? response.map(ErrorResponse.self) {
-                        return .error(NetworkError.serverError(message: errorResponse.message))
+        return Single.create { observer in
+            let dataRequest = self.session.request(router)
+                .responseDecodable(of: T.self) { response in
+                    if let statusCode = response.response?.statusCode {
+                        if (200...299).contains(statusCode) {
+                            switch response.result {
+                            case .success(let value):
+                                observer(.success(value))
+                            case .failure:
+                                observer(.failure(NetworkError.decodingError))
+                            }
+                        } else {
+                            if let data = response.data,
+                               let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                                observer(.failure(NetworkError.serverError(message: errorResponse.message)))
+                            } else {
+                                observer(.failure(NetworkError.serverError(message: "알 수 없는 서버 오류가 발생했습니다.")))
+                            }
+                        }
                     } else {
-                        return .error(NetworkError.serverError(message: "알 수 없는 서버 오류가 발생했습니다."))
+                        observer(.failure(NetworkError.serverError(message: "서버 응답을 받지 못했습니다.")))
                     }
                 }
+
+            return Disposables.create {
+                dataRequest.cancel()
             }
-            .catch { [weak self] error in
-                if case AuthError.notAuthenticated = error {
-                    self?.clearAuthState()
-                }
-                return .error(error)
+        }
+        .catch { [weak self] error in
+            if case AuthError.notAuthenticated = error {
+                self?.clearAuthState()
             }
+            return .error(error)
+        }
     }
 
-    func authenticatedRequestEmpty(_ target: TargetType) -> Single<Void> {
+    func authenticatedRequestEmpty(_ router: APIRouter) -> Single<Void> {
         guard Self.loadCredential(from: keychainManager) != nil else {
             return .error(AuthError.notAuthenticated)
         }
 
-        return authenticatedProvider.rx.request(MultiTarget(target))
-            .flatMap { response -> Single<Void> in
-                if (200...299).contains(response.statusCode) {
-                    return .just(())
-                } else {
-                    if let errorResponse = try? response.map(ErrorResponse.self) {
-                        return .error(NetworkError.serverError(message: errorResponse.message))
+        return Single.create { observer in
+            let dataRequest = self.session.request(router)
+                .response { response in
+                    if let statusCode = response.response?.statusCode {
+                        if (200...299).contains(statusCode) {
+                            observer(.success(()))
+                        } else {
+                            if let data = response.data,
+                               let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                                observer(.failure(NetworkError.serverError(message: errorResponse.message)))
+                            } else {
+                                observer(.failure(NetworkError.serverError(message: "알 수 없는 서버 오류가 발생했습니다.")))
+                            }
+                        }
                     } else {
-                        return .error(NetworkError.serverError(message: "알 수 없는 서버 오류가 발생했습니다."))
+                        observer(.failure(NetworkError.serverError(message: "서버 응답을 받지 못했습니다.")))
                     }
                 }
+
+            return Disposables.create {
+                dataRequest.cancel()
             }
-            .catch { [weak self] error in
-                if case AuthError.notAuthenticated = error {
-                    self?.clearAuthState()
-                }
-                return .error(error)
+        }
+        .catch { [weak self] error in
+            if case AuthError.notAuthenticated = error {
+                self?.clearAuthState()
             }
+            return .error(error)
+        }
     }
 
     private static func loadCredential(from keychainManager: KeychainManager) -> TokenCredential? {

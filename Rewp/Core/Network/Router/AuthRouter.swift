@@ -6,13 +6,13 @@
 //
 
 import Foundation
-import Moya
+import Alamofire
 
 enum AuthRouter {
     case refreshToken
 }
 
-extension AuthRouter: TargetType {
+extension AuthRouter: APIRouter {
     var baseURL: URL {
         return URL(string: NetworkConfig.baseURL)!
     }
@@ -24,16 +24,12 @@ extension AuthRouter: TargetType {
         }
     }
 
-    var method: Moya.Method {
+    var method: HTTPMethod {
         return .get
     }
 
-    var task: Task {
-        return .requestPlain
-    }
-
-    var headers: [String: String]? {
-        var headers = [
+    var headers: HTTPHeaders? {
+        var headers: HTTPHeaders = [
             "Content-Type": "application/json",
             "SesacKey": NetworkConfig.rewpKey
         ]

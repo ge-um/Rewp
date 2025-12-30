@@ -36,8 +36,7 @@ final class TokenAuthenticator: Authenticator {
         _ urlRequest: URLRequest,
         authenticatedWith credential: TokenCredential
     ) -> Bool {
-        let bearerToken = "Bearer \(credential.accessToken)"
-        return urlRequest.headers["Authorization"] == bearerToken
+        return urlRequest.headers["Authorization"] == credential.accessToken
     }
 
     func refresh(
@@ -45,7 +44,7 @@ final class TokenAuthenticator: Authenticator {
         for session: Session,
         completion: @escaping (Result<TokenCredential, Error>) -> Void
     ) {
-        let url = "\(NetworkConfig.baseURL)/v1/auth/refresh"
+        let url = "\(NetworkConfig.baseURL)/auth/refresh"
         let headers: HTTPHeaders = [
             "Content-Type": "application/json",
             "SesacKey": NetworkConfig.rewpKey,
