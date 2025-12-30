@@ -6,19 +6,53 @@
 //
 
 import UIKit
+import KakaoSDKAuth
+import KakaoSDKCommon
+import RxSwift
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     var window: UIWindow?
-
+    let container = AppContainer()
+    let disposeBag = DisposeBag()
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = (scene as? UIWindowScene) else { return }
 
+        KakaoSDK.initSDK(appKey: NetworkConfig.kakaoKey)
+
         let window = UIWindow(windowScene: windowScene)
         self.window = window
 
-        let homeViewController = HomeFactory.create()
+        NotificationCenter.default.rx
+            .notification(.authenticationFailed)
+            .observe(on: MainScheduler.instance)
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                owner.showLoginScreen()
+            })
+            .disposed(by: disposeBag)
+
+        if container.authService.isAuthenticated() {
+            showHomeScreen()
+        } else {
+            showLoginScreen()
+        }
+    }
+
+    private func showLoginScreen() {
+        guard let window = window else { return }
+        let loginViewController = container.makeLoginViewController()
+        let navigationController = UINavigationController(rootViewController: loginViewController)
+        navigationController.navigationBar.isHidden = true
+
+        window.rootViewController = navigationController
+        window.makeKeyAndVisible()
+    }
+
+    private func showHomeScreen() {
+        guard let window = window else { return }
+        let homeViewController = container.makeHomeViewController()
         let navigationController = UINavigationController(rootViewController: homeViewController)
         navigationController.navigationBar.isHidden = true
 
@@ -54,6 +88,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // to restore the scene back to its current state.
     }
 
-
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        if let url = URLContexts.first?.url {
+            if AuthApi.isKakaoTalkLoginUrl(url) {
+                _ = AuthController.handleOpenUrl(url: url)
+            }
+        }
+    }
 }
 

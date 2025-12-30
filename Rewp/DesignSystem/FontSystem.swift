@@ -1,3 +1,10 @@
+//
+//  FontSystem.swift
+//  Rewp
+//
+//  Created by 금가경 on 12/25/25.
+//
+
 import UIKit
 
 struct Typography {
@@ -126,7 +133,7 @@ extension String {
 }
 
 extension UITextField {
-    func typography(_ typography: Typography, placeholder: String? = nil) {
+    func typography(_ typography: Typography, placeholder: String? = nil, placeholderColor: UIColor = ColorSystem.gray45) {
         self.font = typography.font
         self.defaultTextAttributes = [
             .font: typography.font,
@@ -134,7 +141,19 @@ extension UITextField {
         ]
 
         if let placeholder = placeholder ?? self.placeholder {
-            self.attributedPlaceholder = placeholder.typography(typography)
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.minimumLineHeight = typography.lineHeight
+            paragraphStyle.maximumLineHeight = typography.lineHeight
+
+            self.attributedPlaceholder = NSAttributedString(
+                string: placeholder,
+                attributes: [
+                    .font: typography.font,
+                    .kern: typography.kerning,
+                    .foregroundColor: placeholderColor,
+                    .paragraphStyle: paragraphStyle
+                ]
+            )
         }
     }
 }

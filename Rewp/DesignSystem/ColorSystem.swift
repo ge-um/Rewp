@@ -1,3 +1,10 @@
+//
+//  ColorSystem.swift
+//  Rewp
+//
+//  Created by 금가경 on 12/26/25.
+//
+
 import UIKit
 
 enum ColorSystem {
@@ -16,8 +23,10 @@ enum ColorSystem {
     static let gray75 = UIColor(hex: "#6A6A6E")
     static let gray90 = UIColor(hex: "#434347")
     static let gray100 = UIColor(hex: "#000000")
-
+    
     static let shadow = UIColor(hex: "#7B7886")
+    
+    static let kakaoYellow = UIColor(hex: "#FEE500")
 }
 
 extension UIColor {
