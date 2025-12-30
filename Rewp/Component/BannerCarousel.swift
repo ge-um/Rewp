@@ -10,6 +10,7 @@ import PinLayout
 import Then
 import RxSwift
 import RxCocoa
+import Kingfisher
 
 final class BannerCarouselCell: UICollectionViewCell {
     private let imageView = UIImageView().then {
@@ -100,12 +101,44 @@ final class BannerCarouselCell: UICollectionViewCell {
             .vCenter(to: locationIcon.edge.vCenter)
             .sizeToFit(.widthFlexible)
     }
-    
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        imageView.kf.cancelDownloadTask()
+        imageView.image = nil
+        imageView.backgroundColor = ColorSystem.gray45
+    }
+
     func configure(with item: BannerItem) {
         locationLabel.typography(FontSystem.Pretendard.caption2, text: item.location)
         titleLabel.typography(FontSystem.YeongdeokHaeparang.title1, text: item.title)
         descriptionLabel.typography(FontSystem.YeongdeokHaeparang.caption1, text: item.description)
-        imageView.backgroundColor = ColorSystem.gray45
+
+        if let imageURLString = item.imageURL,
+           let imageURL = URL(string: imageURLString) {
+            let accessToken = try? KeychainManager.shared.loadAccessToken()
+
+            imageView.kf.setImage(
+                with: .network(KF.ImageResource(downloadURL: imageURL, cacheKey: imageURL.absoluteString)),
+                placeholder: nil,
+                options: [
+                    .transition(.fade(0.2)),
+                    .cacheMemoryOnly,
+                    .backgroundDecode,
+                    .requestModifier(AnyModifier { request in
+                        var r = request
+                        r.setValue(NetworkConfig.rewpKey, forHTTPHeaderField: "SesacKey")
+                        if let token = accessToken {
+                            r.setValue(token, forHTTPHeaderField: "Authorization")
+                        }
+                        return r
+                    })
+                ]
+            )
+        } else {
+            imageView.image = nil
+            imageView.backgroundColor = ColorSystem.gray45
+        }
     }
 }
 
@@ -190,10 +223,11 @@ final class BannerCarousel: UIView {
 
     func configure(with banners: [BannerItem]) {
         bannersRelay.accept(banners)
+        collectionView.reloadData()
     }
 
     override var intrinsicContentSize: CGSize {
-        return CGSize(width: UIView.noIntrinsicMetric, height: 200)
+        return CGSize(width: UIView.noIntrinsicMetric, height: 335)
     }
 }
 

@@ -26,6 +26,10 @@ final class AppContainer {
         LogRepositoryImpl(networkService: networkService)
     }()
 
+    lazy var estateRepository: EstateRepository = {
+        EstateRepositoryImpl(authService: authService)
+    }()
+
     // MARK: - Factory Methods
 
     func makeLoginViewController() -> LoginViewController {

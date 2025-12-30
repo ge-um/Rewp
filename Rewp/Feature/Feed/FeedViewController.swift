@@ -196,9 +196,9 @@ class FeedViewController: UIViewController {
         let output = presenter.transform(input: input)
 
         output.banners
-            .drive(onNext: { [weak self] banners in
-                self?.bannerCarousel.configure(with: banners)
-            })
+            .drive(with: self) { owner, banners in
+                owner.bannerCarousel.configure(with: banners)
+            }
             .disposed(by: disposeBag)
 
         output.navigateToSettings
