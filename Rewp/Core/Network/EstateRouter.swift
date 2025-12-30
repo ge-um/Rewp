@@ -20,7 +20,7 @@ extension EstateRouter: TargetType {
     var path: String {
         switch self {
         case .todayEstates:
-            return "/v1/estates/today-estates"
+            return "/estates/today-estates"
         }
     }
 

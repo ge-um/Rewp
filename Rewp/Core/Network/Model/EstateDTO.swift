@@ -40,7 +40,7 @@ extension EstateDTO {
     func toBannerItem() -> BannerItem {
         return BannerItem(
             id: estate_id,
-            imageURL: thumbnails.first.map { "\(NetworkConfig.baseURL)/v1\($0)" },
+            imageURL: thumbnails.first.map { "\(NetworkConfig.baseURL)\($0)" },
             location: category,
             title: title,
             description: introduction

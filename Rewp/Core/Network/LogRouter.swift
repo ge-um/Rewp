@@ -18,7 +18,7 @@ extension LogRouter: TargetType {
     }
 
     var path: String {
-        return "/v1/log"
+        return "/log"
     }
 
     var method: Moya.Method {

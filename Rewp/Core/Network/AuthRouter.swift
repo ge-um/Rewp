@@ -20,7 +20,7 @@ extension AuthRouter: TargetType {
     var path: String {
         switch self {
         case .refreshToken:
-            return "/v1/auth/refresh"
+            return "/auth/refresh"
         }
     }
 

@@ -25,17 +25,17 @@ extension UserRouter: TargetType {
     var path: String {
         switch self {
         case .validateEmail:
-            return "/v1/users/validation/email"
+            return "/users/validation/email"
         case .join:
-            return "/v1/users/join"
+            return "/users/join"
         case .login:
-            return "/v1/users/login"
+            return "/users/login"
         case .appleLogin:
-            return "/v1/users/login/apple"
+            return "/users/login/apple"
         case .kakaoLogin:
-            return "/v1/users/login/kakao"
+            return "/users/login/kakao"
         case .logout:
-            return "/v1/users/logout"
+            return "/users/logout"
         }
     }
 
