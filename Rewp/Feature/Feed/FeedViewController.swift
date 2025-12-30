@@ -20,6 +20,7 @@ class FeedViewController: UIViewController {
 
     private let scrollView = UIScrollView().then {
         $0.showsVerticalScrollIndicator = false
+        $0.contentInsetAdjustmentBehavior = .never
     }
 
     private let contentView = UIView()
@@ -216,7 +217,7 @@ class FeedViewController: UIViewController {
         super.viewDidLayoutSubviews()
 
         scrollView.pin
-            .top()
+            .top(0)
             .horizontally()
             .bottom(80)
 
