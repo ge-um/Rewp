@@ -11,6 +11,7 @@ import Moya
 enum EstateRouter {
     case todayEstates
     case hotEstates
+    case todayTopic
 }
 
 extension EstateRouter: TargetType {
@@ -24,6 +25,8 @@ extension EstateRouter: TargetType {
             return "/estates/today-estates"
         case .hotEstates:
             return "/estates/hot-estates"
+        case .todayTopic:
+            return "/estates/today-topic"
         }
     }
 

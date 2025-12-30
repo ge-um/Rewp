@@ -12,6 +12,5 @@ struct HotEstateItem {
     let imageURL: String?
     let title: String
     let price: String
-    let status: String
     let info: String
 }

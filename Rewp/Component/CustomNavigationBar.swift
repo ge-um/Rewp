@@ -20,7 +20,7 @@ final class CustomNavigationBar: UIView {
     }
 
     private let titleLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.body1, text: "")
+        $0.typography(FontSystem.Pretendard.body2, text: "")
         $0.textColor = ColorSystem.gray90
         $0.textAlignment = .center
     }

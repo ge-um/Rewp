@@ -20,11 +20,14 @@ class FeedPresenter {
     struct Input {
         let viewDidLoad: Observable<Void>
         let tabSelected: Observable<Int>
+        let topicTapped: Observable<TopicItem>
     }
 
     struct Output {
         let banners: Driver<[BannerItem]>
         let hotEstates: Driver<[HotEstateItem]>
+        let topics: Driver<[TopicItem]>
+        let openTopicLink: Driver<String>
         let navigateToSettings: Driver<Void>
     }
 
@@ -43,6 +46,17 @@ class FeedPresenter {
             }
             .asDriver(onErrorJustReturn: [])
 
+        let topics = input.viewDidLoad
+            .withUnretained(self)
+            .flatMapLatest { owner, _ in
+                return owner.fetchTopics()
+            }
+            .asDriver(onErrorJustReturn: [])
+
+        let openTopicLink = input.topicTapped
+            .map { $0.link }
+            .asDriver(onErrorDriveWith: .empty())
+
         let navigateToSettings = input.tabSelected
             .filter { $0 == 2 }
             .map { _ in () }
@@ -51,6 +65,8 @@ class FeedPresenter {
         return Output(
             banners: banners,
             hotEstates: hotEstates,
+            topics: topics,
+            openTopicLink: openTopicLink,
             navigateToSettings: navigateToSettings
         )
     }
@@ -68,6 +84,14 @@ class FeedPresenter {
             .asObservable()
             .map { estates in
                 estates.map { $0.toHotEstateItem() }
+            }
+    }
+
+    private func fetchTopics() -> Observable<[TopicItem]> {
+        return estateRepository.fetchTodayTopics()
+            .asObservable()
+            .map { topics in
+                topics.map { $0.toTopicItem() }
             }
     }
 }
