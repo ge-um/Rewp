@@ -264,8 +264,8 @@ final class LoginViewController: UIViewController {
     }
 
     private func navigateToHome(nickname: String, email: String) {
-        let homeVC = container.makeHomeViewController()
-        navigationController?.setViewControllers([homeVC], animated: true)
+        let feedVC = container.makeFeedViewController()
+        navigationController?.setViewControllers([feedVC], animated: true)
     }
 
     private func showError(_ message: String) {

@@ -10,6 +10,7 @@ import PinLayout
 import Then
 import RxSwift
 import RxCocoa
+import Kingfisher
 
 final class BannerCarouselCell: UICollectionViewCell {
     private let imageView = UIImageView().then {
@@ -82,11 +83,16 @@ final class BannerCarouselCell: UICollectionViewCell {
             .marginBottom(8)
             .sizeToFit(.width)
 
+        locationLabel.pin
+            .sizeToFit(.widthFlexible)
+
+        let backgroundWidth = 4 + 16 + 2 + locationLabel.frame.width + 6
+
         locationBackground.pin
             .left(20)
             .above(of: titleLabel)
             .marginBottom(4)
-            .width(76)
+            .width(backgroundWidth)
             .height(20)
 
         locationIcon.pin
@@ -100,12 +106,24 @@ final class BannerCarouselCell: UICollectionViewCell {
             .vCenter(to: locationIcon.edge.vCenter)
             .sizeToFit(.widthFlexible)
     }
-    
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        imageView.kf.cancelDownloadTask()
+        imageView.image = nil
+        imageView.backgroundColor = ColorSystem.gray45
+    }
+
     func configure(with item: BannerItem) {
         locationLabel.typography(FontSystem.Pretendard.caption2, text: item.location)
         titleLabel.typography(FontSystem.YeongdeokHaeparang.title1, text: item.title)
         descriptionLabel.typography(FontSystem.YeongdeokHaeparang.caption1, text: item.description)
-        imageView.backgroundColor = ColorSystem.gray45
+
+        imageView.setImage(from: item.imageURL)
+
+        if item.imageURL == nil {
+            imageView.backgroundColor = ColorSystem.gray45
+        }
     }
 }
 
@@ -190,10 +208,11 @@ final class BannerCarousel: UIView {
 
     func configure(with banners: [BannerItem]) {
         bannersRelay.accept(banners)
+        collectionView.reloadData()
     }
 
     override var intrinsicContentSize: CGSize {
-        return CGSize(width: UIView.noIntrinsicMetric, height: 200)
+        return CGSize(width: UIView.noIntrinsicMetric, height: 335)
     }
 }
 

@@ -1,5 +1,5 @@
 //
-//  RewpAuthenticator.swift
+//  TokenAuthenticator.swift
 //  Rewp
 //
 //  Created by 금가경 on 12/29/25.
@@ -8,16 +8,11 @@
 import Foundation
 import Alamofire
 
-final class RewpAuthenticator: Authenticator {
-    private let onRefreshSuccess: @Sendable (TokenCredential) -> Void
-    private let onRefreshFailure: @Sendable () -> Void
+final class TokenAuthenticator: Authenticator {
+    private let keychainManager: KeychainManager
 
-    init(
-        onRefreshSuccess: @escaping @Sendable (TokenCredential) -> Void,
-        onRefreshFailure: @escaping @Sendable () -> Void
-    ) {
-        self.onRefreshSuccess = onRefreshSuccess
-        self.onRefreshFailure = onRefreshFailure
+    init(keychainManager: KeychainManager = .shared) {
+        self.keychainManager = keychainManager
     }
 
     func apply(_ credential: TokenCredential, to urlRequest: inout URLRequest) {
@@ -36,8 +31,7 @@ final class RewpAuthenticator: Authenticator {
         _ urlRequest: URLRequest,
         authenticatedWith credential: TokenCredential
     ) -> Bool {
-        let bearerToken = "Bearer \(credential.accessToken)"
-        return urlRequest.headers["Authorization"] == bearerToken
+        return urlRequest.headers["Authorization"] == credential.accessToken
     }
 
     func refresh(
@@ -45,14 +39,9 @@ final class RewpAuthenticator: Authenticator {
         for session: Session,
         completion: @escaping (Result<TokenCredential, Error>) -> Void
     ) {
-        let url = "\(NetworkConfig.baseURL)/v1/auth/refresh"
-        let headers: HTTPHeaders = [
-            "Content-Type": "application/json",
-            "SesacKey": NetworkConfig.rewpKey,
-            "RefreshToken": credential.refreshToken
-        ]
+        let refreshSession = Session()
 
-        session.request(url, method: .get, headers: headers)
+        refreshSession.request(AuthRouter.refreshToken)
             .validate(statusCode: 200..<300)
             .responseDecodable(of: RefreshTokenResponse.self) { [weak self] response in
                 guard let self = self else {
@@ -70,11 +59,13 @@ final class RewpAuthenticator: Authenticator {
                         return
                     }
 
-                    self.onRefreshSuccess(newCredential)
+                    try? self.keychainManager.saveAccessToken(refreshResponse.accessToken)
+                    try? self.keychainManager.saveRefreshToken(refreshResponse.refreshToken)
                     completion(.success(newCredential))
 
                 case .failure(let error):
-                    self.onRefreshFailure()
+                    try? self.keychainManager.deleteAllTokens()
+                    NotificationCenter.default.post(name: .authenticationFailed, object: nil)
                     completion(.failure(error))
                 }
             }

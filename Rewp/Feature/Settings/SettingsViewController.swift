@@ -107,8 +107,8 @@ final class SettingsViewController: UIViewController {
             .subscribe(onNext: { owner, index in
                 switch index {
                 case 0:
-                    let homeVC = owner.container.makeHomeViewController()
-                    let nav = UINavigationController(rootViewController: homeVC)
+                    let feedVC = owner.container.makeFeedViewController()
+                    let nav = UINavigationController(rootViewController: feedVC)
                     nav.navigationBar.isHidden = true
                     owner.view.window?.rootViewController = nav
                     owner.view.window?.makeKeyAndVisible()

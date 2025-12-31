@@ -15,7 +15,7 @@ enum KeychainError: Error {
     case unexpectedData
 }
 
-final class KeychainManager {
+final class KeychainManager: @unchecked Sendable {
     static let shared = KeychainManager()
 
     private init() {}

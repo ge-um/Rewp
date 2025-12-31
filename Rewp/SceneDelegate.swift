@@ -34,7 +34,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             .disposed(by: disposeBag)
 
         if container.authService.isAuthenticated() {
-            showHomeScreen()
+            showFeedScreen()
         } else {
             showLoginScreen()
         }
@@ -50,10 +50,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.makeKeyAndVisible()
     }
 
-    private func showHomeScreen() {
+    private func showFeedScreen() {
         guard let window = window else { return }
-        let homeViewController = container.makeHomeViewController()
-        let navigationController = UINavigationController(rootViewController: homeViewController)
+        let feedViewController = container.makeFeedViewController()
+        let navigationController = UINavigationController(rootViewController: feedViewController)
         navigationController.navigationBar.isHidden = true
 
         window.rootViewController = navigationController

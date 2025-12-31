@@ -1,5 +1,5 @@
 //
-//  HomeViewController.swift
+//  FeedViewController.swift
 //  Rewp
 //
 //  Created by 금가경 on 12/26/25.
@@ -11,15 +11,15 @@ import FlexLayout
 import RxSwift
 import RxCocoa
 import Then
-import Moya
-import RxMoya
 
-class HomeViewController: UIViewController {
-    var presenter: HomePresenter!
+class FeedViewController: UIViewController {
+    var presenter: FeedPresenter!
     var container: AppContainer!
 
     private let scrollView = UIScrollView().then {
         $0.showsVerticalScrollIndicator = false
+        $0.contentInsetAdjustmentBehavior = .never
+        $0.keyboardDismissMode = .onDrag
     }
 
     private let contentView = UIView()
@@ -62,10 +62,7 @@ class HomeViewController: UIViewController {
 
     private let hotContainerView = UIView()
 
-    private lazy var hotItems: [HotItem] = [
-        HotItem(title: "고즈넉 매물, 여기가 천국", price: "월세 7,000/50", status: "34명이 함께 보는 중", info: "면적 152.4m²"),
-        HotItem(title: "따끈따끈 새 매물", price: "전세 3,000/20", status: "12명이 함께 보는 중", info: "면적 89.5m²")
-    ]
+    private var hotItems: [HotItem] = []
 
     private let newsTitleLabel = SectionTitleLabel(title: "오늘의 부동산 TOPIC", showViewAll: false)
 
@@ -73,33 +70,14 @@ class HomeViewController: UIViewController {
         $0.backgroundColor = ColorSystem.gray0
     }
 
-    private lazy var newsItems: [UIView] = {
-        let items: [UIView] = [
-            NewsHashTagItem(hashtag: "#4월 분양소식", description: "오늘 4월 4일, 전국 2만 3,720세대 분양 예정", date: "25. 4. 4"),
-            NewsHashTagItem(hashtag: "#아파트실거래가", description: "2월 서울 국평아파트 평균 14억 3,360만원에 거래", date: "25. 4. 3"),
-            NewsAdItem(title: "신혼집에는 새 설렘을!", description: "필요한 알뜰 가구 모아보기"),
-            NewsHashTagItem(hashtag: "#전국 분양 일정", description: "전국 올시 부동산 일정 공개, 5월중으로 큰 거 온다", date: "25. 4. 2"),
-            NewsHashTagItem(hashtag: "#공실률증가분", description: "4월 입주율의 전월 대비 48% ↓, 수도권 지방 모...", date: "25. 4. 3"),
-            NewsHashTagItem(hashtag: "#집값 고공행진", description: "행진, 행진, 행진... 가는거야~", date: "25. 4. 2"),
-            NewsAdItem(title: "내일 도착하는 감성소품!", description: "하우스 내 감성 가득 채우기"),
-            NewsHashTagItem(hashtag: "#집값 고공행진", description: "행진, 행진, 행진... 가는거야~", date: "25. 4. 2"),
-        ]
-
-        var result: [UIView] = []
-        for (index, item) in items.enumerated() {
-            result.append(item)
-            if index < items.count - 1 {
-                result.append(NewsItemDivider())
-            }
-        }
-        return result
-    }()
+    private var newsItems: [UIView] = []
 
     private let tabBar = TabBar().then {
         $0.selectTab(at: 0)
     }
 
     private let viewDidLoadTrigger = PublishSubject<Void>()
+    private let topicTapRelay = PublishRelay<TopicItem>()
     private let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
@@ -154,17 +132,6 @@ class HomeViewController: UIViewController {
                 }
             }
         hotScrollView.addSubview(hotContainerView)
-        hotContainerView.flex
-            .direction(.row)
-            .alignItems(.center)
-            .define { flex in
-                hotItems.forEach { item in
-                    flex.addItem(item)
-                        .width(240)
-                        .height(88)
-                        .marginRight(12)
-                }
-            }
 
         newsContainerView.flex
             .direction(.column)
@@ -188,17 +155,57 @@ class HomeViewController: UIViewController {
     }
 
     private func bind() {
-        let input = HomePresenter.Input(
+        let input = FeedPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
-            tabSelected: tabBar.selectedIndexRelay.skip(1).asObservable()
+            tabSelected: tabBar.selectedIndexRelay.skip(1).asObservable(),
+            topicTapped: topicTapRelay.asObservable()
         )
 
         let output = presenter.transform(input: input)
 
         output.banners
-            .drive(onNext: { [weak self] banners in
-                self?.bannerCarousel.configure(with: banners)
-            })
+            .drive(with: self) { owner, banners in
+                owner.bannerCarousel.configure(with: banners)
+            }
+            .disposed(by: disposeBag)
+
+        output.hotEstates
+            .drive(with: self) { owner, hotEstates in
+                owner.hotContainerView.subviews.forEach { $0.removeFromSuperview() }
+                owner.hotItems = hotEstates.map { item in
+                    HotItem(
+                        imageURL: item.imageURL,
+                        title: item.title,
+                        price: item.price,
+                        info: item.info
+                    )
+                }
+                owner.hotContainerView.flex
+                    .direction(.row)
+                    .alignItems(.center)
+                    .define { flex in
+                        owner.hotItems.forEach { item in
+                            flex.addItem(item)
+                                .width(240)
+                                .height(88)
+                                .marginRight(12)
+                        }
+                    }
+                owner.view.setNeedsLayout()
+                owner.view.layoutIfNeeded()
+            }
+            .disposed(by: disposeBag)
+
+        output.topics
+            .drive(with: self) { owner, topics in
+                owner.updateNewsItems(with: topics)
+            }
+            .disposed(by: disposeBag)
+
+        output.openTopicLink
+            .drive(with: self) { owner, urlString in
+                owner.openWebView(urlString: urlString)
+            }
             .disposed(by: disposeBag)
 
         output.navigateToSettings
@@ -216,7 +223,7 @@ class HomeViewController: UIViewController {
         super.viewDidLayoutSubviews()
 
         scrollView.pin
-            .top()
+            .top(0)
             .horizontally()
             .bottom(80)
 
@@ -310,5 +317,81 @@ class HomeViewController: UIViewController {
             .bottom()
             .horizontally()
             .height(80)
+    }
+
+    private func updateNewsItems(with topics: [TopicItem]) {
+        newsContainerView.subviews.forEach { $0.removeFromSuperview() }
+
+        let mixedItems = mixTopicsWithAds(topics: topics)
+        newsItems = mixedItems
+
+        newsContainerView.flex
+            .direction(.column)
+            .define { flex in
+                newsItems.forEach { item in
+                    if item is NewsItemDivider {
+                        flex.addItem(item)
+                            .height(11)
+                            .width(100%)
+                    } else if item is NewsAdItem {
+                        flex.addItem(item)
+                            .height(66)
+                            .marginHorizontal(20)
+                    } else {
+                        flex.addItem(item)
+                            .height(66)
+                            .width(100%)
+                    }
+                }
+            }
+
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+    }
+
+    private func mixTopicsWithAds(topics: [TopicItem]) -> [UIView] {
+        let adConfigs: [(afterTopicIndex: Int, item: NewsAdItem)] = [
+            (1, NewsAdItem(title: "신혼집에는 새 설렘을!", description: "필요한 알뜰 가구 모아보기")),
+            (4, NewsAdItem(title: "내일 도착하는 감성소품!", description: "하우스 내 감성 가득 채우기"))
+        ]
+
+        var result: [UIView] = []
+
+        for (index, topic) in topics.enumerated() {
+            let hashtagItem = createTappableNewsItem(from: topic)
+            result.append(hashtagItem)
+
+            if let adConfig = adConfigs.first(where: { $0.afterTopicIndex == index }) {
+                result.append(NewsItemDivider())
+                result.append(adConfig.item)
+            }
+
+            if index < topics.count - 1 {
+                result.append(NewsItemDivider())
+            }
+        }
+
+        return result
+    }
+
+    private func createTappableNewsItem(from topic: TopicItem) -> NewsHashTagItem {
+        let item = NewsHashTagItem(
+            hashtag: topic.hashtag,
+            description: topic.description,
+            date: topic.date
+        )
+
+        item.onTap = { [weak self] in
+            self?.topicTapRelay.accept(topic)
+        }
+
+        return item
+    }
+
+    private func openWebView(urlString: String) {
+        guard let url = URL(string: urlString) else { return }
+
+        let webVC = WebViewController(url: url)
+        navigationController?.pushViewController(webVC, animated: true)
     }
 }

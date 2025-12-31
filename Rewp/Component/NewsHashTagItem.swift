@@ -22,12 +22,16 @@ final class NewsHashTagItem: UIView {
     private let descriptionLabel = UILabel().then {
         $0.font = FontSystem.Pretendard.body2.font
         $0.textColor = ColorSystem.gray60
+        $0.numberOfLines = 1
+        $0.lineBreakMode = .byTruncatingTail
     }
 
     private let dateLabel = UILabel().then {
         $0.font = FontSystem.Pretendard.body2.font
         $0.textColor = ColorSystem.gray75
     }
+
+    var onTap: (() -> Void)?
 
     init(hashtag: String, description: String, date: String) {
         super.init(frame: .zero)
@@ -46,6 +50,14 @@ final class NewsHashTagItem: UIView {
         containerView.addSubview(titleLabel)
         containerView.addSubview(descriptionLabel)
         containerView.addSubview(dateLabel)
+
+        isUserInteractionEnabled = true
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap))
+        addGestureRecognizer(tapGesture)
+    }
+
+    @objc private func handleTap() {
+        onTap?()
     }
 
     override func layoutSubviews() {
@@ -68,7 +80,8 @@ final class NewsHashTagItem: UIView {
         descriptionLabel.pin
             .bottom(12)
             .left(20)
-            .right(20)
+            .before(of: dateLabel)
+            .marginRight(12)
             .sizeToFit(.width)
     }
 
