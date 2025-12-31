@@ -9,15 +9,10 @@ import Foundation
 import Alamofire
 
 final class TokenAuthenticator: Authenticator {
-    private let onRefreshSuccess: @Sendable (TokenCredential) -> Void
-    private let onRefreshFailure: @Sendable () -> Void
+    private let keychainManager: KeychainManager
 
-    init(
-        onRefreshSuccess: @escaping @Sendable (TokenCredential) -> Void,
-        onRefreshFailure: @escaping @Sendable () -> Void
-    ) {
-        self.onRefreshSuccess = onRefreshSuccess
-        self.onRefreshFailure = onRefreshFailure
+    init(keychainManager: KeychainManager = .shared) {
+        self.keychainManager = keychainManager
     }
 
     func apply(_ credential: TokenCredential, to urlRequest: inout URLRequest) {
@@ -44,14 +39,9 @@ final class TokenAuthenticator: Authenticator {
         for session: Session,
         completion: @escaping (Result<TokenCredential, Error>) -> Void
     ) {
-        let url = "\(NetworkConfig.baseURL)/auth/refresh"
-        let headers: HTTPHeaders = [
-            "Content-Type": "application/json",
-            "SesacKey": NetworkConfig.rewpKey,
-            "RefreshToken": credential.refreshToken
-        ]
+        let refreshSession = Session()
 
-        session.request(url, method: .get, headers: headers)
+        refreshSession.request(AuthRouter.refreshToken)
             .validate(statusCode: 200..<300)
             .responseDecodable(of: RefreshTokenResponse.self) { [weak self] response in
                 guard let self = self else {
@@ -69,11 +59,13 @@ final class TokenAuthenticator: Authenticator {
                         return
                     }
 
-                    self.onRefreshSuccess(newCredential)
+                    try? self.keychainManager.saveAccessToken(newCredential.accessToken)
+                    try? self.keychainManager.saveRefreshToken(newCredential.refreshToken)
                     completion(.success(newCredential))
 
                 case .failure(let error):
-                    self.onRefreshFailure()
+                    try? self.keychainManager.deleteAllTokens()
+                    NotificationCenter.default.post(name: .authenticationFailed, object: nil)
                     completion(.failure(error))
                 }
             }

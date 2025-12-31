@@ -27,19 +27,17 @@ extension AuthRouter: APIRouter {
     var method: HTTPMethod {
         return .get
     }
-
+    
     var headers: HTTPHeaders? {
         var headers: HTTPHeaders = [
             "Content-Type": "application/json",
             "SesacKey": NetworkConfig.rewpKey
         ]
-
-        if case .refreshToken = self {
-            if let refreshToken = try? KeychainManager.shared.loadRefreshToken() {
-                headers["RefreshToken"] = refreshToken
-            }
+        
+        if let refreshToken = try? KeychainManager.shared.loadRefreshToken() {
+            headers["RefreshToken"] = refreshToken
         }
-
+        
         return headers
     }
 }
