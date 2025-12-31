@@ -74,8 +74,15 @@ class FeedPresenter {
     private func fetchBanners() -> Observable<[BannerItem]> {
         return estateRepository.fetchTodayEstates()
             .asObservable()
-            .map { estates in
-                estates.map { $0.toBannerItem() }
+            .flatMap { estates -> Observable<[BannerItem]> in
+                if estates.isEmpty {
+                    return .just([])
+                }
+
+                return Observable.from(estates)
+                    .concatMap { $0.toBannerItem().asObservable() }
+                    .toArray()
+                    .asObservable()
             }
     }
 

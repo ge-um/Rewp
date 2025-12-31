@@ -59,8 +59,8 @@ final class TokenAuthenticator: Authenticator {
                         return
                     }
 
-                    try? self.keychainManager.saveAccessToken(newCredential.accessToken)
-                    try? self.keychainManager.saveRefreshToken(newCredential.refreshToken)
+                    try? self.keychainManager.saveAccessToken(refreshResponse.accessToken)
+                    try? self.keychainManager.saveRefreshToken(refreshResponse.refreshToken)
                     completion(.success(newCredential))
 
                 case .failure(let error):

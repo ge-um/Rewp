@@ -6,10 +6,15 @@
 //
 
 import Foundation
+import RxSwift
 
 struct Geolocation: Codable {
     let longitude: Double
     let latitude: Double
+}
+
+struct TodayEstatesResponse: Codable {
+    let data: [EstateDTO]
 }
 
 struct EstateDTO: Codable {
@@ -32,19 +37,31 @@ struct EstateDTO: Codable {
     let updated_at: String
 }
 
-struct TodayEstatesResponse: Codable {
-    let data: [EstateDTO]
-}
-
 extension EstateDTO {
-    func toBannerItem() -> BannerItem {
-        return BannerItem(
-            id: estate_id,
-            imageURL: thumbnails.first.map { "\(NetworkConfig.baseURL)\($0)" },
-            location: category,
-            title: title,
-            description: introduction
-        )
+    func toBannerItem() -> Single<BannerItem> {
+        return GeocodeService.shared
+            .reverseGeocode(
+                latitude: geolocation.latitude,
+                longitude: geolocation.longitude
+            )
+            .map { [self] location in
+                BannerItem(
+                    id: estate_id,
+                    imageURL: thumbnails.first.map { "\(NetworkConfig.baseURL)\($0)" },
+                    location: location,
+                    title: title,
+                    description: introduction
+                )
+            }
+            .catch { [self] _ in
+                .just(BannerItem(
+                    id: estate_id,
+                    imageURL: thumbnails.first.map { "\(NetworkConfig.baseURL)\($0)" },
+                    location: category,
+                    title: title,
+                    description: introduction
+                ))
+            }
     }
 
     func toHotEstateItem() -> HotEstateItem {

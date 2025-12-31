@@ -83,11 +83,16 @@ final class BannerCarouselCell: UICollectionViewCell {
             .marginBottom(8)
             .sizeToFit(.width)
 
+        locationLabel.pin
+            .sizeToFit(.widthFlexible)
+
+        let backgroundWidth = 4 + 16 + 2 + locationLabel.frame.width + 6
+
         locationBackground.pin
             .left(20)
             .above(of: titleLabel)
             .marginBottom(4)
-            .width(76)
+            .width(backgroundWidth)
             .height(20)
 
         locationIcon.pin

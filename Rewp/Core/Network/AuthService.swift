@@ -19,14 +19,13 @@ protocol AuthServiceProtocol {
     func isAuthenticated() -> Bool
     func authenticatedRequest<T: Decodable>(_ router: APIRouter) -> Single<T>
     func authenticatedRequestEmpty(_ router: APIRouter) -> Single<Void>
-    func refreshSession()
 }
 
 final class AuthService: AuthServiceProtocol {
     private let networkService: NetworkServiceProtocol
     private let keychainManager: KeychainManager
-    private var session: Session
     private let authenticator: TokenAuthenticator
+    private var session: Session
 
     private var currentCredential: TokenCredential? {
         guard let accessToken = try? keychainManager.loadAccessToken(),
@@ -45,34 +44,40 @@ final class AuthService: AuthServiceProtocol {
         self.keychainManager = keychainManager
         self.authenticator = TokenAuthenticator(keychainManager: keychainManager)
 
+        let credential: TokenCredential?
         if let accessToken = try? keychainManager.loadAccessToken(),
-           let refreshToken = try? keychainManager.loadRefreshToken(),
-           let credential = TokenCredential.from(
-               accessToken: accessToken,
-               refreshToken: refreshToken
-           ) {
-            let interceptor = AuthenticationInterceptor(
-                authenticator: authenticator,
-                credential: credential
+           let refreshToken = try? keychainManager.loadRefreshToken() {
+            credential = TokenCredential.from(
+                accessToken: accessToken,
+                refreshToken: refreshToken
             )
-            self.session = Session(interceptor: interceptor)
         } else {
-            self.session = Session()
+            credential = nil
         }
+
+        let interceptor = AuthenticationInterceptor(
+            authenticator: authenticator,
+            credential: credential
+        )
+        self.session = Session(interceptor: interceptor)
     }
 
     func login(accessToken: String, refreshToken: String) throws {
-        guard TokenCredential.from(
+        guard let credential = TokenCredential.from(
             accessToken: accessToken,
             refreshToken: refreshToken
-        ) != nil else {
+        ) else {
             throw AuthError.invalidToken
         }
 
         try keychainManager.saveAccessToken(accessToken)
         try keychainManager.saveRefreshToken(refreshToken)
 
-        refreshSession()
+        let interceptor = AuthenticationInterceptor(
+            authenticator: authenticator,
+            credential: credential
+        )
+        self.session = Session(interceptor: interceptor)
     }
 
     func logout() -> Single<Void> {
@@ -80,7 +85,6 @@ final class AuthService: AuthServiceProtocol {
             .catch { _ in .just(()) }
             .do(onSuccess: { [weak self] _ in
                 self?.clearAuthState()
-                self?.refreshSession()
             })
     }
 
@@ -165,21 +169,15 @@ final class AuthService: AuthServiceProtocol {
         }
     }
 
-    func refreshSession() {
-        guard let credential = currentCredential else {
-            return
-        }
+    private func clearAuthState() {
+        try? keychainManager.deleteAllTokens()
 
         let interceptor = AuthenticationInterceptor(
             authenticator: authenticator,
-            credential: credential
+            credential: nil
         )
-
         self.session = Session(interceptor: interceptor)
-    }
 
-    private func clearAuthState() {
-        try? keychainManager.deleteAllTokens()
         NotificationCenter.default.post(
             name: .authenticationFailed,
             object: nil

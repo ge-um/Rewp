@@ -19,6 +19,7 @@ class FeedViewController: UIViewController {
     private let scrollView = UIScrollView().then {
         $0.showsVerticalScrollIndicator = false
         $0.contentInsetAdjustmentBehavior = .never
+        $0.keyboardDismissMode = .onDrag
     }
 
     private let contentView = UIView()
