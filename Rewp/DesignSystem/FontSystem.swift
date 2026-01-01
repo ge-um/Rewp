@@ -35,7 +35,7 @@ enum FontSystem {
         )
 
         static let body1 = Typography(
-            fontName: "Pretendard-Medium",
+            fontName: "Pretendard-Bold",
             size: 16,
             lineHeight: 130,
             kerning: -1

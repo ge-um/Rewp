@@ -47,4 +47,12 @@ final class AppContainer {
     func makeSettingsViewController() -> SettingsViewController {
         return SettingsFactory.create(container: self)
     }
+
+    func makeEstateDetailViewController(estateId: String) -> EstateDetailViewController {
+        let presenter = EstateDetailPresenter(estateId: estateId)
+        let viewController = EstateDetailViewController(estateId: estateId)
+        viewController.presenter = presenter
+        viewController.container = self
+        return viewController
+    }
 }

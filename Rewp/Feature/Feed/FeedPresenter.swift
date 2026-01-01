@@ -21,6 +21,8 @@ class FeedPresenter {
         let viewDidLoad: Observable<Void>
         let tabSelected: Observable<Int>
         let topicTapped: Observable<TopicItem>
+        let bannerTapped: Observable<String>
+        let hotEstateTapped: Observable<String>
     }
 
     struct Output {
@@ -29,6 +31,7 @@ class FeedPresenter {
         let topics: Driver<[TopicItem]>
         let openTopicLink: Driver<String>
         let navigateToSettings: Driver<Void>
+        let navigateToDetail: Driver<String>
     }
 
     func transform(input: Input) -> Output {
@@ -62,12 +65,19 @@ class FeedPresenter {
             .map { _ in () }
             .asDriver(onErrorDriveWith: .empty())
 
+        let navigateToDetail = Observable.merge(
+            input.bannerTapped,
+            input.hotEstateTapped
+        )
+        .asDriver(onErrorDriveWith: .empty())
+
         return Output(
             banners: banners,
             hotEstates: hotEstates,
             topics: topics,
             openTopicLink: openTopicLink,
-            navigateToSettings: navigateToSettings
+            navigateToSettings: navigateToSettings,
+            navigateToDetail: navigateToDetail
         )
     }
 

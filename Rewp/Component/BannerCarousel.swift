@@ -131,6 +131,8 @@ final class BannerCarousel: UIView {
     private let bannersRelay = BehaviorRelay<[BannerItem]>(value: [])
     private let disposeBag = DisposeBag()
 
+    var onBannerTapped: ((String) -> Void)?
+
     lazy var collectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
         layout.scrollDirection = .horizontal
@@ -191,6 +193,13 @@ final class BannerCarousel: UIView {
             .subscribe(onNext: { owner, _ in
                 guard let visibleIndexPath = owner.collectionView.indexPathsForVisibleItems.first else { return }
                 owner.pageControl.currentPage = visibleIndexPath.item
+            })
+            .disposed(by: disposeBag)
+
+        collectionView.rx.modelSelected(BannerItem.self)
+            .withUnretained(self)
+            .subscribe(onNext: { owner, item in
+                owner.onBannerTapped?(item.id)
             })
             .disposed(by: disposeBag)
     }
