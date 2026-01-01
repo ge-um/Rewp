@@ -27,53 +27,59 @@ struct Typography {
 
 enum FontSystem {
     enum Pretendard {
+        static let title0 = Typography(
+            fontName: "Pretendard-Bold",
+            size: 30,
+            lineHeight: 100,
+            kerning: 0
+        )
         static let title1 = Typography(
             fontName: "Pretendard-Bold",
             size: 22,
             lineHeight: 130,
-            kerning: -1
+            kerning: 0
         )
 
         static let body1 = Typography(
             fontName: "Pretendard-Bold",
             size: 16,
             lineHeight: 130,
-            kerning: -1
+            kerning: 0
         )
 
         static let body2 = Typography(
             fontName: "Pretendard-Medium",
             size: 14,
             lineHeight: 130,
-            kerning: -1
+            kerning: 0
         )
 
         static let body3 = Typography(
             fontName: "Pretendard-Medium",
             size: 13,
             lineHeight: 130,
-            kerning: -1
+            kerning: 0
         )
 
         static let caption1 = Typography(
-            fontName: "Pretendard-Regular",
+            fontName: "Pretendard-Semibold",
             size: 12,
             lineHeight: 130,
-            kerning: -1
+            kerning: 0
         )
 
         static let caption2 = Typography(
             fontName: "Pretendard-Regular",
             size: 10,
             lineHeight: 130,
-            kerning: -1
+            kerning: 0
         )
 
         static let caption3 = Typography(
             fontName: "Pretendard-Regular",
             size: 8,
             lineHeight: 130,
-            kerning: -1
+            kerning: 0
         )
     }
 

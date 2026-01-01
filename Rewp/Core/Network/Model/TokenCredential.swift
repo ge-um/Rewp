@@ -16,11 +16,7 @@ struct TokenCredential: AuthenticationCredential {
 
     var requiresRefresh: Bool {
         let fiveMinutesBeforeExpiration = expiration.addingTimeInterval(-300)
-        let needsRefresh = Date() > fiveMinutesBeforeExpiration
-        if needsRefresh {
-            Logger.token.notice("Token expiring soon - \(self.expiration, privacy: .public)")
-        }
-        return needsRefresh
+        return Date() > fiveMinutesBeforeExpiration
     }
 
     static func from(accessToken: String, refreshToken: String) -> TokenCredential? {

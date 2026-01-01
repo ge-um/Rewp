@@ -11,6 +11,7 @@ import OSLog
 
 final class TokenAuthenticator: Authenticator {
     private let keychainManager: KeychainManager
+    private let refreshSession = Session()
 
     init(keychainManager: KeychainManager = .shared) {
         self.keychainManager = keychainManager
@@ -25,14 +26,7 @@ final class TokenAuthenticator: Authenticator {
         with response: HTTPURLResponse,
         failDueToAuthenticationError error: Error
     ) -> Bool {
-        if urlRequest.url?.path.contains("/auth/refresh") == true {
-            Logger.auth.error("Refresh token failed - clearing auth state")
-            return false
-        }
-
-        let shouldRetry = response.statusCode == 419 || response.statusCode == 401
-        Logger.auth.warning("Authentication failed [\(response.statusCode)] - \(urlRequest.url?.path ?? "unknown", privacy: .public)")
-        return shouldRetry
+        return response.statusCode == 419 || response.statusCode == 401
     }
 
     func isRequest(
@@ -49,7 +43,7 @@ final class TokenAuthenticator: Authenticator {
     ) {
         Logger.auth.notice("Refreshing expired token")
 
-        session.request(AuthRouter.refreshToken)
+        refreshSession.request(AuthRouter.refreshToken)
             .validate(statusCode: 200..<300)
             .responseDecodable(of: RefreshTokenResponse.self) { [weak self] response in
                 guard let self = self else {
