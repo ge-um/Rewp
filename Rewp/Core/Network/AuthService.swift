@@ -8,6 +8,7 @@
 import Foundation
 import RxSwift
 import Alamofire
+import OSLog
 
 extension Notification.Name {
     static let authenticationFailed = Notification.Name("authenticationFailed")
@@ -67,6 +68,7 @@ final class AuthService: AuthServiceProtocol {
             accessToken: accessToken,
             refreshToken: refreshToken
         ) else {
+            Logger.auth.error("Invalid token format during login")
             throw AuthError.invalidToken
         }
 
@@ -78,6 +80,7 @@ final class AuthService: AuthServiceProtocol {
             credential: credential
         )
         self.session = Session(interceptor: interceptor)
+        Logger.auth.notice("User logged in")
     }
 
     func logout() -> Single<Void> {
@@ -94,6 +97,7 @@ final class AuthService: AuthServiceProtocol {
 
     func authenticatedRequest<T: Decodable>(_ router: APIRouter) -> Single<T> {
         guard currentCredential != nil else {
+            Logger.auth.error("No credential available")
             return .error(AuthError.notAuthenticated)
         }
 
@@ -105,10 +109,13 @@ final class AuthService: AuthServiceProtocol {
                     case .success(let value):
                         observer(.success(value))
                     case .failure:
+                        let statusCode = response.response?.statusCode ?? 0
                         if let data = response.data,
                            let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                            Logger.network.error("Request failed [\(statusCode)] - \(errorResponse.message)")
                             observer(.failure(NetworkError.serverError(message: errorResponse.message)))
                         } else {
+                            Logger.network.error("Request failed [\(statusCode)] - decoding error")
                             observer(.failure(NetworkError.decodingError))
                         }
                     }
@@ -173,5 +180,6 @@ final class AuthService: AuthServiceProtocol {
             name: .authenticationFailed,
             object: nil
         )
+        Logger.auth.notice("Authentication state cleared")
     }
 }

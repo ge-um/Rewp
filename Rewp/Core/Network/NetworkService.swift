@@ -24,29 +24,18 @@ final class NetworkService: NetworkServiceProtocol {
     func request<T: Decodable>(_ router: APIRouter) -> Single<T> {
         return Single.create { observer in
             let dataRequest = self.session.request(router)
+                .validate(statusCode: 200..<300)
                 .responseDecodable(of: T.self) { response in
-                    if let statusCode = response.response?.statusCode {
-                        if (200...299).contains(statusCode) {
-                            switch response.result {
-                            case .success(let value):
-                                observer(.success(value))
-                            case .failure:
-                                observer(.failure(NetworkError.decodingError))
-                            }
-                        } else if statusCode == 419 {
-                            observer(.failure(AuthError.tokenExpired))
-                        } else if statusCode == 401 || statusCode == 403 {
-                            observer(.failure(AuthError.notAuthenticated))
+                    switch response.result {
+                    case .success(let value):
+                        observer(.success(value))
+                    case .failure:
+                        if let data = response.data,
+                           let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                            observer(.failure(NetworkError.serverError(message: errorResponse.message)))
                         } else {
-                            if let data = response.data,
-                               let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
-                                observer(.failure(NetworkError.serverError(message: errorResponse.message)))
-                            } else {
-                                observer(.failure(NetworkError.serverError(message: "알 수 없는 서버 오류가 발생했습니다.")))
-                            }
+                            observer(.failure(NetworkError.decodingError))
                         }
-                    } else {
-                        observer(.failure(NetworkError.serverError(message: "서버 응답을 받지 못했습니다.")))
                     }
                 }
 
@@ -59,24 +48,18 @@ final class NetworkService: NetworkServiceProtocol {
     func requestEmpty(_ router: APIRouter) -> Single<Void> {
         return Single.create { observer in
             let dataRequest = self.session.request(router)
+                .validate(statusCode: 200..<300)
                 .response { response in
-                    if let statusCode = response.response?.statusCode {
-                        if (200...299).contains(statusCode) {
-                            observer(.success(()))
-                        } else if statusCode == 419 {
-                            observer(.failure(AuthError.tokenExpired))
-                        } else if statusCode == 401 || statusCode == 403 {
-                            observer(.failure(AuthError.notAuthenticated))
+                    switch response.result {
+                    case .success:
+                        observer(.success(()))
+                    case .failure:
+                        if let data = response.data,
+                           let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                            observer(.failure(NetworkError.serverError(message: errorResponse.message)))
                         } else {
-                            if let data = response.data,
-                               let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
-                                observer(.failure(NetworkError.serverError(message: errorResponse.message)))
-                            } else {
-                                observer(.failure(NetworkError.serverError(message: "알 수 없는 서버 오류가 발생했습니다.")))
-                            }
+                            observer(.failure(NetworkError.serverError(message: "서버 오류가 발생했습니다.")))
                         }
-                    } else {
-                        observer(.failure(NetworkError.serverError(message: "서버 응답을 받지 못했습니다.")))
                     }
                 }
 
