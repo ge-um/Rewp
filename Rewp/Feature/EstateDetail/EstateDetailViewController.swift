@@ -22,6 +22,8 @@ final class EstateDetailViewController: UIViewController {
 
     private lazy var navigationBar = CustomNavigationBar(title: "문래동 롯데캐슬", showBackButton: true, showRightButton: true)
 
+    private let imageCarousel = ImageCarousel()
+
     init(estateId: String) {
         self.estateId = estateId
         super.init(nibName: nil, bundle: nil)
@@ -42,6 +44,8 @@ final class EstateDetailViewController: UIViewController {
         view.addSubview(navigationBar)
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
+
+        contentView.addSubview(imageCarousel)
     }
 
     private func bind() {
@@ -52,6 +56,25 @@ final class EstateDetailViewController: UIViewController {
         navigationBar.onRightButtonTapped = {
             print("찜하기 버튼 탭")
         }
+
+        imageCarousel.onImageTapped = { index in
+            print("이미지 탭: \(index)")
+        }
+
+        imageCarousel.configure(with: [
+            nil,
+            nil,
+            nil,
+            nil,
+            nil,
+            nil,
+            nil,
+            nil,
+            nil,
+            nil,
+            nil,
+            nil
+        ])
     }
 
     override func viewDidLayoutSubviews() {
@@ -70,5 +93,17 @@ final class EstateDetailViewController: UIViewController {
         contentView.pin
             .top()
             .horizontally()
+            .minHeight(scrollView.frame.height)
+
+        imageCarousel.pin
+            .top()
+            .horizontally()
+            .height(250)
+
+        contentView.pin
+            .horizontally()
+            .height(imageCarousel.frame.maxY)
+
+        scrollView.contentSize = contentView.frame.size
     }
 }
