@@ -48,12 +48,12 @@ final class OptionLabel: UIView {
     private func updateAppearance() {
         if isSelected {
             iconImageView.image = UIImage(named: iconName)?.withRenderingMode(.alwaysTemplate)
-            iconImageView.tintColor = ColorSystem.gray30
-            titleLabel.textColor = ColorSystem.gray30
+            iconImageView.tintColor = ColorSystem.gray75
+            titleLabel.textColor = ColorSystem.gray75
         } else {
             iconImageView.image = UIImage(named: iconName)?.withRenderingMode(.alwaysTemplate)
-            iconImageView.tintColor = ColorSystem.gray15
-            titleLabel.textColor = ColorSystem.gray15
+            iconImageView.tintColor = ColorSystem.gray30
+            titleLabel.textColor = ColorSystem.gray30
         }
     }
 
