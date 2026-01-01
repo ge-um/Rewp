@@ -19,6 +19,7 @@ final class EstateDetailViewController: UIViewController {
 
     private let scrollView = UIScrollView().then {
         $0.backgroundColor = ColorSystem.gray15
+        $0.showsVerticalScrollIndicator = false
     }
     private let contentView = UIView()
 
@@ -39,7 +40,7 @@ final class EstateDetailViewController: UIViewController {
     }
 
     private let badgeLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption1, text: "구매자 안심매물")
+        $0.typography(FontSystem.Pretendard.caption1Semibold, text: "구매자 안심매물")
         $0.textColor = ColorSystem.deepCoast
     }
 
@@ -75,7 +76,7 @@ final class EstateDetailViewController: UIViewController {
     }
 
     private let optionTitleLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.body1, text: "옵션 정보")
+        $0.typography(FontSystem.Pretendard.body2Bold, text: "옵션 정보")
         $0.textColor = ColorSystem.gray90
     }
 
@@ -122,7 +123,7 @@ final class EstateDetailViewController: UIViewController {
         $0.backgroundColor = ColorSystem.gray0
         $0.layer.borderColor = ColorSystem.gray30.cgColor
         $0.layer.borderWidth = 1
-        $0.layer.cornerRadius = 20
+        $0.layer.cornerRadius = 16
     }
 
     private let parkingIconImageView = UIImageView().then {
@@ -132,8 +133,29 @@ final class EstateDetailViewController: UIViewController {
     }
 
     private let parkingInfoLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption1, text: "세대별 차량 2대 주차 가능")
+        $0.typography(FontSystem.Pretendard.caption1Semibold, text: "세대별 차량 2대 주차 가능")
         $0.textColor = ColorSystem.gray60
+    }
+
+    private let descriptionDivider = UIView().then {
+        $0.backgroundColor = ColorSystem.gray30
+    }
+
+    private let descriptionTitleLabel = UILabel().then {
+        $0.typography(FontSystem.Pretendard.body2Bold, text: "상세 설명")
+        $0.textColor = ColorSystem.gray75
+    }
+
+    private let descriptionLabel = UILabel().then {
+        $0.typography(FontSystem.Pretendard.caption1Regular, text: """
+        서울 문래동에 위치한 문래동 롯데캐슬은 뛰어난 교통 접근성과 쾌적한 주거 환경을 갖춘 프리미엄 아파트입니다.
+
+        지하철 2호선 문래역 도보권에 있으며, 다양한 커뮤니티 시설과 근교 마켓까지 모든 주거 편의들을 제공합니다.
+
+        세대 내부는 실용적인 공간 설계를 갖추고있으며, 채광과 환기에도 신경 쓴 패밀리와 원인들에게 동시에 추천 드릴 수 있는 구성입니다.
+        """)
+        $0.textColor = ColorSystem.gray60
+        $0.numberOfLines = 0
     }
 
     init(estateId: String) {
@@ -181,6 +203,9 @@ final class EstateDetailViewController: UIViewController {
         contentView.addSubview(parkingInfoContainer)
         parkingInfoContainer.addSubview(parkingIconImageView)
         parkingInfoContainer.addSubview(parkingInfoLabel)
+        contentView.addSubview(descriptionDivider)
+        contentView.addSubview(descriptionTitleLabel)
+        contentView.addSubview(descriptionLabel)
     }
 
     private func bind() {
@@ -282,13 +307,13 @@ final class EstateDetailViewController: UIViewController {
 
         divider.pin
             .below(of: managementFeeLabel)
-            .marginTop(16)
+            .marginTop(21)
             .horizontally(20)
             .height(1)
 
         optionTitleLabel.pin
             .below(of: divider)
-            .marginTop(7.5)
+            .marginTop(12.5)
             .left(20)
             .sizeToFit()
 
@@ -359,7 +384,7 @@ final class EstateDetailViewController: UIViewController {
             .below(of: optionGridContainer)
             .marginTop(12)
             .left(20)
-            .height(40)
+            .height(32)
 
         parkingIconImageView.pin
             .left(12.5)
@@ -375,9 +400,27 @@ final class EstateDetailViewController: UIViewController {
         parkingInfoContainer.pin
             .width(parkingInfoLabel.frame.maxX + 12.5)
 
+        descriptionDivider.pin
+            .below(of: parkingInfoContainer)
+            .marginTop(21)
+            .horizontally(20)
+            .height(1)
+
+        descriptionTitleLabel.pin
+            .below(of: descriptionDivider)
+            .marginTop(12.5)
+            .left(20)
+            .sizeToFit()
+
+        descriptionLabel.pin
+            .below(of: descriptionTitleLabel)
+            .marginTop(15.5)
+            .horizontally(20)
+            .sizeToFit(.width)
+
         contentView.pin
             .horizontally()
-            .height(parkingInfoContainer.frame.maxY + 20)
+            .height(descriptionLabel.frame.maxY + 20)
 
         scrollView.contentSize = contentView.frame.size
     }

@@ -61,7 +61,7 @@ final class RecentSearchItem: UIView {
 
         categoryLabel.typography(FontSystem.Pretendard.caption2, text: category)
         priceLabel.typography(FontSystem.Pretendard.body3, text: price)
-        areaLabel.typography(FontSystem.Pretendard.caption1, text: area)
+        areaLabel.typography(FontSystem.Pretendard.caption1Semibold, text: area)
         thumbnailImageView.image = image
         setupUI()
     }

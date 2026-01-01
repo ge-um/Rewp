@@ -18,7 +18,7 @@ final class OptionLabel: UIView {
     }
 
     private lazy var titleLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption2, text: title)
+        $0.typography(FontSystem.Pretendard.caption1Semibold, text: title)
         $0.textAlignment = .center
     }
 

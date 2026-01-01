@@ -53,6 +53,13 @@ enum FontSystem {
             lineHeight: 130,
             kerning: 0
         )
+        
+        static let body2Bold = Typography(
+            fontName: "Pretendard-Bold",
+            size: 14,
+            lineHeight: 130,
+            kerning: 0
+        )
 
         static let body3 = Typography(
             fontName: "Pretendard-Medium",
@@ -61,10 +68,17 @@ enum FontSystem {
             kerning: 0
         )
 
-        static let caption1 = Typography(
+        static let caption1Semibold = Typography(
             fontName: "Pretendard-Semibold",
             size: 12,
             lineHeight: 130,
+            kerning: 0
+        )
+        
+        static let caption1Regular = Typography(
+            fontName: "Pretendard-Regular",
+            size: 12,
+            lineHeight: 170,
             kerning: 0
         )
 

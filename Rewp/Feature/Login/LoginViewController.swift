@@ -105,7 +105,7 @@ final class LoginViewController: UIViewController {
         var config = UIButton.Configuration.plain()
 
         var titleAttr = AttributedString("계정이 없으신가요?")
-        titleAttr.font = FontSystem.Pretendard.caption1.font
+        titleAttr.font = FontSystem.Pretendard.caption1Semibold.font
         titleAttr.foregroundColor = ColorSystem.gray60
         config.attributedTitle = titleAttr
 
