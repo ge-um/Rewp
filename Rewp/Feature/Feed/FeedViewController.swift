@@ -285,7 +285,7 @@ class FeedViewController: UIViewController {
         recentSearchScrollView.pin
             .below(of: recentSearchTitleLabel)
             .horizontally(20)
-            .height(96)
+            .height(104)
 
         recentSearchContainerView.pin
             .top()
