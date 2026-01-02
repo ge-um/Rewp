@@ -11,6 +11,7 @@ import FlexLayout
 import RxSwift
 import RxCocoa
 import Then
+import OSLog
 
 class FeedViewController: UIViewController {
     var presenter: FeedPresenter!
@@ -205,7 +206,6 @@ class FeedViewController: UIViewController {
                         }
                     }
                 owner.view.setNeedsLayout()
-                owner.view.layoutIfNeeded()
             }
             .disposed(by: disposeBag)
 

@@ -8,13 +8,16 @@
 import Foundation
 import RxSwift
 import RxCocoa
+import OSLog
 
 final class EstateDetailPresenter {
     private let estateId: String
+    private let repository: EstateRepository
     private let disposeBag = DisposeBag()
 
-    init(estateId: String) {
+    init(estateId: String, repository: EstateRepository) {
         self.estateId = estateId
+        self.repository = repository
     }
 
     struct Input {
@@ -22,9 +25,45 @@ final class EstateDetailPresenter {
     }
 
     struct Output {
+        let estateDetail: Driver<EstateDetail>
+        let error: Driver<String>
+        let isLoading: Driver<Bool>
     }
 
     func transform(input: Input) -> Output {
-        return Output()
+        let errorRelay = PublishRelay<String>()
+        let loadingRelay = PublishRelay<Bool>()
+
+        let estateDetail = input.viewDidLoad
+            .do(onNext: {
+                loadingRelay.accept(true)
+            })
+            .flatMapLatest { [weak self] _ -> Observable<EstateDetail> in
+                guard let self = self else {
+                    Logger.ui.error("Self is nil in flatMapLatest")
+                    return .empty()
+                }
+                return self.repository.fetchEstateDetail(estateId: self.estateId)
+                    .map { response in
+                        response.toEstateDetail()
+                    }
+                    .asObservable()
+                    .do(onNext: { _ in
+                        loadingRelay.accept(false)
+                    })
+                    .catch { error in
+                        Logger.ui.error("fetchEstateDetail error: \(error.localizedDescription)")
+                        loadingRelay.accept(false)
+                        errorRelay.accept(error.localizedDescription)
+                        return .empty()
+                    }
+            }
+            .asDriver(onErrorDriveWith: .empty())
+
+        return Output(
+            estateDetail: estateDetail,
+            error: errorRelay.asDriver(onErrorJustReturn: "알 수 없는 오류가 발생했습니다."),
+            isLoading: loadingRelay.asDriver(onErrorJustReturn: false)
+        )
     }
 }

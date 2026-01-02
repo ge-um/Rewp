@@ -9,6 +9,7 @@ import UIKit
 import PinLayout
 import RxSwift
 import Then
+import OSLog
 
 final class EstateDetailViewController: UIViewController {
     var presenter: EstateDetailPresenter!
@@ -16,13 +17,14 @@ final class EstateDetailViewController: UIViewController {
 
     private let estateId: String
     private let disposeBag = DisposeBag()
+    private let viewDidLoadTrigger = PublishSubject<Void>()
 
     private let scrollView = UIScrollView().then {
         $0.backgroundColor = ColorSystem.gray0
         $0.showsVerticalScrollIndicator = false
     }
 
-    private lazy var navigationBar = CustomNavigationBar(title: "문래동 롯데캐슬", showBackButton: true, showRightButton: true)
+    private lazy var navigationBar = CustomNavigationBar(title: "", showBackButton: true, showRightButton: true)
 
     private let imageCarousel = ImageCarousel()
 
@@ -44,29 +46,29 @@ final class EstateDetailViewController: UIViewController {
     }
 
     private let timeLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.body3, text: "2달 전")
+        $0.typography(FontSystem.Pretendard.body3, text: "")
         $0.textColor = ColorSystem.gray45
     }
 
     private let addressLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.body2, text: "서울 영등포구 선유로9길 30")
+        $0.typography(FontSystem.Pretendard.body2, text: "")
         $0.textColor = ColorSystem.gray60
     }
 
     private let priceContainer = UIView()
 
     private let priceTypeLabel = UILabel().then {
-        $0.typography(FontSystem.YeongdeokHaeparang.title1, text: "월세")
+        $0.typography(FontSystem.YeongdeokHaeparang.title1, text: "")
         $0.textColor = ColorSystem.gray75
     }
 
     private let priceLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.title0, text: "900/120")
+        $0.typography(FontSystem.Pretendard.title0, text: "")
         $0.textColor = ColorSystem.gray90
     }
 
     private let managementFeeLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.body2, text: "관리비 16만원 • 112.4m²")
+        $0.typography(FontSystem.Pretendard.body2, text: "")
         $0.textColor = ColorSystem.gray60
     }
 
@@ -127,7 +129,7 @@ final class EstateDetailViewController: UIViewController {
     }
 
     private let parkingInfoLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption1Semibold, text: "세대별 차량 2대 주차 가능")
+        $0.typography(FontSystem.Pretendard.caption1Semibold, text: "")
         $0.textColor = ColorSystem.gray60
     }
 
@@ -136,13 +138,7 @@ final class EstateDetailViewController: UIViewController {
     private let descriptionTitleLabel = DetailTitle(title: "상세 설명")
 
     private let descriptionLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption1Regular, text: """
-        서울 문래동에 위치한 문래동 롯데캐슬은 뛰어난 교통 접근성과 쾌적한 주거 환경을 갖춘 프리미엄 아파트입니다.
-
-        지하철 2호선 문래역 도보권에 있으며, 다양한 커뮤니티 시설과 근교 마켓까지 모든 주거 편의들을 제공합니다.
-
-        세대 내부는 실용적인 공간 설계를 갖추고있으며, 채광과 환기에도 신경 써 쾌적함과 편안함을 동시에 누릴 드릴 수 있도록 구성되었습니다.
-        """)
+        $0.typography(FontSystem.Pretendard.caption1Regular, text: "")
         $0.textColor = ColorSystem.gray60
         $0.numberOfLines = 0
     }
@@ -161,12 +157,12 @@ final class EstateDetailViewController: UIViewController {
     }
 
     private let agentNameLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.body1Bold, text: "새싹 공인중개사")
+        $0.typography(FontSystem.Pretendard.body1Bold, text: "")
         $0.textColor = ColorSystem.gray90
     }
 
     private let agentDescriptionLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.body3, text: "푸릇푸릇 친절한 상담과 소개")
+        $0.typography(FontSystem.Pretendard.body3, text: "")
         $0.textColor = ColorSystem.gray60
     }
 
@@ -294,6 +290,28 @@ final class EstateDetailViewController: UIViewController {
     }
 
     private func bind() {
+        let input = EstateDetailPresenter.Input(
+            viewDidLoad: viewDidLoadTrigger.asObservable()
+        )
+
+        let output = presenter.transform(input: input)
+
+        output.estateDetail
+            .drive(with: self) { owner, detail in
+                owner.updateUI(with: detail)
+            }
+            .disposed(by: disposeBag)
+
+        output.error
+            .drive(with: self) { owner, message in
+                let alert = UIAlertController(title: "오류", message: message, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "확인", style: .default))
+                owner.present(alert, animated: true)
+            }
+            .disposed(by: disposeBag)
+
+        viewDidLoadTrigger.onNext(())
+
         navigationBar.onBackButtonTap = { [weak self] in
             self?.navigationController?.popViewController(animated: true)
         }
@@ -305,12 +323,6 @@ final class EstateDetailViewController: UIViewController {
         imageCarousel.onImageTapped = { index in
             print("이미지 탭: \(index)")
         }
-
-        imageCarousel.configure(with: [
-            nil,
-            nil,
-            nil,
-        ])
 
         agentCallButton.rx.tap
             .withUnretained(self)
@@ -588,19 +600,27 @@ final class EstateDetailViewController: UIViewController {
             .vCenter()
             .size(60)
 
-        agentNameLabel.pin
-            .after(of: agentProfileImageView)
-            .marginLeft(12)
-            .top(to: agentProfileImageView.edge.top)
-            .marginTop(9.5)
-            .sizeToFit()
+        if agentDescriptionLabel.isHidden {
+            agentNameLabel.pin
+                .after(of: agentProfileImageView)
+                .marginLeft(12)
+                .vCenter(to: agentProfileImageView.edge.vCenter)
+                .sizeToFit()
+        } else {
+            agentNameLabel.pin
+                .after(of: agentProfileImageView)
+                .marginLeft(12)
+                .top(to: agentProfileImageView.edge.top)
+                .marginTop(9.5)
+                .sizeToFit()
 
-        agentDescriptionLabel.pin
-            .after(of: agentProfileImageView)
-            .marginLeft(12)
-            .below(of: agentNameLabel)
-            .marginTop(6)
-            .sizeToFit()
+            agentDescriptionLabel.pin
+                .after(of: agentProfileImageView)
+                .marginLeft(12)
+                .below(of: agentNameLabel)
+                .marginTop(6)
+                .sizeToFit()
+        }
 
         agentChatButton.pin
             .right(0)
@@ -615,5 +635,47 @@ final class EstateDetailViewController: UIViewController {
 
         let contentHeight = agentContainer.frame.maxY + 20
         scrollView.contentSize = CGSize(width: scrollView.frame.width, height: contentHeight)
+    }
+
+    private func updateUI(with detail: EstateDetail) {
+        navigationBar.setTitle(detail.title)
+        imageCarousel.configure(with: detail.imageURLs)
+        badgeContainer.isHidden = !detail.isSafeEstate
+        timeLabel.typography(FontSystem.Pretendard.body3, text: detail.relativeTime)
+        addressLabel.typography(FontSystem.Pretendard.body2, text: detail.category)
+        priceTypeLabel.typography(FontSystem.YeongdeokHaeparang.title1, text: detail.priceType)
+        priceLabel.typography(FontSystem.Pretendard.title0, text: detail.price)
+        managementFeeLabel.typography(FontSystem.Pretendard.body2, text: detail.managementFeeText)
+
+        let options = detail.options
+        let optionLabels = [optionRefrigerator, optionWashingMachine, optionAirConditioner, optionMicrowave,
+                           optionSink, optionTelevision, optionShoeCabinet, optionCloset]
+
+        for (index, optionLabel) in optionLabels.enumerated() {
+            if index < options.count {
+                optionLabel.isSelected = true
+            } else {
+                optionLabel.isSelected = false
+            }
+        }
+
+        parkingInfoLabel.typography(FontSystem.Pretendard.caption1Semibold, text: detail.parkingInfo)
+        descriptionLabel.typography(FontSystem.Pretendard.caption1Regular, text: detail.description)
+        agentNameLabel.typography(FontSystem.Pretendard.body1Bold, text: detail.creatorName)
+
+        if detail.creatorIntroduction.isEmpty {
+            agentDescriptionLabel.isHidden = true
+        } else {
+            agentDescriptionLabel.isHidden = false
+            agentDescriptionLabel.typography(FontSystem.Pretendard.body3, text: detail.creatorIntroduction)
+        }
+
+        if let profileImageURL = detail.creatorProfileImageURL {
+            agentProfileImageView.setImage(from: profileImageURL, placeholder: UIImage(named: "placeholder"))
+        }
+
+        navigationBar.setRightButtonImage(filled: detail.isLiked)
+
+        view.setNeedsLayout()
     }
 }

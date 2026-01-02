@@ -8,6 +8,7 @@
 import Foundation
 import Alamofire
 import RxSwift
+import OSLog
 
 protocol NetworkServiceProtocol {
     func request<T: Decodable>(_ router: APIRouter) -> Single<T>

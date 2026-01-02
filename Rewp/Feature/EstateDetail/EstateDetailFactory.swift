@@ -12,7 +12,10 @@ final class EstateDetailFactory {
         estateId: String,
         container: AppContainer
     ) -> EstateDetailViewController {
-        let presenter = EstateDetailPresenter(estateId: estateId)
+        let presenter = EstateDetailPresenter(
+            estateId: estateId,
+            repository: container.estateRepository
+        )
         let viewController = EstateDetailViewController(estateId: estateId)
 
         viewController.presenter = presenter

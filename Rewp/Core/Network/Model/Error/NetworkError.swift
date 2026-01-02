@@ -17,7 +17,7 @@ enum NetworkError: LocalizedError {
         case .serverError(let message):
             return message
         case .decodingError:
-            return "데이터 처리 중 오류가 발생했습니다."
+            return "디코딩 에러가 발생했습니다."
         case .unknown:
             return "알 수 없는 오류가 발생했습니다."
         }
