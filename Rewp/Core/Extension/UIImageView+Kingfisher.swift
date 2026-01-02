@@ -7,6 +7,7 @@
 
 import UIKit
 import Kingfisher
+import OSLog
 
 extension UIImageView {
     func setImage(from urlString: String?, placeholder: UIImage? = nil) {
@@ -16,7 +17,13 @@ extension UIImageView {
             return
         }
 
-        let accessToken = try? KeychainManager.shared.loadAccessToken()
+        let accessToken: String?
+        do {
+            accessToken = try KeychainManager.shared.loadAccessToken()
+        } catch {
+            Logger.auth.error("Failed to load access token for image request - \(error.localizedDescription)")
+            accessToken = nil
+        }
 
         self.kf.setImage(
             with: .network(KF.ImageResource(downloadURL: url, cacheKey: url.absoluteString)),

@@ -29,15 +29,17 @@ final class AuthService: AuthServiceProtocol {
     private var session: Session
 
     private var currentCredential: TokenCredential? {
-        guard let accessToken = try? keychainManager.loadAccessToken(),
-              let refreshToken = try? keychainManager.loadRefreshToken() else {
+        do {
+            let accessToken = try keychainManager.loadAccessToken()
+            let refreshToken = try keychainManager.loadRefreshToken()
+            return TokenCredential.from(
+                accessToken: accessToken,
+                refreshToken: refreshToken
+            )
+        } catch {
+            Logger.auth.error("Failed to load tokens from keychain - \(error.localizedDescription)")
             return nil
         }
-
-        return TokenCredential.from(
-            accessToken: accessToken,
-            refreshToken: refreshToken
-        )
     }
 
     init(networkService: NetworkServiceProtocol, keychainManager: KeychainManager = .shared) {
@@ -46,13 +48,15 @@ final class AuthService: AuthServiceProtocol {
         self.authenticator = TokenAuthenticator(keychainManager: keychainManager)
 
         let credential: TokenCredential?
-        if let accessToken = try? keychainManager.loadAccessToken(),
-           let refreshToken = try? keychainManager.loadRefreshToken() {
+        do {
+            let accessToken = try keychainManager.loadAccessToken()
+            let refreshToken = try keychainManager.loadRefreshToken()
             credential = TokenCredential.from(
                 accessToken: accessToken,
                 refreshToken: refreshToken
             )
-        } else {
+        } catch {
+            Logger.auth.error("Failed to load tokens during AuthService init - \(error.localizedDescription)")
             credential = nil
         }
 
@@ -101,12 +105,15 @@ final class AuthService: AuthServiceProtocol {
             return .error(AuthError.notAuthenticated)
         }
 
+        Logger.network.notice("Making authenticated request - \(router.path)")
+
         return Single.create { observer in
             let dataRequest = self.session.request(router)
                 .validate(statusCode: 200..<300)
                 .responseDecodable(of: T.self) { response in
                     switch response.result {
                     case .success(let value):
+                        Logger.network.notice("Request succeeded - \(router.path)")
                         observer(.success(value))
                     case .failure:
                         let statusCode = response.response?.statusCode ?? 0
@@ -168,7 +175,11 @@ final class AuthService: AuthServiceProtocol {
     }
 
     private func clearAuthState() {
-        try? keychainManager.deleteAllTokens()
+        do {
+            try keychainManager.deleteAllTokens()
+        } catch {
+            Logger.auth.error("Failed to delete tokens during clearAuthState - \(error.localizedDescription)")
+        }
 
         let interceptor = AuthenticationInterceptor(
             authenticator: authenticator,
