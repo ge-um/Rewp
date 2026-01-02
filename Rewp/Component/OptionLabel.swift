@@ -11,7 +11,7 @@ import Then
 
 final class OptionLabel: UIView {
     private let iconName: String
-    private let title: String
+    let title: String
 
     private lazy var iconImageView = UIImageView().then {
         $0.contentMode = .scaleAspectFit

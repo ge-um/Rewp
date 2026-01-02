@@ -83,37 +83,14 @@ final class EstateDetailViewController: UIViewController {
         $0.layer.cornerRadius = 20
     }
 
-    private lazy var optionRefrigerator = OptionLabel(iconName: "Refrigerator", title: "냉장고").then {
-        $0.isSelected = false
-    }
-
-    private lazy var optionWashingMachine = OptionLabel(iconName: "WashingMachine", title: "세탁기").then {
-        $0.isSelected = true
-    }
-
-    private lazy var optionAirConditioner = OptionLabel(iconName: "AirConditioner", title: "에어컨").then {
-        $0.isSelected = true
-    }
-
-    private lazy var optionMicrowave = OptionLabel(iconName: "Microwave", title: "전자레인지").then {
-        $0.isSelected = false
-    }
-
-    private lazy var optionSink = OptionLabel(iconName: "Sink", title: "싱크대").then {
-        $0.isSelected = true
-    }
-
-    private lazy var optionTelevision = OptionLabel(iconName: "Television", title: "TV").then {
-        $0.isSelected = true
-    }
-
-    private lazy var optionShoeCabinet = OptionLabel(iconName: "ShoeCabinet", title: "신발장").then {
-        $0.isSelected = true
-    }
-
-    private lazy var optionCloset = OptionLabel(iconName: "Closet", title: "옷장").then {
-        $0.isSelected = false
-    }
+    private lazy var optionRefrigerator = OptionLabel(iconName: "Refrigerator", title: "냉장고")
+    private lazy var optionWashingMachine = OptionLabel(iconName: "WashingMachine", title: "세탁기")
+    private lazy var optionAirConditioner = OptionLabel(iconName: "AirConditioner", title: "에어컨")
+    private lazy var optionMicrowave = OptionLabel(iconName: "Microwave", title: "전자레인지")
+    private lazy var optionSink = OptionLabel(iconName: "Sink", title: "싱크대")
+    private lazy var optionTelevision = OptionLabel(iconName: "Television", title: "TV")
+    private lazy var optionShoeCabinet = OptionLabel(iconName: "ShoeCabinet", title: "신발장")
+    private lazy var optionCloset = OptionLabel(iconName: "Closet", title: "옷장")
 
     private let parkingInfoContainer = UIView().then {
         $0.backgroundColor = ColorSystem.gray0
@@ -221,6 +198,13 @@ final class EstateDetailViewController: UIViewController {
         $0.layer.cornerRadius = 8
     }
 
+    private let loadingIndicator = UIActivityIndicatorView(style: .large).then {
+        $0.color = ColorSystem.gray75
+        $0.hidesWhenStopped = true
+    }
+
+    private let contentContainer = UIView()
+
     init(estateId: String) {
         self.estateId = estateId
         super.init(nibName: nil, bundle: nil)
@@ -240,6 +224,11 @@ final class EstateDetailViewController: UIViewController {
     private func setupUI() {
         view.addSubview(navigationBar)
         view.addSubview(scrollView)
+        view.addSubview(bottomContainer)
+        view.addSubview(loadingIndicator)
+
+        scrollView.isHidden = true
+        bottomContainer.isHidden = true
 
         scrollView.addSubview(imageCarousel)
         scrollView.addSubview(badgeContainer)
@@ -285,7 +274,6 @@ final class EstateDetailViewController: UIViewController {
             similarEstatesContainerView.addSubview(item)
         }
 
-        view.addSubview(bottomContainer)
         bottomContainer.addSubview(reservationButton)
     }
 
@@ -307,6 +295,20 @@ final class EstateDetailViewController: UIViewController {
                 let alert = UIAlertController(title: "오류", message: message, preferredStyle: .alert)
                 alert.addAction(UIAlertAction(title: "확인", style: .default))
                 owner.present(alert, animated: true)
+            }
+            .disposed(by: disposeBag)
+
+        output.isLoading
+            .drive(with: self) { owner, isLoading in
+                if isLoading {
+                    owner.scrollView.isHidden = true
+                    owner.bottomContainer.isHidden = true
+                    owner.loadingIndicator.startAnimating()
+                } else {
+                    owner.loadingIndicator.stopAnimating()
+                    owner.scrollView.isHidden = false
+                    owner.bottomContainer.isHidden = false
+                }
             }
             .disposed(by: disposeBag)
 
@@ -368,6 +370,10 @@ final class EstateDetailViewController: UIViewController {
             .below(of: navigationBar)
             .horizontally()
             .above(of: bottomContainer)
+
+        loadingIndicator.pin
+            .center()
+            .sizeToFit()
 
         imageCarousel.pin
             .top()
@@ -647,16 +653,12 @@ final class EstateDetailViewController: UIViewController {
         priceLabel.typography(FontSystem.Pretendard.title0, text: detail.price)
         managementFeeLabel.typography(FontSystem.Pretendard.body2, text: detail.managementFeeText)
 
-        let options = detail.options
+        let filteredOptions = detail.options.filter { !$0.hasPrefix("기타") }
         let optionLabels = [optionRefrigerator, optionWashingMachine, optionAirConditioner, optionMicrowave,
                            optionSink, optionTelevision, optionShoeCabinet, optionCloset]
 
-        for (index, optionLabel) in optionLabels.enumerated() {
-            if index < options.count {
-                optionLabel.isSelected = true
-            } else {
-                optionLabel.isSelected = false
-            }
+        for optionLabel in optionLabels {
+            optionLabel.isSelected = filteredOptions.contains(optionLabel.title)
         }
 
         parkingInfoLabel.typography(FontSystem.Pretendard.caption1Semibold, text: detail.parkingInfo)
