@@ -46,6 +46,13 @@ enum FontSystem {
             lineHeight: 130,
             kerning: 0
         )
+        
+        static let body1Bold = Typography(
+            fontName: "Pretendard-Bold",
+            size: 16,
+            lineHeight: 130,
+            kerning: 0
+        )
 
         static let body2 = Typography(
             fontName: "Pretendard-Medium",

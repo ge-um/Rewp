@@ -32,7 +32,6 @@ final class ItemDivider: UIView {
         super.layoutSubviews()
 
         lineView.pin
-            .top(5)
             .horizontally(20)
             .height(1)
     }

@@ -141,10 +141,57 @@ final class EstateDetailViewController: UIViewController {
 
         지하철 2호선 문래역 도보권에 있으며, 다양한 커뮤니티 시설과 근교 마켓까지 모든 주거 편의들을 제공합니다.
 
-        세대 내부는 실용적인 공간 설계를 갖추고있으며, 채광과 환기에도 신경 쓴 패밀리와 원인들에게 동시에 추천 드릴 수 있는 구성입니다.
+        세대 내부는 실용적인 공간 설계를 갖추고있으며, 채광과 환기에도 신경 써 쾌적함과 편안함을 동시에 누릴 드릴 수 있도록 구성되었습니다.
         """)
         $0.textColor = ColorSystem.gray60
         $0.numberOfLines = 0
+    }
+
+    private let agentDivider = ItemDivider()
+
+    private let agentTitleLabel = DetailTitle(title: "중개사 정보")
+
+    private let agentContainer = UIView()
+
+    private let agentProfileImageView = UIImageView().then {
+        $0.contentMode = .scaleAspectFill
+        $0.clipsToBounds = true
+        $0.layer.cornerRadius = 30
+        $0.backgroundColor = ColorSystem.gray30
+    }
+
+    private let agentNameLabel = UILabel().then {
+        $0.typography(FontSystem.Pretendard.body1Bold, text: "새싹 공인중개사")
+        $0.textColor = ColorSystem.gray90
+    }
+
+    private let agentDescriptionLabel = UILabel().then {
+        $0.typography(FontSystem.Pretendard.body3, text: "푸릇푸릇 친절한 상담과 소개")
+        $0.textColor = ColorSystem.gray60
+    }
+
+    private let agentCallButton = UIButton().then {
+        let iconSize = CGSize(width: 24, height: 24)
+        let icon = UIImage(named: "Phone")?
+            .resize(to: iconSize)
+            .withRenderingMode(.alwaysTemplate)
+        $0.setImage(icon, for: .normal)
+        $0.tintColor = ColorSystem.gray0
+        $0.backgroundColor = ColorSystem.deepCream
+        $0.layer.cornerRadius = 10
+        $0.imageView?.contentMode = .center
+    }
+
+    private let agentChatButton = UIButton().then {
+        let iconSize = CGSize(width: 24, height: 24)
+        let icon = UIImage(named: "Message")?
+            .resize(to: iconSize)
+            .withRenderingMode(.alwaysTemplate)
+        $0.setImage(icon, for: .normal)
+        $0.tintColor = ColorSystem.gray0
+        $0.backgroundColor = ColorSystem.deepCream
+        $0.layer.cornerRadius = 10
+        $0.imageView?.contentMode = .center
     }
 
     private let similarEstatesDivider = ItemDivider()
@@ -209,6 +256,14 @@ final class EstateDetailViewController: UIViewController {
         scrollView.addSubview(descriptionDivider)
         scrollView.addSubview(descriptionTitleLabel)
         scrollView.addSubview(descriptionLabel)
+        scrollView.addSubview(agentDivider)
+        scrollView.addSubview(agentTitleLabel)
+        scrollView.addSubview(agentContainer)
+        agentContainer.addSubview(agentProfileImageView)
+        agentContainer.addSubview(agentNameLabel)
+        agentContainer.addSubview(agentDescriptionLabel)
+        agentContainer.addSubview(agentCallButton)
+        agentContainer.addSubview(agentChatButton)
         scrollView.addSubview(similarEstatesDivider)
         scrollView.addSubview(similarEstatesTitleLabel)
         scrollView.addSubview(similarEstatesScrollView)
@@ -237,6 +292,20 @@ final class EstateDetailViewController: UIViewController {
             nil,
             nil,
         ])
+
+        agentCallButton.rx.tap
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                print("전화 버튼 탭")
+            })
+            .disposed(by: disposeBag)
+
+        agentChatButton.rx.tap
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                print("채팅 버튼 탭")
+            })
+            .disposed(by: disposeBag)
     }
 
     override func viewDidLayoutSubviews() {
@@ -440,6 +509,7 @@ final class EstateDetailViewController: UIViewController {
 
         similarEstatesScrollView.pin
             .below(of: similarEstatesTitleLabel)
+            .marginTop(8)
             .horizontally(20)
             .height(104)
 
@@ -460,7 +530,53 @@ final class EstateDetailViewController: UIViewController {
 
         similarEstatesScrollView.contentSize = similarEstatesContainerView.frame.size
 
-        let contentHeight = similarEstatesScrollView.frame.maxY + 20
+        agentDivider.pin
+            .below(of: similarEstatesScrollView)
+            .marginTop(8)
+            .horizontally()
+            .sizeToFit(.width)
+
+        agentTitleLabel.pin
+            .below(of: agentDivider)
+            .marginTop(5)
+            .horizontally(20)
+            .height(32)
+
+        agentContainer.pin
+            .below(of: agentTitleLabel)
+            .marginTop(8)
+            .horizontally(20)
+            .height(60)
+
+        agentProfileImageView.pin
+            .vCenter()
+            .size(60)
+
+        agentNameLabel.pin
+            .after(of: agentProfileImageView)
+            .marginLeft(12)
+            .top(12)
+            .sizeToFit()
+
+        agentDescriptionLabel.pin
+            .after(of: agentProfileImageView)
+            .marginLeft(12)
+            .below(of: agentNameLabel)
+            .marginTop(6)
+            .sizeToFit()
+
+        agentChatButton.pin
+            .right(0)
+            .vCenter()
+            .size(40)
+
+        agentCallButton.pin
+            .before(of: agentChatButton)
+            .marginRight(8)
+            .vCenter()
+            .size(40)
+
+        let contentHeight = agentContainer.frame.maxY + 20
         scrollView.contentSize = CGSize(width: scrollView.frame.width, height: contentHeight)
     }
 }
