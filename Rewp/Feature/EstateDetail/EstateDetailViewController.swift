@@ -175,10 +175,10 @@ final class EstateDetailViewController: UIViewController {
     }
 
     private func setupUI() {
+        view.addSubview(navigationBar)
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
 
-        contentView.addSubview(navigationBar)
         contentView.addSubview(imageCarousel)
         contentView.addSubview(badgeContainer)
         badgeContainer.addSubview(diamondImageView)
@@ -231,21 +231,23 @@ final class EstateDetailViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
 
+        navigationBar.pin
+            .top(view.pin.safeArea.top)
+            .horizontally()
+            .height(56)
+
         scrollView.pin
-            .all()
+            .below(of: navigationBar)
+            .horizontally()
+            .bottom()
 
         contentView.pin
             .top()
             .horizontally()
             .width(scrollView.frame.width)
 
-        navigationBar.pin
-            .top()
-            .horizontally()
-            .height(56)
-
         imageCarousel.pin
-            .below(of: navigationBar)
+            .top()
             .horizontally()
             .height(250)
 
