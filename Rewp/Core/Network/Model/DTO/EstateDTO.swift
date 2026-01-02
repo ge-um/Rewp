@@ -68,6 +68,7 @@ struct EstateCreator: Codable {
     let nick: String
     let introduction: String?
     let profileImage: String?
+    let phoneNum: String?
 }
 
 struct EstateComment: Codable {
@@ -148,6 +149,7 @@ extension EstateDetailResponse {
             creatorName: creator.nick,
             creatorIntroduction: creator.introduction ?? "",
             creatorProfileImageURL: creatorProfileImageURL,
+            creatorPhoneNumber: creator.phoneNum,
             relativeTime: relativeTime
         )
     }

@@ -23,5 +23,6 @@ struct EstateDetail {
     let creatorName: String
     let creatorIntroduction: String
     let creatorProfileImageURL: String?
+    let creatorPhoneNumber: String?
     let relativeTime: String
 }

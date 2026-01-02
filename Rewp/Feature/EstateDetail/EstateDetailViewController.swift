@@ -21,6 +21,7 @@ final class EstateDetailViewController: UIViewController {
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let similarEstateTappedRelay = PublishRelay<String>()
     private let likeTappedRelay = PublishRelay<Void>()
+    private var creatorPhoneNumber: String?
 
     private let scrollView = UIScrollView().then {
         $0.backgroundColor = ColorSystem.gray0
@@ -346,7 +347,21 @@ final class EstateDetailViewController: UIViewController {
         agentCallButton.rx.tap
             .withUnretained(self)
             .subscribe(onNext: { owner, _ in
-                print("전화 버튼 탭")
+                guard let phoneNumber = owner.creatorPhoneNumber else {
+                    let alert = UIAlertController(title: "전화번호 없음", message: "중개사의 전화번호가 등록되지 않았습니다.", preferredStyle: .alert)
+                    alert.addAction(UIAlertAction(title: "확인", style: .default))
+                    owner.present(alert, animated: true)
+                    return
+                }
+
+                let cleanedNumber = phoneNumber.replacingOccurrences(of: "-", with: "")
+                if let url = URL(string: "tel://\(cleanedNumber)"), UIApplication.shared.canOpenURL(url) {
+                    UIApplication.shared.open(url)
+                } else {
+                    let alert = UIAlertController(title: "전화 걸기 실패", message: "전화를 걸 수 없습니다.", preferredStyle: .alert)
+                    alert.addAction(UIAlertAction(title: "확인", style: .default))
+                    owner.present(alert, animated: true)
+                }
             })
             .disposed(by: disposeBag)
 
@@ -669,6 +684,7 @@ final class EstateDetailViewController: UIViewController {
         priceTypeLabel.typography(FontSystem.YeongdeokHaeparang.title1, text: detail.priceType)
         priceLabel.typography(FontSystem.Pretendard.title0, text: detail.price)
         managementFeeLabel.typography(FontSystem.Pretendard.body2, text: detail.managementFeeText)
+        creatorPhoneNumber = detail.creatorPhoneNumber
 
         let filteredOptions = detail.options.filter { !$0.hasPrefix("기타") }
         let optionLabels = [optionRefrigerator, optionWashingMachine, optionAirConditioner, optionMicrowave,
