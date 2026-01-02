@@ -18,10 +18,9 @@ final class EstateDetailViewController: UIViewController {
     private let disposeBag = DisposeBag()
 
     private let scrollView = UIScrollView().then {
-        $0.backgroundColor = ColorSystem.gray15
+        $0.backgroundColor = ColorSystem.gray0
         $0.showsVerticalScrollIndicator = false
     }
-    private let contentView = UIView()
 
     private lazy var navigationBar = CustomNavigationBar(title: "문래동 롯데캐슬", showBackButton: true, showRightButton: true)
 
@@ -71,14 +70,9 @@ final class EstateDetailViewController: UIViewController {
         $0.textColor = ColorSystem.gray60
     }
 
-    private let divider = UIView().then {
-        $0.backgroundColor = ColorSystem.gray30
-    }
+    private let divider = ItemDivider()
 
-    private let optionTitleLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.body2Bold, text: "옵션 정보")
-        $0.textColor = ColorSystem.gray90
-    }
+    private let optionTitleLabel = DetailTitle(title: "옵션 정보")
 
     private let optionGridContainer = UIView().then {
         $0.backgroundColor = ColorSystem.gray0
@@ -137,14 +131,9 @@ final class EstateDetailViewController: UIViewController {
         $0.textColor = ColorSystem.gray60
     }
 
-    private let descriptionDivider = UIView().then {
-        $0.backgroundColor = ColorSystem.gray30
-    }
+    private let descriptionDivider = ItemDivider()
 
-    private let descriptionTitleLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.body2Bold, text: "상세 설명")
-        $0.textColor = ColorSystem.gray75
-    }
+    private let descriptionTitleLabel = DetailTitle(title: "상세 설명")
 
     private let descriptionLabel = UILabel().then {
         $0.typography(FontSystem.Pretendard.caption1Regular, text: """
@@ -157,6 +146,21 @@ final class EstateDetailViewController: UIViewController {
         $0.textColor = ColorSystem.gray60
         $0.numberOfLines = 0
     }
+
+    private let similarEstatesDivider = ItemDivider()
+
+    private let similarEstatesTitleLabel = DetailTitle(title: "유사한 매물")
+
+    private let similarEstatesScrollView = UIScrollView().then {
+        $0.showsHorizontalScrollIndicator = false
+    }
+
+    private let similarEstatesContainerView = UIView()
+
+    private lazy var similarEstatesItems: [RecentSearchItem] = [
+        RecentSearchItem(recommend: "추천", category: "원룸", price: "월세 3,000/20", area: "문래동 112.4m²"),
+        RecentSearchItem(category: "원룸", price: "월세 900/50", area: "문래동 49.5m²")
+    ]
 
     init(estateId: String) {
         self.estateId = estateId
@@ -177,21 +181,20 @@ final class EstateDetailViewController: UIViewController {
     private func setupUI() {
         view.addSubview(navigationBar)
         view.addSubview(scrollView)
-        scrollView.addSubview(contentView)
 
-        contentView.addSubview(imageCarousel)
-        contentView.addSubview(badgeContainer)
+        scrollView.addSubview(imageCarousel)
+        scrollView.addSubview(badgeContainer)
         badgeContainer.addSubview(diamondImageView)
         badgeContainer.addSubview(badgeLabel)
-        contentView.addSubview(timeLabel)
-        contentView.addSubview(addressLabel)
-        contentView.addSubview(priceContainer)
+        scrollView.addSubview(timeLabel)
+        scrollView.addSubview(addressLabel)
+        scrollView.addSubview(priceContainer)
         priceContainer.addSubview(priceTypeLabel)
         priceContainer.addSubview(priceLabel)
-        contentView.addSubview(managementFeeLabel)
-        contentView.addSubview(divider)
-        contentView.addSubview(optionTitleLabel)
-        contentView.addSubview(optionGridContainer)
+        scrollView.addSubview(managementFeeLabel)
+        scrollView.addSubview(divider)
+        scrollView.addSubview(optionTitleLabel)
+        scrollView.addSubview(optionGridContainer)
         optionGridContainer.addSubview(optionRefrigerator)
         optionGridContainer.addSubview(optionWashingMachine)
         optionGridContainer.addSubview(optionAirConditioner)
@@ -200,12 +203,20 @@ final class EstateDetailViewController: UIViewController {
         optionGridContainer.addSubview(optionTelevision)
         optionGridContainer.addSubview(optionShoeCabinet)
         optionGridContainer.addSubview(optionCloset)
-        contentView.addSubview(parkingInfoContainer)
+        scrollView.addSubview(parkingInfoContainer)
         parkingInfoContainer.addSubview(parkingIconImageView)
         parkingInfoContainer.addSubview(parkingInfoLabel)
-        contentView.addSubview(descriptionDivider)
-        contentView.addSubview(descriptionTitleLabel)
-        contentView.addSubview(descriptionLabel)
+        scrollView.addSubview(descriptionDivider)
+        scrollView.addSubview(descriptionTitleLabel)
+        scrollView.addSubview(descriptionLabel)
+        scrollView.addSubview(similarEstatesDivider)
+        scrollView.addSubview(similarEstatesTitleLabel)
+        scrollView.addSubview(similarEstatesScrollView)
+        similarEstatesScrollView.addSubview(similarEstatesContainerView)
+
+        similarEstatesItems.forEach { item in
+            similarEstatesContainerView.addSubview(item)
+        }
     }
 
     private func bind() {
@@ -240,11 +251,6 @@ final class EstateDetailViewController: UIViewController {
             .below(of: navigationBar)
             .horizontally()
             .bottom()
-
-        contentView.pin
-            .top()
-            .horizontally()
-            .width(scrollView.frame.width)
 
         imageCarousel.pin
             .top()
@@ -309,19 +315,19 @@ final class EstateDetailViewController: UIViewController {
 
         divider.pin
             .below(of: managementFeeLabel)
-            .marginTop(21)
-            .horizontally(20)
-            .height(1)
+            .marginTop(16)
+            .horizontally()
+            .sizeToFit(.width)
 
         optionTitleLabel.pin
             .below(of: divider)
-            .marginTop(12.5)
-            .left(20)
-            .sizeToFit()
+            .marginTop(5)
+            .horizontally(20)
+            .height(32)
 
         optionGridContainer.pin
             .below(of: optionTitleLabel)
-            .marginTop(15.5)
+            .marginTop(8)
             .horizontally(20)
 
         let containerWidth = optionGridContainer.frame.width
@@ -404,26 +410,57 @@ final class EstateDetailViewController: UIViewController {
 
         descriptionDivider.pin
             .below(of: parkingInfoContainer)
-            .marginTop(21)
-            .horizontally(20)
-            .height(1)
+            .marginTop(16)
+            .horizontally()
+            .sizeToFit(.width)
 
         descriptionTitleLabel.pin
             .below(of: descriptionDivider)
-            .marginTop(12.5)
-            .left(20)
-            .sizeToFit()
+            .marginTop(5)
+            .horizontally(20)
+            .height(32)
 
         descriptionLabel.pin
             .below(of: descriptionTitleLabel)
-            .marginTop(15.5)
+            .marginTop(8)
             .horizontally(20)
             .sizeToFit(.width)
 
-        contentView.pin
+        similarEstatesDivider.pin
+            .below(of: descriptionLabel)
+            .marginTop(24)
             .horizontally()
-            .height(descriptionLabel.frame.maxY + 20)
+            .sizeToFit(.width)
 
-        scrollView.contentSize = contentView.frame.size
+        similarEstatesTitleLabel.pin
+            .below(of: similarEstatesDivider)
+            .marginTop(5)
+            .horizontally(20)
+            .height(32)
+
+        similarEstatesScrollView.pin
+            .below(of: similarEstatesTitleLabel)
+            .horizontally(20)
+            .height(104)
+
+        var xOffset: CGFloat = 0
+        similarEstatesItems.enumerated().forEach { index, item in
+            item.pin
+                .left(xOffset)
+                .top()
+                .size(item.intrinsicContentSize)
+            xOffset += item.intrinsicContentSize.width + 8
+        }
+
+        similarEstatesContainerView.pin
+            .top()
+            .left()
+            .width(xOffset - 8)
+            .height(88)
+
+        similarEstatesScrollView.contentSize = similarEstatesContainerView.frame.size
+
+        let contentHeight = similarEstatesScrollView.frame.maxY + 20
+        scrollView.contentSize = CGSize(width: scrollView.frame.width, height: contentHeight)
     }
 }

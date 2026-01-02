@@ -139,7 +139,7 @@ class FeedViewController: UIViewController {
             .direction(.column)
             .define { flex in
                 newsItems.forEach { item in
-                    if item is NewsItemDivider {
+                    if item is ItemDivider {
                         flex.addItem(item)
                             .height(11)
                             .width(100%)
@@ -290,7 +290,7 @@ class FeedViewController: UIViewController {
         recentSearchContainerView.pin
             .top()
             .left()
-            .height(96)
+            .height(104)
 
         recentSearchContainerView.flex.layout(mode: .adjustWidth)
         recentSearchScrollView.contentSize = recentSearchContainerView.frame.size
@@ -349,7 +349,7 @@ class FeedViewController: UIViewController {
             .direction(.column)
             .define { flex in
                 newsItems.forEach { item in
-                    if item is NewsItemDivider {
+                    if item is ItemDivider {
                         flex.addItem(item)
                             .height(11)
                             .width(100%)
@@ -382,12 +382,12 @@ class FeedViewController: UIViewController {
             result.append(hashtagItem)
 
             if let adConfig = adConfigs.first(where: { $0.afterTopicIndex == index }) {
-                result.append(NewsItemDivider())
+                result.append(ItemDivider())
                 result.append(adConfig.item)
             }
 
             if index < topics.count - 1 {
-                result.append(NewsItemDivider())
+                result.append(ItemDivider())
             }
         }
 
