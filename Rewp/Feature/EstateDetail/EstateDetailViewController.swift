@@ -20,6 +20,7 @@ final class EstateDetailViewController: UIViewController {
     private let disposeBag = DisposeBag()
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let similarEstateTappedRelay = PublishRelay<String>()
+    private let likeTappedRelay = PublishRelay<Void>()
 
     private let scrollView = UIScrollView().then {
         $0.backgroundColor = ColorSystem.gray0
@@ -275,7 +276,8 @@ final class EstateDetailViewController: UIViewController {
     private func bind() {
         let input = EstateDetailPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
-            similarEstateTapped: similarEstateTappedRelay.asObservable()
+            similarEstateTapped: similarEstateTappedRelay.asObservable(),
+            likeTapped: likeTappedRelay.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -321,14 +323,20 @@ final class EstateDetailViewController: UIViewController {
             }
             .disposed(by: disposeBag)
 
+        output.likeStatus
+            .drive(with: self) { owner, isLiked in
+                owner.navigationBar.setRightButtonImage(filled: isLiked)
+            }
+            .disposed(by: disposeBag)
+
         viewDidLoadTrigger.onNext(())
 
         navigationBar.onBackButtonTap = { [weak self] in
             self?.navigationController?.popViewController(animated: true)
         }
 
-        navigationBar.onRightButtonTapped = {
-            print("찜하기 버튼 탭")
+        navigationBar.onRightButtonTapped = { [weak self] in
+            self?.likeTappedRelay.accept(())
         }
 
         imageCarousel.onImageTapped = { index in
@@ -684,8 +692,6 @@ final class EstateDetailViewController: UIViewController {
         if let profileImageURL = detail.creatorProfileImageURL {
             agentProfileImageView.setImage(from: profileImageURL, placeholder: UIImage(named: "placeholder"))
         }
-
-        navigationBar.setRightButtonImage(filled: detail.isLiked)
 
         view.setNeedsLayout()
     }

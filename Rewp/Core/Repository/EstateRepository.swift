@@ -14,6 +14,7 @@ protocol EstateRepository {
     func fetchTodayTopics() -> Single<[TopicDTO]>
     func fetchEstateDetail(estateId: String) -> Single<EstateDetailResponse>
     func fetchSimilarEstates() -> Single<[EstateDTO]>
+    func likeEstate(estateId: String, likeStatus: Bool) -> Single<LikeEstateResponse>
 }
 
 final class EstateRepositoryImpl: EstateRepository {
@@ -53,5 +54,9 @@ final class EstateRepositoryImpl: EstateRepository {
             .map { (response: TodayEstatesResponse) in
                 return response.data
             }
+    }
+
+    func likeEstate(estateId: String, likeStatus: Bool) -> Single<LikeEstateResponse> {
+        return authService.authenticatedRequest(EstateRouter.likeEstate(estateId: estateId, likeStatus: likeStatus))
     }
 }

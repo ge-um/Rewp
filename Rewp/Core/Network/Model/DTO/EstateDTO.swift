@@ -8,6 +8,14 @@
 import Foundation
 import RxSwift
 
+struct LikeEstateRequest: Codable {
+    let like_status: Bool
+}
+
+struct LikeEstateResponse: Codable {
+    let like_status: Bool
+}
+
 struct Geolocation: Codable {
     let longitude: Double
     let latitude: Double

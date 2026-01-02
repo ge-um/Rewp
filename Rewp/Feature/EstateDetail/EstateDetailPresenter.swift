@@ -23,6 +23,7 @@ final class EstateDetailPresenter {
     struct Input {
         let viewDidLoad: Observable<Void>
         let similarEstateTapped: Observable<String>
+        let likeTapped: Observable<Void>
     }
 
     struct Output {
@@ -31,11 +32,13 @@ final class EstateDetailPresenter {
         let navigateToDetail: Driver<String>
         let error: Driver<String>
         let isLoading: Driver<Bool>
+        let likeStatus: Driver<Bool>
     }
 
     func transform(input: Input) -> Output {
         let errorRelay = PublishRelay<String>()
         let loadingRelay = PublishRelay<Bool>()
+        let likeStatusRelay = BehaviorRelay<Bool>(value: false)
 
         let estateDetail = input.viewDidLoad
             .do(onNext: {
@@ -51,8 +54,9 @@ final class EstateDetailPresenter {
                         response.toEstateDetail()
                     }
                     .asObservable()
-                    .do(onNext: { _ in
+                    .do(onNext: { detail in
                         loadingRelay.accept(false)
+                        likeStatusRelay.accept(detail.isLiked)
                     })
                     .catch { error in
                         Logger.ui.error("fetchEstateDetail error: \(error.localizedDescription)")
@@ -81,12 +85,32 @@ final class EstateDetailPresenter {
         let navigateToDetail = input.similarEstateTapped
             .asDriver(onErrorDriveWith: .empty())
 
+        input.likeTapped
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                let currentStatus = likeStatusRelay.value
+                let newStatus = !currentStatus
+                likeStatusRelay.accept(newStatus)
+
+                owner.repository.likeEstate(estateId: owner.estateId, likeStatus: newStatus)
+                    .subscribe(onSuccess: { _ in
+                        Logger.ui.notice("Like status updated - estateId: \(owner.estateId), status: \(newStatus)")
+                    }, onFailure: { error in
+                        Logger.ui.error("Like estate failed - \(error.localizedDescription)")
+                        likeStatusRelay.accept(currentStatus)
+                        errorRelay.accept("좋아요 처리에 실패했습니다.")
+                    })
+                    .disposed(by: owner.disposeBag)
+            })
+            .disposed(by: disposeBag)
+
         return Output(
             estateDetail: estateDetail,
             similarEstates: similarEstates,
             navigateToDetail: navigateToDetail,
             error: errorRelay.asDriver(onErrorJustReturn: "알 수 없는 오류가 발생했습니다."),
-            isLoading: loadingRelay.asDriver(onErrorJustReturn: false)
+            isLoading: loadingRelay.asDriver(onErrorJustReturn: false),
+            likeStatus: likeStatusRelay.asDriver()
         )
     }
 }
