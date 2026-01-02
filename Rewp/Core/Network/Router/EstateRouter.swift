@@ -12,6 +12,9 @@ enum EstateRouter {
     case todayEstates
     case hotEstates
     case todayTopic
+    case estateDetail(estateId: String)
+    case similarEstates
+    case likeEstate(estateId: String, likeStatus: Bool)
 }
 
 extension EstateRouter: APIRouter {
@@ -27,11 +30,22 @@ extension EstateRouter: APIRouter {
             return "/estates/hot-estates"
         case .todayTopic:
             return "/estates/today-topic"
+        case .estateDetail(let estateId):
+            return "/estates/\(estateId)"
+        case .similarEstates:
+            return "/estates/similar-estates"
+        case .likeEstate(let estateId, _):
+            return "/estates/\(estateId)/like"
         }
     }
 
     var method: HTTPMethod {
-        return .get
+        switch self {
+        case .likeEstate:
+            return .post
+        default:
+            return .get
+        }
     }
 
     var headers: HTTPHeaders? {
@@ -39,5 +53,14 @@ extension EstateRouter: APIRouter {
             "Content-Type": "application/json",
             "SesacKey": NetworkConfig.rewpKey
         ]
+    }
+
+    var body: Encodable? {
+        switch self {
+        case .likeEstate(_, let likeStatus):
+            return LikeEstateRequest(like_status: likeStatus)
+        default:
+            return nil
+        }
     }
 }

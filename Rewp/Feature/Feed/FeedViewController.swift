@@ -11,6 +11,7 @@ import FlexLayout
 import RxSwift
 import RxCocoa
 import Then
+import OSLog
 
 class FeedViewController: UIViewController {
     var presenter: FeedPresenter!
@@ -205,7 +206,6 @@ class FeedViewController: UIViewController {
                         }
                     }
                 owner.view.setNeedsLayout()
-                owner.view.layoutIfNeeded()
             }
             .disposed(by: disposeBag)
 
@@ -285,7 +285,7 @@ class FeedViewController: UIViewController {
         recentSearchScrollView.pin
             .below(of: recentSearchTitleLabel)
             .horizontally(20)
-            .height(96)
+            .height(104)
 
         recentSearchContainerView.pin
             .top()
@@ -316,7 +316,7 @@ class FeedViewController: UIViewController {
 
         newsTitleLabel.pin
             .below(of: hotScrollView)
-            .marginTop(16)
+            .marginTop(8)
             .horizontally(20)
             .height(32)
 
@@ -364,9 +364,7 @@ class FeedViewController: UIViewController {
                     }
                 }
             }
-
         view.setNeedsLayout()
-        view.layoutIfNeeded()
     }
 
     private func mixTopicsWithAds(topics: [TopicItem]) -> [UIView] {

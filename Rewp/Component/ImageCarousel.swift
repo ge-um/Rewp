@@ -144,7 +144,8 @@ final class ImageCarousel: UIView {
     }
 
     func configure(with imageURLs: [String?]) {
-        imagesRelay.accept(imageURLs)
+        let urls = imageURLs.isEmpty ? [nil] : imageURLs
+        imagesRelay.accept(urls)
         collectionView.reloadData()
         collectionView.scrollToItem(at: IndexPath(item: 0, section: 0), at: .left, animated: false)
         pageControl.currentPage = 0

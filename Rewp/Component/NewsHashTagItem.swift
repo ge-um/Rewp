@@ -15,7 +15,7 @@ final class NewsHashTagItem: UIView {
     }
 
     private let titleLabel = UILabel().then {
-        $0.font = FontSystem.Pretendard.body2.font
+        $0.font = FontSystem.Pretendard.body2Bold.font
         $0.textColor = ColorSystem.gray90
     }
 

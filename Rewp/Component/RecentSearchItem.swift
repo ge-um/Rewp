@@ -51,6 +51,8 @@ final class RecentSearchItem: UIView {
         $0.textColor = ColorSystem.gray45
     }
 
+    var onTap: (() -> Void)?
+
     init(recommend: String? = nil, category: String, price: String, area: String, image: UIImage? = nil) {
         super.init(frame: .zero)
 
@@ -64,6 +66,17 @@ final class RecentSearchItem: UIView {
         areaLabel.typography(FontSystem.Pretendard.caption1Semibold, text: area)
         thumbnailImageView.image = image
         setupUI()
+        setupGesture()
+    }
+
+    private func setupGesture() {
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap))
+        addGestureRecognizer(tapGesture)
+        isUserInteractionEnabled = true
+    }
+
+    @objc private func handleTap() {
+        onTap?()
     }
 
     required init?(coder: NSCoder) {
@@ -115,6 +128,10 @@ final class RecentSearchItem: UIView {
 
     override var intrinsicContentSize: CGSize {
         return CGSize(width: 190, height: 88)
+    }
+
+    func setImage(from url: String?) {
+        thumbnailImageView.setImage(from: url, placeholder: nil)
     }
 }
 

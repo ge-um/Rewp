@@ -13,4 +13,6 @@ extension Logger {
     static let auth = Logger(subsystem: subsystem, category: "Authentication")
     static let network = Logger(subsystem: subsystem, category: "Network")
     static let token = Logger(subsystem: subsystem, category: "TokenManagement")
+    
+    static let ui = Logger(subsystem: subsystem, category: "UI")
 }

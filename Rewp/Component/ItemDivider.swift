@@ -16,7 +16,6 @@ final class ItemDivider: UIView {
 
     init() {
         super.init(frame: .zero)
-        backgroundColor = .clear
         setupUI()
     }
 
@@ -34,6 +33,7 @@ final class ItemDivider: UIView {
         lineView.pin
             .horizontally(20)
             .height(1)
+            .vCenter()
     }
 
     override var intrinsicContentSize: CGSize {

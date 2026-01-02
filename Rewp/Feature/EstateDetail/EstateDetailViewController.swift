@@ -7,8 +7,10 @@
 
 import UIKit
 import PinLayout
+import RxCocoa
 import RxSwift
 import Then
+import OSLog
 
 final class EstateDetailViewController: UIViewController {
     var presenter: EstateDetailPresenter!
@@ -16,13 +18,17 @@ final class EstateDetailViewController: UIViewController {
 
     private let estateId: String
     private let disposeBag = DisposeBag()
+    private let viewDidLoadTrigger = PublishSubject<Void>()
+    private let similarEstateTappedRelay = PublishRelay<String>()
+    private let likeTappedRelay = PublishRelay<Void>()
+    private var creatorPhoneNumber: String?
 
     private let scrollView = UIScrollView().then {
         $0.backgroundColor = ColorSystem.gray0
         $0.showsVerticalScrollIndicator = false
     }
 
-    private lazy var navigationBar = CustomNavigationBar(title: "문래동 롯데캐슬", showBackButton: true, showRightButton: true)
+    private lazy var navigationBar = CustomNavigationBar(title: "", showBackButton: true, showRightButton: true)
 
     private let imageCarousel = ImageCarousel()
 
@@ -44,29 +50,29 @@ final class EstateDetailViewController: UIViewController {
     }
 
     private let timeLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.body3, text: "2달 전")
+        $0.typography(FontSystem.Pretendard.body3, text: "")
         $0.textColor = ColorSystem.gray45
     }
 
     private let addressLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.body2, text: "서울 영등포구 선유로9길 30")
+        $0.typography(FontSystem.Pretendard.body2, text: "")
         $0.textColor = ColorSystem.gray60
     }
 
     private let priceContainer = UIView()
 
     private let priceTypeLabel = UILabel().then {
-        $0.typography(FontSystem.YeongdeokHaeparang.title1, text: "월세")
+        $0.typography(FontSystem.YeongdeokHaeparang.title1, text: "")
         $0.textColor = ColorSystem.gray75
     }
 
     private let priceLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.title0, text: "900/120")
+        $0.typography(FontSystem.Pretendard.title0, text: "")
         $0.textColor = ColorSystem.gray90
     }
 
     private let managementFeeLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.body2, text: "관리비 16만원 • 112.4m²")
+        $0.typography(FontSystem.Pretendard.body2, text: "")
         $0.textColor = ColorSystem.gray60
     }
 
@@ -81,37 +87,14 @@ final class EstateDetailViewController: UIViewController {
         $0.layer.cornerRadius = 20
     }
 
-    private lazy var optionRefrigerator = OptionLabel(iconName: "Refrigerator", title: "냉장고").then {
-        $0.isSelected = false
-    }
-
-    private lazy var optionWashingMachine = OptionLabel(iconName: "WashingMachine", title: "세탁기").then {
-        $0.isSelected = true
-    }
-
-    private lazy var optionAirConditioner = OptionLabel(iconName: "AirConditioner", title: "에어컨").then {
-        $0.isSelected = true
-    }
-
-    private lazy var optionMicrowave = OptionLabel(iconName: "Microwave", title: "전자레인지").then {
-        $0.isSelected = false
-    }
-
-    private lazy var optionSink = OptionLabel(iconName: "Sink", title: "싱크대").then {
-        $0.isSelected = true
-    }
-
-    private lazy var optionTelevision = OptionLabel(iconName: "Television", title: "TV").then {
-        $0.isSelected = true
-    }
-
-    private lazy var optionShoeCabinet = OptionLabel(iconName: "ShoeCabinet", title: "신발장").then {
-        $0.isSelected = true
-    }
-
-    private lazy var optionCloset = OptionLabel(iconName: "Closet", title: "옷장").then {
-        $0.isSelected = false
-    }
+    private lazy var optionRefrigerator = OptionLabel(iconName: "Refrigerator", title: "냉장고")
+    private lazy var optionWashingMachine = OptionLabel(iconName: "WashingMachine", title: "세탁기")
+    private lazy var optionAirConditioner = OptionLabel(iconName: "AirConditioner", title: "에어컨")
+    private lazy var optionMicrowave = OptionLabel(iconName: "Microwave", title: "전자레인지")
+    private lazy var optionSink = OptionLabel(iconName: "Sink", title: "싱크대")
+    private lazy var optionTelevision = OptionLabel(iconName: "Television", title: "TV")
+    private lazy var optionShoeCabinet = OptionLabel(iconName: "ShoeCabinet", title: "신발장")
+    private lazy var optionCloset = OptionLabel(iconName: "Closet", title: "옷장")
 
     private let parkingInfoContainer = UIView().then {
         $0.backgroundColor = ColorSystem.gray0
@@ -127,7 +110,7 @@ final class EstateDetailViewController: UIViewController {
     }
 
     private let parkingInfoLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption1Semibold, text: "세대별 차량 2대 주차 가능")
+        $0.typography(FontSystem.Pretendard.caption1Semibold, text: "")
         $0.textColor = ColorSystem.gray60
     }
 
@@ -136,13 +119,7 @@ final class EstateDetailViewController: UIViewController {
     private let descriptionTitleLabel = DetailTitle(title: "상세 설명")
 
     private let descriptionLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption1Regular, text: """
-        서울 문래동에 위치한 문래동 롯데캐슬은 뛰어난 교통 접근성과 쾌적한 주거 환경을 갖춘 프리미엄 아파트입니다.
-
-        지하철 2호선 문래역 도보권에 있으며, 다양한 커뮤니티 시설과 근교 마켓까지 모든 주거 편의들을 제공합니다.
-
-        세대 내부는 실용적인 공간 설계를 갖추고있으며, 채광과 환기에도 신경 써 쾌적함과 편안함을 동시에 누릴 드릴 수 있도록 구성되었습니다.
-        """)
+        $0.typography(FontSystem.Pretendard.caption1Regular, text: "")
         $0.textColor = ColorSystem.gray60
         $0.numberOfLines = 0
     }
@@ -161,12 +138,12 @@ final class EstateDetailViewController: UIViewController {
     }
 
     private let agentNameLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.body1Bold, text: "새싹 공인중개사")
+        $0.typography(FontSystem.Pretendard.body1Bold, text: "")
         $0.textColor = ColorSystem.gray90
     }
 
     private let agentDescriptionLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.body3, text: "푸릇푸릇 친절한 상담과 소개")
+        $0.typography(FontSystem.Pretendard.body3, text: "")
         $0.textColor = ColorSystem.gray60
     }
 
@@ -204,10 +181,7 @@ final class EstateDetailViewController: UIViewController {
 
     private let similarEstatesContainerView = UIView()
 
-    private lazy var similarEstatesItems: [RecentSearchItem] = [
-        RecentSearchItem(recommend: "추천", category: "원룸", price: "월세 3,000/20", area: "문래동 112.4m²"),
-        RecentSearchItem(category: "원룸", price: "월세 900/50", area: "문래동 49.5m²")
-    ]
+    private var similarEstatesItems: [RecentSearchItem] = []
 
     private let bottomContainer = UIView().then {
         $0.backgroundColor = ColorSystem.gray15
@@ -224,6 +198,13 @@ final class EstateDetailViewController: UIViewController {
         $0.backgroundColor = ColorSystem.deepCream
         $0.layer.cornerRadius = 8
     }
+
+    private let loadingIndicator = UIActivityIndicatorView(style: .large).then {
+        $0.color = ColorSystem.gray75
+        $0.hidesWhenStopped = true
+    }
+
+    private let contentContainer = UIView()
 
     init(estateId: String) {
         self.estateId = estateId
@@ -244,6 +225,11 @@ final class EstateDetailViewController: UIViewController {
     private func setupUI() {
         view.addSubview(navigationBar)
         view.addSubview(scrollView)
+        view.addSubview(bottomContainer)
+        view.addSubview(loadingIndicator)
+
+        scrollView.isHidden = true
+        bottomContainer.isHidden = true
 
         scrollView.addSubview(imageCarousel)
         scrollView.addSubview(badgeContainer)
@@ -285,37 +271,97 @@ final class EstateDetailViewController: UIViewController {
         scrollView.addSubview(similarEstatesScrollView)
         similarEstatesScrollView.addSubview(similarEstatesContainerView)
 
-        similarEstatesItems.forEach { item in
-            similarEstatesContainerView.addSubview(item)
-        }
-
-        view.addSubview(bottomContainer)
         bottomContainer.addSubview(reservationButton)
     }
 
     private func bind() {
+        let input = EstateDetailPresenter.Input(
+            viewDidLoad: viewDidLoadTrigger.asObservable(),
+            similarEstateTapped: similarEstateTappedRelay.asObservable(),
+            likeTapped: likeTappedRelay.asObservable()
+        )
+
+        let output = presenter.transform(input: input)
+
+        output.estateDetail
+            .drive(with: self) { owner, detail in
+                owner.updateUI(with: detail)
+            }
+            .disposed(by: disposeBag)
+
+        output.error
+            .drive(with: self) { owner, message in
+                let alert = UIAlertController(title: "오류", message: message, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "확인", style: .default))
+                owner.present(alert, animated: true)
+            }
+            .disposed(by: disposeBag)
+
+        output.isLoading
+            .drive(with: self) { owner, isLoading in
+                if isLoading {
+                    owner.scrollView.isHidden = true
+                    owner.bottomContainer.isHidden = true
+                    owner.loadingIndicator.startAnimating()
+                } else {
+                    owner.loadingIndicator.stopAnimating()
+                    owner.scrollView.isHidden = false
+                    owner.bottomContainer.isHidden = false
+                }
+            }
+            .disposed(by: disposeBag)
+
+        output.similarEstates
+            .drive(with: self) { owner, items in
+                owner.updateSimilarEstates(with: items)
+            }
+            .disposed(by: disposeBag)
+
+        output.navigateToDetail
+            .drive(with: self) { owner, estateId in
+                let detailVC = owner.container.makeEstateDetailViewController(estateId: estateId)
+                owner.navigationController?.pushViewController(detailVC, animated: true)
+            }
+            .disposed(by: disposeBag)
+
+        output.likeStatus
+            .drive(with: self) { owner, isLiked in
+                owner.navigationBar.setRightButtonImage(filled: isLiked)
+            }
+            .disposed(by: disposeBag)
+
+        viewDidLoadTrigger.onNext(())
+
         navigationBar.onBackButtonTap = { [weak self] in
             self?.navigationController?.popViewController(animated: true)
         }
 
-        navigationBar.onRightButtonTapped = {
-            print("찜하기 버튼 탭")
+        navigationBar.onRightButtonTapped = { [weak self] in
+            self?.likeTappedRelay.accept(())
         }
 
         imageCarousel.onImageTapped = { index in
             print("이미지 탭: \(index)")
         }
 
-        imageCarousel.configure(with: [
-            nil,
-            nil,
-            nil,
-        ])
-
         agentCallButton.rx.tap
             .withUnretained(self)
             .subscribe(onNext: { owner, _ in
-                print("전화 버튼 탭")
+                guard let phoneNumber = owner.creatorPhoneNumber else {
+                    let alert = UIAlertController(title: "전화번호 없음", message: "중개사의 전화번호가 등록되지 않았습니다.", preferredStyle: .alert)
+                    alert.addAction(UIAlertAction(title: "확인", style: .default))
+                    owner.present(alert, animated: true)
+                    return
+                }
+
+                let cleanedNumber = phoneNumber.replacingOccurrences(of: "-", with: "")
+                if let url = URL(string: "tel://\(cleanedNumber)"), UIApplication.shared.canOpenURL(url) {
+                    UIApplication.shared.open(url)
+                } else {
+                    let alert = UIAlertController(title: "전화 걸기 실패", message: "전화를 걸 수 없습니다.", preferredStyle: .alert)
+                    alert.addAction(UIAlertAction(title: "확인", style: .default))
+                    owner.present(alert, animated: true)
+                }
             })
             .disposed(by: disposeBag)
 
@@ -356,6 +402,10 @@ final class EstateDetailViewController: UIViewController {
             .below(of: navigationBar)
             .horizontally()
             .above(of: bottomContainer)
+
+        loadingIndicator.pin
+            .center()
+            .sizeToFit()
 
         imageCarousel.pin
             .top()
@@ -588,19 +638,27 @@ final class EstateDetailViewController: UIViewController {
             .vCenter()
             .size(60)
 
-        agentNameLabel.pin
-            .after(of: agentProfileImageView)
-            .marginLeft(12)
-            .top(to: agentProfileImageView.edge.top)
-            .marginTop(9.5)
-            .sizeToFit()
+        if agentDescriptionLabel.isHidden {
+            agentNameLabel.pin
+                .after(of: agentProfileImageView)
+                .marginLeft(12)
+                .vCenter(to: agentProfileImageView.edge.vCenter)
+                .sizeToFit()
+        } else {
+            agentNameLabel.pin
+                .after(of: agentProfileImageView)
+                .marginLeft(12)
+                .top(to: agentProfileImageView.edge.top)
+                .marginTop(9.5)
+                .sizeToFit()
 
-        agentDescriptionLabel.pin
-            .after(of: agentProfileImageView)
-            .marginLeft(12)
-            .below(of: agentNameLabel)
-            .marginTop(6)
-            .sizeToFit()
+            agentDescriptionLabel.pin
+                .after(of: agentProfileImageView)
+                .marginLeft(12)
+                .below(of: agentNameLabel)
+                .marginTop(6)
+                .sizeToFit()
+        }
 
         agentChatButton.pin
             .right(0)
@@ -615,5 +673,64 @@ final class EstateDetailViewController: UIViewController {
 
         let contentHeight = agentContainer.frame.maxY + 20
         scrollView.contentSize = CGSize(width: scrollView.frame.width, height: contentHeight)
+    }
+
+    private func updateUI(with detail: EstateDetail) {
+        navigationBar.setTitle(detail.title)
+        imageCarousel.configure(with: detail.imageURLs)
+        badgeContainer.isHidden = !detail.isSafeEstate
+        timeLabel.typography(FontSystem.Pretendard.body3, text: detail.relativeTime)
+        addressLabel.typography(FontSystem.Pretendard.body2, text: detail.category)
+        priceTypeLabel.typography(FontSystem.YeongdeokHaeparang.title1, text: detail.priceType)
+        priceLabel.typography(FontSystem.Pretendard.title0, text: detail.price)
+        managementFeeLabel.typography(FontSystem.Pretendard.body2, text: detail.managementFeeText)
+        creatorPhoneNumber = detail.creatorPhoneNumber
+
+        let filteredOptions = detail.options.filter { !$0.hasPrefix("기타") }
+        let optionLabels = [optionRefrigerator, optionWashingMachine, optionAirConditioner, optionMicrowave,
+                           optionSink, optionTelevision, optionShoeCabinet, optionCloset]
+
+        for optionLabel in optionLabels {
+            optionLabel.isSelected = filteredOptions.contains(optionLabel.title)
+        }
+
+        parkingInfoLabel.typography(FontSystem.Pretendard.caption1Semibold, text: detail.parkingInfo)
+        descriptionLabel.typography(FontSystem.Pretendard.caption1Regular, text: detail.description)
+        agentNameLabel.typography(FontSystem.Pretendard.body1Bold, text: detail.creatorName)
+
+        if detail.creatorIntroduction.isEmpty {
+            agentDescriptionLabel.isHidden = true
+        } else {
+            agentDescriptionLabel.isHidden = false
+            agentDescriptionLabel.typography(FontSystem.Pretendard.body3, text: detail.creatorIntroduction)
+        }
+
+        if let profileImageURL = detail.creatorProfileImageURL {
+            agentProfileImageView.setImage(from: profileImageURL, placeholder: UIImage(named: "placeholder"))
+        }
+
+        view.setNeedsLayout()
+    }
+
+    private func updateSimilarEstates(with items: [SimilarEstateItem]) {
+        similarEstatesItems.forEach { $0.removeFromSuperview() }
+        similarEstatesItems.removeAll()
+
+        similarEstatesItems = items.map { item in
+            let recentItem = RecentSearchItem(
+                recommend: item.recommend,
+                category: item.category,
+                price: item.price,
+                area: item.area
+            )
+            recentItem.setImage(from: item.imageURL)
+            recentItem.onTap = { [weak self] in
+                self?.similarEstateTappedRelay.accept(item.estateId)
+            }
+            similarEstatesContainerView.addSubview(recentItem)
+            return recentItem
+        }
+
+        view.setNeedsLayout()
     }
 }
