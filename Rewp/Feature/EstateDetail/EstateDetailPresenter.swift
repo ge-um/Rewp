@@ -22,11 +22,13 @@ final class EstateDetailPresenter {
 
     struct Input {
         let viewDidLoad: Observable<Void>
+        let similarEstateTapped: Observable<String>
     }
 
     struct Output {
         let estateDetail: Driver<EstateDetail>
         let similarEstates: Driver<[SimilarEstateItem]>
+        let navigateToDetail: Driver<String>
         let error: Driver<String>
         let isLoading: Driver<Bool>
     }
@@ -76,9 +78,13 @@ final class EstateDetailPresenter {
             }
             .asDriver(onErrorJustReturn: [])
 
+        let navigateToDetail = input.similarEstateTapped
+            .asDriver(onErrorDriveWith: .empty())
+
         return Output(
             estateDetail: estateDetail,
             similarEstates: similarEstates,
+            navigateToDetail: navigateToDetail,
             error: errorRelay.asDriver(onErrorJustReturn: "알 수 없는 오류가 발생했습니다."),
             isLoading: loadingRelay.asDriver(onErrorJustReturn: false)
         )

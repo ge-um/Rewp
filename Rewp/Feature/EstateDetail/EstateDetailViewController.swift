@@ -7,6 +7,7 @@
 
 import UIKit
 import PinLayout
+import RxCocoa
 import RxSwift
 import Then
 import OSLog
@@ -18,6 +19,7 @@ final class EstateDetailViewController: UIViewController {
     private let estateId: String
     private let disposeBag = DisposeBag()
     private let viewDidLoadTrigger = PublishSubject<Void>()
+    private let similarEstateTappedRelay = PublishRelay<String>()
 
     private let scrollView = UIScrollView().then {
         $0.backgroundColor = ColorSystem.gray0
@@ -272,7 +274,8 @@ final class EstateDetailViewController: UIViewController {
 
     private func bind() {
         let input = EstateDetailPresenter.Input(
-            viewDidLoad: viewDidLoadTrigger.asObservable()
+            viewDidLoad: viewDidLoadTrigger.asObservable(),
+            similarEstateTapped: similarEstateTappedRelay.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -308,6 +311,13 @@ final class EstateDetailViewController: UIViewController {
         output.similarEstates
             .drive(with: self) { owner, items in
                 owner.updateSimilarEstates(with: items)
+            }
+            .disposed(by: disposeBag)
+
+        output.navigateToDetail
+            .drive(with: self) { owner, estateId in
+                let detailVC = owner.container.makeEstateDetailViewController(estateId: estateId)
+                owner.navigationController?.pushViewController(detailVC, animated: true)
             }
             .disposed(by: disposeBag)
 
@@ -692,6 +702,9 @@ final class EstateDetailViewController: UIViewController {
                 area: item.area
             )
             recentItem.setImage(from: item.imageURL)
+            recentItem.onTap = { [weak self] in
+                self?.similarEstateTappedRelay.accept(item.estateId)
+            }
             similarEstatesContainerView.addSubview(recentItem)
             return recentItem
         }
