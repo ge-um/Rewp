@@ -316,7 +316,7 @@ class FeedViewController: UIViewController {
 
         newsTitleLabel.pin
             .below(of: hotScrollView)
-            .marginTop(16)
+            .marginTop(8)
             .horizontally(20)
             .height(32)
 
@@ -364,9 +364,7 @@ class FeedViewController: UIViewController {
                     }
                 }
             }
-
         view.setNeedsLayout()
-        view.layoutIfNeeded()
     }
 
     private func mixTopicsWithAds(topics: [TopicItem]) -> [UIView] {

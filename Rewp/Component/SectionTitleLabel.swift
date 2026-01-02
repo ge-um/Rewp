@@ -35,7 +35,7 @@ final class SectionTitleLabel: UIView {
     init(title: String, showViewAll: Bool = true) {
         self.showViewAll = showViewAll
         super.init(frame: .zero)
-        titleLabel.typography(FontSystem.Pretendard.body2, text: title)
+        titleLabel.typography(FontSystem.Pretendard.body2Bold, text: title)
         setupUI()
     }
 
