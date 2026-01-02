@@ -13,6 +13,7 @@ protocol EstateRepository {
     func fetchHotEstates() -> Single<[EstateDTO]>
     func fetchTodayTopics() -> Single<[TopicDTO]>
     func fetchEstateDetail(estateId: String) -> Single<EstateDetailResponse>
+    func fetchSimilarEstates() -> Single<[EstateDTO]>
 }
 
 final class EstateRepositoryImpl: EstateRepository {
@@ -45,5 +46,12 @@ final class EstateRepositoryImpl: EstateRepository {
 
     func fetchEstateDetail(estateId: String) -> Single<EstateDetailResponse> {
         return authService.authenticatedRequest(EstateRouter.estateDetail(estateId: estateId))
+    }
+
+    func fetchSimilarEstates() -> Single<[EstateDTO]> {
+        return authService.authenticatedRequest(EstateRouter.similarEstates)
+            .map { (response: TodayEstatesResponse) in
+                return response.data
+            }
     }
 }

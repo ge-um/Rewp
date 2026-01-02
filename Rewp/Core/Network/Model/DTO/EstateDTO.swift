@@ -146,6 +146,31 @@ extension EstateDetailResponse {
 }
 
 extension EstateDTO {
+    func toSimilarEstateItem() -> SimilarEstateItem {
+        let depositInManwon = deposit / 10000
+        let rentInManwon = monthly_rent / 10000
+
+        let priceText: String
+        if monthly_rent == 0 {
+            priceText = "전세 \(depositInManwon.formatted())만"
+        } else {
+            priceText = "월세 \(depositInManwon.formatted())/\(rentInManwon.formatted())"
+        }
+
+        let areaText = "\(category) \(area)m²"
+        let recommendText = is_recommended ? "추천" : nil
+        let imageURL = thumbnails.first.map { "\(NetworkConfig.baseURL)\($0)" }
+
+        return SimilarEstateItem(
+            estateId: estate_id,
+            recommend: recommendText,
+            category: category,
+            price: priceText,
+            area: areaText,
+            imageURL: imageURL
+        )
+    }
+
     func toBannerItem() -> Single<BannerItem> {
         return GeocodeService.shared
             .reverseGeocode(

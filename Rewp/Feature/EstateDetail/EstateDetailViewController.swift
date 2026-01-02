@@ -177,10 +177,7 @@ final class EstateDetailViewController: UIViewController {
 
     private let similarEstatesContainerView = UIView()
 
-    private lazy var similarEstatesItems: [RecentSearchItem] = [
-        RecentSearchItem(recommend: "추천", category: "원룸", price: "월세 3,000/20", area: "문래동 112.4m²"),
-        RecentSearchItem(category: "원룸", price: "월세 900/50", area: "문래동 49.5m²")
-    ]
+    private var similarEstatesItems: [RecentSearchItem] = []
 
     private let bottomContainer = UIView().then {
         $0.backgroundColor = ColorSystem.gray15
@@ -270,10 +267,6 @@ final class EstateDetailViewController: UIViewController {
         scrollView.addSubview(similarEstatesScrollView)
         similarEstatesScrollView.addSubview(similarEstatesContainerView)
 
-        similarEstatesItems.forEach { item in
-            similarEstatesContainerView.addSubview(item)
-        }
-
         bottomContainer.addSubview(reservationButton)
     }
 
@@ -309,6 +302,12 @@ final class EstateDetailViewController: UIViewController {
                     owner.scrollView.isHidden = false
                     owner.bottomContainer.isHidden = false
                 }
+            }
+            .disposed(by: disposeBag)
+
+        output.similarEstates
+            .drive(with: self) { owner, items in
+                owner.updateSimilarEstates(with: items)
             }
             .disposed(by: disposeBag)
 
@@ -677,6 +676,25 @@ final class EstateDetailViewController: UIViewController {
         }
 
         navigationBar.setRightButtonImage(filled: detail.isLiked)
+
+        view.setNeedsLayout()
+    }
+
+    private func updateSimilarEstates(with items: [SimilarEstateItem]) {
+        similarEstatesItems.forEach { $0.removeFromSuperview() }
+        similarEstatesItems.removeAll()
+
+        similarEstatesItems = items.map { item in
+            let recentItem = RecentSearchItem(
+                recommend: item.recommend,
+                category: item.category,
+                price: item.price,
+                area: item.area
+            )
+            recentItem.setImage(from: item.imageURL)
+            similarEstatesContainerView.addSubview(recentItem)
+            return recentItem
+        }
 
         view.setNeedsLayout()
     }

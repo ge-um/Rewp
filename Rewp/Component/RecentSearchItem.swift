@@ -116,6 +116,10 @@ final class RecentSearchItem: UIView {
     override var intrinsicContentSize: CGSize {
         return CGSize(width: 190, height: 88)
     }
+
+    func setImage(from url: String?) {
+        thumbnailImageView.setImage(from: url, placeholder: nil)
+    }
 }
 
 @available(iOS 17.0, *)

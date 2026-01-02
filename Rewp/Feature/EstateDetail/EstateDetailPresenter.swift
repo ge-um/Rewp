@@ -26,6 +26,7 @@ final class EstateDetailPresenter {
 
     struct Output {
         let estateDetail: Driver<EstateDetail>
+        let similarEstates: Driver<[SimilarEstateItem]>
         let error: Driver<String>
         let isLoading: Driver<Bool>
     }
@@ -60,8 +61,24 @@ final class EstateDetailPresenter {
             }
             .asDriver(onErrorDriveWith: .empty())
 
+        let similarEstates = input.viewDidLoad
+            .flatMapLatest { [weak self] _ -> Observable<[SimilarEstateItem]> in
+                guard let self = self else { return .empty() }
+                return self.repository.fetchSimilarEstates()
+                    .map { estateList in
+                        estateList.map { $0.toSimilarEstateItem() }
+                    }
+                    .asObservable()
+                    .catch { error in
+                        Logger.ui.error("fetchSimilarEstates error: \(error.localizedDescription)")
+                        return .just([])
+                    }
+            }
+            .asDriver(onErrorJustReturn: [])
+
         return Output(
             estateDetail: estateDetail,
+            similarEstates: similarEstates,
             error: errorRelay.asDriver(onErrorJustReturn: "알 수 없는 오류가 발생했습니다."),
             isLoading: loadingRelay.asDriver(onErrorJustReturn: false)
         )

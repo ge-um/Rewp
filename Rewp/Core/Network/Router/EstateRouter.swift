@@ -13,6 +13,7 @@ enum EstateRouter {
     case hotEstates
     case todayTopic
     case estateDetail(estateId: String)
+    case similarEstates
 }
 
 extension EstateRouter: APIRouter {
@@ -30,6 +31,8 @@ extension EstateRouter: APIRouter {
             return "/estates/today-topic"
         case .estateDetail(let estateId):
             return "/estates/\(estateId)"
+        case .similarEstates:
+            return "/estates/similar-estates"
         }
     }
 
