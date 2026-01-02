@@ -20,7 +20,7 @@ final class LoginViewController: UIViewController {
     private let contentView = UIView()
 
     private let titleLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.title1, text: "시작하기")
+        $0.typography(FontSystem.Pretendard.title1Bold, text: "시작하기")
         $0.textColor = ColorSystem.gray90
     }
 

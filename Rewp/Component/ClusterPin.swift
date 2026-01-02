@@ -36,7 +36,7 @@ final class ClusterPin: UIView {
     private func setupUI() {
         backgroundColor = ColorSystem.deepCream
         addSubview(countLabel)
-        countLabel.typography(FontSystem.Pretendard.title1, text: "\(count)")
+        countLabel.typography(FontSystem.Pretendard.title1Bold, text: "\(count)")
     }
 
     override func layoutSubviews() {

@@ -209,6 +209,22 @@ final class EstateDetailViewController: UIViewController {
         RecentSearchItem(category: "원룸", price: "월세 900/50", area: "문래동 49.5m²")
     ]
 
+    private let bottomContainer = UIView().then {
+        $0.backgroundColor = ColorSystem.gray15
+        $0.layer.shadowColor = ColorSystem.shadow.cgColor
+        $0.layer.shadowOffset = CGSize(width: 0, height: -2)
+        $0.layer.shadowOpacity = 0.08
+        $0.layer.shadowRadius = 6
+    }
+
+    private let reservationButton = UIButton().then {
+        $0.setTitle("예약하기", for: .normal)
+        $0.titleLabel?.font = FontSystem.Pretendard.body1Bold.font
+        $0.setTitleColor(ColorSystem.gray0, for: .normal)
+        $0.backgroundColor = ColorSystem.deepCream
+        $0.layer.cornerRadius = 8
+    }
+
     init(estateId: String) {
         self.estateId = estateId
         super.init(nibName: nil, bundle: nil)
@@ -272,6 +288,9 @@ final class EstateDetailViewController: UIViewController {
         similarEstatesItems.forEach { item in
             similarEstatesContainerView.addSubview(item)
         }
+
+        view.addSubview(bottomContainer)
+        bottomContainer.addSubview(reservationButton)
     }
 
     private func bind() {
@@ -306,6 +325,13 @@ final class EstateDetailViewController: UIViewController {
                 print("채팅 버튼 탭")
             })
             .disposed(by: disposeBag)
+
+        reservationButton.rx.tap
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                print("예약하기 버튼 탭")
+            })
+            .disposed(by: disposeBag)
     }
 
     override func viewDidLayoutSubviews() {
@@ -316,10 +342,20 @@ final class EstateDetailViewController: UIViewController {
             .horizontally()
             .height(56)
 
+        bottomContainer.pin
+            .bottom(view.pin.safeArea.bottom)
+            .horizontally()
+            .height(48)
+
+        reservationButton.pin
+            .top(12)
+            .horizontally(20)
+            .height(48)
+
         scrollView.pin
             .below(of: navigationBar)
             .horizontally()
-            .bottom()
+            .above(of: bottomContainer)
 
         imageCarousel.pin
             .top()
@@ -364,7 +400,7 @@ final class EstateDetailViewController: UIViewController {
 
         priceTypeLabel.pin
             .left()
-            .bottom(4)
+            .bottom()
             .sizeToFit()
 
         priceLabel.pin
@@ -555,7 +591,8 @@ final class EstateDetailViewController: UIViewController {
         agentNameLabel.pin
             .after(of: agentProfileImageView)
             .marginLeft(12)
-            .top(12)
+            .top(to: agentProfileImageView.edge.top)
+            .marginTop(9.5)
             .sizeToFit()
 
         agentDescriptionLabel.pin

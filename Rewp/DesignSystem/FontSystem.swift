@@ -29,13 +29,13 @@ enum FontSystem {
     enum Pretendard {
         static let title0 = Typography(
             fontName: "Pretendard-Bold",
-            size: 30,
+            size: 24,
             lineHeight: 100,
             kerning: 0
         )
-        static let title1 = Typography(
+        static let title1Bold = Typography(
             fontName: "Pretendard-Bold",
-            size: 22,
+            size: 20,
             lineHeight: 130,
             kerning: 0
         )
