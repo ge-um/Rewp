@@ -8,6 +8,7 @@
 import Foundation
 import RxSwift
 import Alamofire
+import OSLog
 
 extension Notification.Name {
     static let authenticationFailed = Notification.Name("authenticationFailed")
@@ -28,15 +29,17 @@ final class AuthService: AuthServiceProtocol {
     private var session: Session
 
     private var currentCredential: TokenCredential? {
-        guard let accessToken = try? keychainManager.loadAccessToken(),
-              let refreshToken = try? keychainManager.loadRefreshToken() else {
+        do {
+            let accessToken = try keychainManager.loadAccessToken()
+            let refreshToken = try keychainManager.loadRefreshToken()
+            return TokenCredential.from(
+                accessToken: accessToken,
+                refreshToken: refreshToken
+            )
+        } catch {
+            Logger.auth.error("Failed to load tokens from keychain - \(error.localizedDescription)")
             return nil
         }
-
-        return TokenCredential.from(
-            accessToken: accessToken,
-            refreshToken: refreshToken
-        )
     }
 
     init(networkService: NetworkServiceProtocol, keychainManager: KeychainManager = .shared) {
@@ -45,13 +48,15 @@ final class AuthService: AuthServiceProtocol {
         self.authenticator = TokenAuthenticator(keychainManager: keychainManager)
 
         let credential: TokenCredential?
-        if let accessToken = try? keychainManager.loadAccessToken(),
-           let refreshToken = try? keychainManager.loadRefreshToken() {
+        do {
+            let accessToken = try keychainManager.loadAccessToken()
+            let refreshToken = try keychainManager.loadRefreshToken()
             credential = TokenCredential.from(
                 accessToken: accessToken,
                 refreshToken: refreshToken
             )
-        } else {
+        } catch {
+            Logger.auth.error("Failed to load tokens during AuthService init - \(error.localizedDescription)")
             credential = nil
         }
 
@@ -67,6 +72,7 @@ final class AuthService: AuthServiceProtocol {
             accessToken: accessToken,
             refreshToken: refreshToken
         ) else {
+            Logger.auth.error("Invalid token format during login")
             throw AuthError.invalidToken
         }
 
@@ -78,6 +84,7 @@ final class AuthService: AuthServiceProtocol {
             credential: credential
         )
         self.session = Session(interceptor: interceptor)
+        Logger.auth.notice("User logged in")
     }
 
     func logout() -> Single<Void> {
@@ -94,30 +101,30 @@ final class AuthService: AuthServiceProtocol {
 
     func authenticatedRequest<T: Decodable>(_ router: APIRouter) -> Single<T> {
         guard currentCredential != nil else {
+            Logger.auth.error("No credential available")
             return .error(AuthError.notAuthenticated)
         }
 
+        Logger.network.notice("Making authenticated request - \(router.path)")
+
         return Single.create { observer in
             let dataRequest = self.session.request(router)
+                .validate(statusCode: 200..<300)
                 .responseDecodable(of: T.self) { response in
-                    if let statusCode = response.response?.statusCode {
-                        if (200...299).contains(statusCode) {
-                            switch response.result {
-                            case .success(let value):
-                                observer(.success(value))
-                            case .failure:
-                                observer(.failure(NetworkError.decodingError))
-                            }
+                    switch response.result {
+                    case .success(let value):
+                        Logger.network.notice("Request succeeded - \(router.path)")
+                        observer(.success(value))
+                    case .failure:
+                        let statusCode = response.response?.statusCode ?? 0
+                        if let data = response.data,
+                           let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                            Logger.network.error("Request failed [\(statusCode)] - \(errorResponse.message)")
+                            observer(.failure(NetworkError.serverError(message: errorResponse.message)))
                         } else {
-                            if let data = response.data,
-                               let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
-                                observer(.failure(NetworkError.serverError(message: errorResponse.message)))
-                            } else {
-                                observer(.failure(NetworkError.serverError(message: "알 수 없는 서버 오류가 발생했습니다.")))
-                            }
+                            Logger.network.error("Request failed [\(statusCode)] - decoding error")
+                            observer(.failure(NetworkError.decodingError))
                         }
-                    } else {
-                        observer(.failure(NetworkError.serverError(message: "서버 응답을 받지 못했습니다.")))
                     }
                 }
 
@@ -140,20 +147,18 @@ final class AuthService: AuthServiceProtocol {
 
         return Single.create { observer in
             let dataRequest = self.session.request(router)
+                .validate(statusCode: 200..<300)
                 .response { response in
-                    if let statusCode = response.response?.statusCode {
-                        if (200...299).contains(statusCode) {
-                            observer(.success(()))
+                    switch response.result {
+                    case .success:
+                        observer(.success(()))
+                    case .failure:
+                        if let data = response.data,
+                           let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                            observer(.failure(NetworkError.serverError(message: errorResponse.message)))
                         } else {
-                            if let data = response.data,
-                               let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
-                                observer(.failure(NetworkError.serverError(message: errorResponse.message)))
-                            } else {
-                                observer(.failure(NetworkError.serverError(message: "알 수 없는 서버 오류가 발생했습니다.")))
-                            }
+                            observer(.failure(NetworkError.serverError(message: "서버 오류가 발생했습니다.")))
                         }
-                    } else {
-                        observer(.failure(NetworkError.serverError(message: "서버 응답을 받지 못했습니다.")))
                     }
                 }
 
@@ -170,7 +175,11 @@ final class AuthService: AuthServiceProtocol {
     }
 
     private func clearAuthState() {
-        try? keychainManager.deleteAllTokens()
+        do {
+            try keychainManager.deleteAllTokens()
+        } catch {
+            Logger.auth.error("Failed to delete tokens during clearAuthState - \(error.localizedDescription)")
+        }
 
         let interceptor = AuthenticationInterceptor(
             authenticator: authenticator,
@@ -182,5 +191,6 @@ final class AuthService: AuthServiceProtocol {
             name: .authenticationFailed,
             object: nil
         )
+        Logger.auth.notice("Authentication state cleared")
     }
 }

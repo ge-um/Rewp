@@ -7,6 +7,7 @@
 
 import Foundation
 import Alamofire
+import OSLog
 
 enum AuthRouter {
     case refreshToken
@@ -33,11 +34,19 @@ extension AuthRouter: APIRouter {
             "Content-Type": "application/json",
             "SesacKey": NetworkConfig.rewpKey
         ]
-        
-        if let refreshToken = try? KeychainManager.shared.loadRefreshToken() {
+
+        do {
+            let accessToken = try KeychainManager.shared.loadAccessToken()
+            let refreshToken = try KeychainManager.shared.loadRefreshToken()
+            
+            headers["Authorization"] = accessToken
             headers["RefreshToken"] = refreshToken
+            
+            Logger.auth.debug("Tokens loaded for refresh request")
+        } catch {
+            Logger.auth.error("Failed to load tokens for request header - \(error.localizedDescription)")
         }
-        
+
         return headers
     }
 }

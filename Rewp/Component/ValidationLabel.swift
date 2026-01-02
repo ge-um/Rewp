@@ -19,7 +19,7 @@ final class ValidationLabel: UILabel {
     init() {
         super.init(frame: .zero)
 
-        self.typography(FontSystem.Pretendard.caption1, text: "")
+        self.typography(FontSystem.Pretendard.caption1Semibold, text: "")
         self.isHidden = true
         self.flex.isIncludedInLayout(false)
     }
@@ -29,7 +29,7 @@ final class ValidationLabel: UILabel {
     }
 
     func show(_ message: String, type: ValidationType = .error) {
-        typography(FontSystem.Pretendard.caption1, text: message)
+        typography(FontSystem.Pretendard.caption1Semibold, text: message)
         textColor = color(for: type)
         isHidden = false
         flex.isIncludedInLayout(true)

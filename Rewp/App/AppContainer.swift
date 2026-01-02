@@ -47,4 +47,8 @@ final class AppContainer {
     func makeSettingsViewController() -> SettingsViewController {
         return SettingsFactory.create(container: self)
     }
+
+    func makeEstateDetailViewController(estateId: String) -> EstateDetailViewController {
+        return EstateDetailFactory.create(estateId: estateId, container: self)
+    }
 }

@@ -135,7 +135,7 @@ final class TabBarButton: UIControl {
         addSubview(iconImageView)
         addSubview(titleLabel)
 
-        titleLabel.typography(FontSystem.Pretendard.caption1, text: item.title)
+        titleLabel.typography(FontSystem.Pretendard.caption1Semibold, text: item.title)
     }
 
     private func updateAppearance() {

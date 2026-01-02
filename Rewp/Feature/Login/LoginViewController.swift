@@ -20,7 +20,7 @@ final class LoginViewController: UIViewController {
     private let contentView = UIView()
 
     private let titleLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.title1, text: "시작하기")
+        $0.typography(FontSystem.Pretendard.title1Bold, text: "시작하기")
         $0.textColor = ColorSystem.gray90
     }
 
@@ -105,7 +105,7 @@ final class LoginViewController: UIViewController {
         var config = UIButton.Configuration.plain()
 
         var titleAttr = AttributedString("계정이 없으신가요?")
-        titleAttr.font = FontSystem.Pretendard.caption1.font
+        titleAttr.font = FontSystem.Pretendard.caption1Semibold.font
         titleAttr.foregroundColor = ColorSystem.gray60
         config.attributedTitle = titleAttr
 

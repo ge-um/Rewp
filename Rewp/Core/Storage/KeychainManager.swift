@@ -7,6 +7,7 @@
 
 import Foundation
 import Security
+import OSLog
 
 enum KeychainError: Error {
     case saveError
@@ -50,8 +51,19 @@ final class KeychainManager: @unchecked Sendable {
     }
 
     func deleteAllTokens() throws {
-        try? deleteAccessToken()
-        try? deleteRefreshToken()
+        do {
+            try deleteAccessToken()
+        } catch {
+            Logger.auth.error("Failed to delete access token - \(error.localizedDescription)")
+            throw error
+        }
+
+        do {
+            try deleteRefreshToken()
+        } catch {
+            Logger.auth.error("Failed to delete refresh token - \(error.localizedDescription)")
+            throw error
+        }
     }
 
     private func save(_ value: String, forKey key: String) throws {

@@ -19,7 +19,7 @@ final class RecentSearchItem: UIView {
         $0.layer.shadowColor = ColorSystem.shadow.cgColor
         $0.layer.shadowOpacity = 0.08
         $0.layer.shadowOffset = CGSize(width: 0, height: 4)
-        $0.layer.shadowRadius = 12
+        $0.layer.shadowRadius = 6
     }
 
     private let thumbnailImageView = UIImageView().then {
@@ -61,7 +61,7 @@ final class RecentSearchItem: UIView {
 
         categoryLabel.typography(FontSystem.Pretendard.caption2, text: category)
         priceLabel.typography(FontSystem.Pretendard.body3, text: price)
-        areaLabel.typography(FontSystem.Pretendard.caption1, text: area)
+        areaLabel.typography(FontSystem.Pretendard.caption1Semibold, text: area)
         thumbnailImageView.image = image
         setupUI()
     }

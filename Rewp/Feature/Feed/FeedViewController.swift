@@ -78,6 +78,8 @@ class FeedViewController: UIViewController {
 
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let topicTapRelay = PublishRelay<TopicItem>()
+    private let bannerTapRelay = PublishRelay<String>()
+    private let hotEstateTapRelay = PublishRelay<String>()
     private let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
@@ -137,7 +139,7 @@ class FeedViewController: UIViewController {
             .direction(.column)
             .define { flex in
                 newsItems.forEach { item in
-                    if item is NewsItemDivider {
+                    if item is ItemDivider {
                         flex.addItem(item)
                             .height(11)
                             .width(100%)
@@ -155,10 +157,16 @@ class FeedViewController: UIViewController {
     }
 
     private func bind() {
+        bannerCarousel.onBannerTapped = { [weak self] estateId in
+            self?.bannerTapRelay.accept(estateId)
+        }
+
         let input = FeedPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
             tabSelected: tabBar.selectedIndexRelay.skip(1).asObservable(),
-            topicTapped: topicTapRelay.asObservable()
+            topicTapped: topicTapRelay.asObservable(),
+            bannerTapped: bannerTapRelay.asObservable(),
+            hotEstateTapped: hotEstateTapRelay.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -172,13 +180,18 @@ class FeedViewController: UIViewController {
         output.hotEstates
             .drive(with: self) { owner, hotEstates in
                 owner.hotContainerView.subviews.forEach { $0.removeFromSuperview() }
-                owner.hotItems = hotEstates.map { item in
-                    HotItem(
+                owner.hotItems = hotEstates.enumerated().map { index, item in
+                    let hotItem = HotItem(
+                        estateId: item.id,
                         imageURL: item.imageURL,
                         title: item.title,
                         price: item.price,
                         info: item.info
                     )
+                    hotItem.onTap = { [weak owner] in
+                        owner?.hotEstateTapRelay.accept(item.id)
+                    }
+                    return hotItem
                 }
                 owner.hotContainerView.flex
                     .direction(.row)
@@ -215,6 +228,13 @@ class FeedViewController: UIViewController {
                 nav.navigationBar.isHidden = true
                 owner.view.window?.rootViewController = nav
                 owner.view.window?.makeKeyAndVisible()
+            }
+            .disposed(by: disposeBag)
+
+        output.navigateToDetail
+            .drive(with: self) { owner, estateId in
+                let detailVC = owner.container.makeEstateDetailViewController(estateId: estateId)
+                owner.navigationController?.pushViewController(detailVC, animated: true)
             }
             .disposed(by: disposeBag)
     }
@@ -270,7 +290,7 @@ class FeedViewController: UIViewController {
         recentSearchContainerView.pin
             .top()
             .left()
-            .height(96)
+            .height(104)
 
         recentSearchContainerView.flex.layout(mode: .adjustWidth)
         recentSearchScrollView.contentSize = recentSearchContainerView.frame.size
@@ -329,7 +349,7 @@ class FeedViewController: UIViewController {
             .direction(.column)
             .define { flex in
                 newsItems.forEach { item in
-                    if item is NewsItemDivider {
+                    if item is ItemDivider {
                         flex.addItem(item)
                             .height(11)
                             .width(100%)
@@ -362,12 +382,12 @@ class FeedViewController: UIViewController {
             result.append(hashtagItem)
 
             if let adConfig = adConfigs.first(where: { $0.afterTopicIndex == index }) {
-                result.append(NewsItemDivider())
+                result.append(ItemDivider())
                 result.append(adConfig.item)
             }
 
             if index < topics.count - 1 {
-                result.append(NewsItemDivider())
+                result.append(ItemDivider())
             }
         }
 

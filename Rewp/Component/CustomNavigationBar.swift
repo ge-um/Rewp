@@ -20,18 +20,25 @@ final class CustomNavigationBar: UIView {
     }
 
     private let titleLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.body2, text: "")
         $0.textColor = ColorSystem.gray90
-        $0.textAlignment = .center
+        $0.textAlignment = .left
+    }
+
+    private let rightButton = UIButton().then {
+        $0.setImage(UIImage(named: "Like_Empty")?.withRenderingMode(.alwaysTemplate), for: .normal)
+        $0.tintColor = ColorSystem.gray60
     }
 
     var onBackButtonTap: (() -> Void)?
+    var onRightButtonTapped: (() -> Void)?
 
-    init(title: String? = nil, showBackButton: Bool = true) {
+    init(title: String? = nil, showBackButton: Bool = true, showRightButton: Bool = false) {
         super.init(frame: .zero)
-        backgroundColor = ColorSystem.gray0
-        titleLabel.text = title
+        if let title = title {
+            titleLabel.typography(FontSystem.Pretendard.body1, text: title)
+        }
         backButton.isHidden = !showBackButton
+        rightButton.isHidden = !showRightButton
         setupUI()
         setupActions()
     }
@@ -43,14 +50,30 @@ final class CustomNavigationBar: UIView {
     private func setupUI() {
         addSubview(backButton)
         addSubview(titleLabel)
+        addSubview(rightButton)
     }
 
     private func setupActions() {
         backButton.addTarget(self, action: #selector(backButtonTapped), for: .touchUpInside)
+        rightButton.addTarget(self, action: #selector(rightButtonTapped), for: .touchUpInside)
     }
 
     @objc private func backButtonTapped() {
         onBackButtonTap?()
+    }
+
+    @objc private func rightButtonTapped() {
+        onRightButtonTapped?()
+    }
+
+    func setTitle(_ title: String) {
+        titleLabel.typography(FontSystem.Pretendard.body1, text: title)
+        setNeedsLayout()
+    }
+
+    func setRightButtonImage(filled: Bool = false) {
+        let imageName = filled ? "Like_Fill" : "Like_Empty"
+        rightButton.setImage(UIImage(named: imageName)?.withRenderingMode(.alwaysTemplate), for: .normal)
     }
 
     override func layoutSubviews() {
@@ -61,8 +84,16 @@ final class CustomNavigationBar: UIView {
             .vCenter()
             .size(44)
 
+        rightButton.pin
+            .right(20)
+            .vCenter()
+            .size(24)
+
         titleLabel.pin
-            .horizontally(60)
+            .after(of: backButton)
+            .marginLeft(8)
+            .before(of: rightButton)
+            .marginRight(8)
             .vCenter()
             .sizeToFit(.width)
     }

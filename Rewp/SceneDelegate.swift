@@ -9,6 +9,7 @@ import UIKit
 import KakaoSDKAuth
 import KakaoSDKCommon
 import RxSwift
+import OSLog
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
@@ -29,6 +30,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             .observe(on: MainScheduler.instance)
             .withUnretained(self)
             .subscribe(onNext: { owner, _ in
+                Logger.auth.warning("Received authentication failed notification - presenting login screen")
                 owner.showLoginScreen()
             })
             .disposed(by: disposeBag)

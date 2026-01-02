@@ -27,53 +27,80 @@ struct Typography {
 
 enum FontSystem {
     enum Pretendard {
-        static let title1 = Typography(
+        static let title0 = Typography(
             fontName: "Pretendard-Bold",
-            size: 22,
+            size: 24,
+            lineHeight: 100,
+            kerning: 0
+        )
+        static let title1Bold = Typography(
+            fontName: "Pretendard-Bold",
+            size: 20,
             lineHeight: 130,
-            kerning: -1
+            kerning: 0
         )
 
         static let body1 = Typography(
-            fontName: "Pretendard-Medium",
+            fontName: "Pretendard-Bold",
             size: 16,
             lineHeight: 130,
-            kerning: -1
+            kerning: 0
+        )
+        
+        static let body1Bold = Typography(
+            fontName: "Pretendard-Bold",
+            size: 16,
+            lineHeight: 130,
+            kerning: 0
         )
 
         static let body2 = Typography(
             fontName: "Pretendard-Medium",
             size: 14,
             lineHeight: 130,
-            kerning: -1
+            kerning: 0
+        )
+        
+        static let body2Bold = Typography(
+            fontName: "Pretendard-Bold",
+            size: 14,
+            lineHeight: 130,
+            kerning: 0
         )
 
         static let body3 = Typography(
             fontName: "Pretendard-Medium",
             size: 13,
             lineHeight: 130,
-            kerning: -1
+            kerning: 0
         )
 
-        static let caption1 = Typography(
-            fontName: "Pretendard-Regular",
+        static let caption1Semibold = Typography(
+            fontName: "Pretendard-Semibold",
             size: 12,
             lineHeight: 130,
-            kerning: -1
+            kerning: 0
+        )
+        
+        static let caption1Regular = Typography(
+            fontName: "Pretendard-Regular",
+            size: 12,
+            lineHeight: 170,
+            kerning: 0
         )
 
         static let caption2 = Typography(
             fontName: "Pretendard-Regular",
             size: 10,
             lineHeight: 130,
-            kerning: -1
+            kerning: 0
         )
 
         static let caption3 = Typography(
             fontName: "Pretendard-Regular",
             size: 8,
             lineHeight: 130,
-            kerning: -1
+            kerning: 0
         )
     }
 

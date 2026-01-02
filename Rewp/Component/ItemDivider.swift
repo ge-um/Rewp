@@ -9,14 +9,14 @@ import UIKit
 import PinLayout
 import Then
 
-final class NewsItemDivider: UIView {
+final class ItemDivider: UIView {
     private let lineView = UIView().then {
-        $0.backgroundColor = ColorSystem.gray15
+        $0.backgroundColor = ColorSystem.gray30
     }
 
     init() {
         super.init(frame: .zero)
-        backgroundColor = ColorSystem.gray0
+        backgroundColor = .clear
         setupUI()
     }
 
@@ -32,7 +32,6 @@ final class NewsItemDivider: UIView {
         super.layoutSubviews()
 
         lineView.pin
-            .top(5)
             .horizontally(20)
             .height(1)
     }
@@ -44,5 +43,5 @@ final class NewsItemDivider: UIView {
 
 @available(iOS 17.0, *)
 #Preview {
-    NewsItemDivider()
+    ItemDivider()
 }

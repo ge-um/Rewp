@@ -18,7 +18,7 @@ final class OptionLabel: UIView {
     }
 
     private lazy var titleLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption2, text: title)
+        $0.typography(FontSystem.Pretendard.caption1Semibold, text: title)
         $0.textAlignment = .center
     }
 
@@ -48,12 +48,12 @@ final class OptionLabel: UIView {
     private func updateAppearance() {
         if isSelected {
             iconImageView.image = UIImage(named: iconName)?.withRenderingMode(.alwaysTemplate)
-            iconImageView.tintColor = ColorSystem.gray30
-            titleLabel.textColor = ColorSystem.gray30
+            iconImageView.tintColor = ColorSystem.gray75
+            titleLabel.textColor = ColorSystem.gray75
         } else {
             iconImageView.image = UIImage(named: iconName)?.withRenderingMode(.alwaysTemplate)
-            iconImageView.tintColor = ColorSystem.gray15
-            titleLabel.textColor = ColorSystem.gray15
+            iconImageView.tintColor = ColorSystem.gray30
+            titleLabel.textColor = ColorSystem.gray30
         }
     }
 

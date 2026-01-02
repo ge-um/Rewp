@@ -131,6 +131,8 @@ final class BannerCarousel: UIView {
     private let bannersRelay = BehaviorRelay<[BannerItem]>(value: [])
     private let disposeBag = DisposeBag()
 
+    var onBannerTapped: ((String) -> Void)?
+
     lazy var collectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
         layout.scrollDirection = .horizontal
@@ -148,8 +150,8 @@ final class BannerCarousel: UIView {
     }()
 
     private let pageControl = UIPageControl().then {
-        $0.currentPageIndicatorTintColor = .white
-        $0.pageIndicatorTintColor = .white.withAlphaComponent(0.3)
+        $0.currentPageIndicatorTintColor = ColorSystem.gray30
+        $0.pageIndicatorTintColor = ColorSystem.gray75
         $0.hidesForSinglePage = true
     }
 
@@ -186,11 +188,23 @@ final class BannerCarousel: UIView {
             })
             .disposed(by: disposeBag)
 
-        collectionView.rx.didScroll
+        Observable.merge(
+            collectionView.rx.didEndDecelerating.asObservable(),
+            collectionView.rx.didEndScrollingAnimation.asObservable()
+        )
+        .withUnretained(self)
+        .subscribe(onNext: { owner, _ in
+            let pageWidth = owner.collectionView.bounds.width
+            guard pageWidth > 0 else { return }
+            let page = Int(round(owner.collectionView.contentOffset.x / pageWidth))
+            owner.pageControl.currentPage = page
+        })
+        .disposed(by: disposeBag)
+
+        collectionView.rx.modelSelected(BannerItem.self)
             .withUnretained(self)
-            .subscribe(onNext: { owner, _ in
-                guard let visibleIndexPath = owner.collectionView.indexPathsForVisibleItems.first else { return }
-                owner.pageControl.currentPage = visibleIndexPath.item
+            .subscribe(onNext: { owner, item in
+                owner.onBannerTapped?(item.id)
             })
             .disposed(by: disposeBag)
     }
@@ -202,8 +216,8 @@ final class BannerCarousel: UIView {
 
         pageControl.pin
             .hCenter()
-            .bottom(8)
-            .sizeToFit()
+            .bottom(16)
+            .height(20)
     }
 
     func configure(with banners: [BannerItem]) {
@@ -231,7 +245,7 @@ extension BannerCarousel: UICollectionViewDelegateFlowLayout {
             imageURL: nil,
             location: "서울 반포동",
             title: "한강 파노라마 뷰\n역세권 아파트",
-            description: "외국 무료 사진 피로 갓 걸렸던 한강입니다."
+            description: "외국 무료 사진 퍼온 것 같겠지만 한강입니다."
         ),
         BannerItem(
             id: "2",
