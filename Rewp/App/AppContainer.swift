@@ -55,4 +55,12 @@ final class AppContainer {
     func makeEstateDetailViewController(estateId: String) -> EstateDetailViewController {
         return EstateDetailFactory.create(estateId: estateId, container: self)
     }
+
+    func makeChatRoomViewController(roomId: String, roomTitle: String) -> ChatRoomViewController {
+        return ChatRoomFactory.create(roomId: roomId, roomTitle: roomTitle, container: self)
+    }
+
+    func makeChatListViewController() -> ChatListViewController {
+        return ChatListFactory.create(container: self)
+    }
 }

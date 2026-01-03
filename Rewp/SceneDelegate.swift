@@ -54,8 +54,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     private func showFeedScreen() {
         guard let window = window else { return }
-        let feedViewController = container.makeFeedViewController()
-        let navigationController = UINavigationController(rootViewController: feedViewController)
+        let mainTabBarController = MainTabBarController(container: container, initialTab: 0)
+        let navigationController = UINavigationController(rootViewController: mainTabBarController)
         navigationController.navigationBar.isHidden = true
 
         window.rootViewController = navigationController

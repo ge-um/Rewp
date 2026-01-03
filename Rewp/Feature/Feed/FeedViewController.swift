@@ -73,10 +73,6 @@ class FeedViewController: UIViewController {
 
     private var newsItems: [UIView] = []
 
-    private let tabBar = TabBar().then {
-        $0.selectTab(at: 0)
-    }
-
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let topicTapRelay = PublishRelay<TopicItem>()
     private let bannerTapRelay = PublishRelay<String>()
@@ -95,7 +91,6 @@ class FeedViewController: UIViewController {
 
     private func setupUI() {
         view.addSubview(scrollView)
-        view.addSubview(tabBar)
 
         scrollView.addSubview(contentView)
 
@@ -164,7 +159,6 @@ class FeedViewController: UIViewController {
 
         let input = FeedPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
-            tabSelected: tabBar.selectedIndexRelay.skip(1).asObservable(),
             topicTapped: topicTapRelay.asObservable(),
             bannerTapped: bannerTapRelay.asObservable(),
             hotEstateTapped: hotEstateTapRelay.asObservable()
@@ -221,16 +215,6 @@ class FeedViewController: UIViewController {
             }
             .disposed(by: disposeBag)
 
-        output.navigateToSettings
-            .drive(with: self) { owner, _ in
-                let settingsVC = owner.container.makeSettingsViewController()
-                let nav = UINavigationController(rootViewController: settingsVC)
-                nav.navigationBar.isHidden = true
-                owner.view.window?.rootViewController = nav
-                owner.view.window?.makeKeyAndVisible()
-            }
-            .disposed(by: disposeBag)
-
         output.navigateToDetail
             .drive(with: self) { owner, estateId in
                 let detailVC = owner.container.makeEstateDetailViewController(estateId: estateId)
@@ -245,7 +229,7 @@ class FeedViewController: UIViewController {
         scrollView.pin
             .top(0)
             .horizontally()
-            .bottom(80)
+            .bottom()
 
         contentView.pin
             .top()
@@ -332,11 +316,6 @@ class FeedViewController: UIViewController {
         )
 
         scrollView.contentSize = contentView.frame.size
-
-        tabBar.pin
-            .bottom()
-            .horizontally()
-            .height(80)
     }
 
     private func updateNewsItems(with topics: [TopicItem]) {
