@@ -22,6 +22,7 @@ struct EstateDetail {
     let options: [String]
     let parkingInfo: String
     let description: String
+    let creatorId: String
     let creatorName: String
     let creatorIntroduction: String
     let creatorProfileImageURL: String?

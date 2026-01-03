@@ -31,7 +31,7 @@ final class EstateDetailViewController: UIViewController {
         $0.showsVerticalScrollIndicator = false
     }
 
-    private lazy var navigationBar = CustomNavigationBar(title: "", showBackButton: true, showRightButton: true)
+    private lazy var navigationBar = CustomNavigationBar(title: "")
 
     private let imageCarousel = ImageCarousel()
 
@@ -329,12 +329,6 @@ final class EstateDetailViewController: UIViewController {
             }
             .disposed(by: disposeBag)
 
-        output.likeStatus
-            .drive(with: self) { owner, isLiked in
-                owner.navigationBar.setRightButtonImage(filled: isLiked)
-            }
-            .disposed(by: disposeBag)
-
         output.orderCreated
             .drive(with: self) { owner, orderResponse in
                 owner.currentOrderResponse = orderResponse
@@ -388,7 +382,12 @@ final class EstateDetailViewController: UIViewController {
         agentChatButton.rx.tap
             .withUnretained(self)
             .subscribe(onNext: { owner, _ in
-                print("채팅 버튼 탭")
+                guard let detail = owner.currentEstateDetail else { return }
+                let chatRoomVC = owner.container.makeChatRoomViewController(
+                    roomId: "estate-\(detail.estateId)-\(detail.creatorId)",
+                    roomTitle: detail.creatorName
+                )
+                owner.navigationController?.pushViewController(chatRoomVC, animated: true)
             })
             .disposed(by: disposeBag)
 

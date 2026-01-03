@@ -148,6 +148,7 @@ extension EstateDetailResponse {
             options: options.allOptions,
             parkingInfo: parkingInfo,
             description: description,
+            creatorId: creator.user_id,
             creatorName: creator.nick,
             creatorIntroduction: creator.introduction ?? "",
             creatorProfileImageURL: creatorProfileImageURL,
