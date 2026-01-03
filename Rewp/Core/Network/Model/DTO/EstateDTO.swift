@@ -139,6 +139,8 @@ extension EstateDetailResponse {
             imageURLs: imageURLs,
             isSafeEstate: is_safe_estate,
             isLiked: is_liked,
+            isReserved: is_reserved,
+            reservationPrice: reservation_price,
             category: category,
             priceType: priceType,
             price: price,
