@@ -13,6 +13,8 @@ struct EstateDetail {
     let imageURLs: [String]
     let isSafeEstate: Bool
     let isLiked: Bool
+    let isReserved: Bool
+    let reservationPrice: Int
     let category: String
     let priceType: String
     let price: String

@@ -14,7 +14,8 @@ final class EstateDetailFactory {
     ) -> EstateDetailViewController {
         let presenter = EstateDetailPresenter(
             estateId: estateId,
-            repository: container.estateRepository
+            repository: container.estateRepository,
+            paymentRepository: container.paymentRepository
         )
         let viewController = EstateDetailViewController(estateId: estateId)
 
