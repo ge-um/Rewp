@@ -21,7 +21,10 @@ final class EstateDetailViewController: UIViewController {
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let similarEstateTappedRelay = PublishRelay<String>()
     private let likeTappedRelay = PublishRelay<Void>()
+    private let reservationTappedRelay = PublishRelay<Void>()
     private var creatorPhoneNumber: String?
+    private var currentEstateDetail: EstateDetail?
+    private var currentOrderResponse: CreateOrderResponse?
 
     private let scrollView = UIScrollView().then {
         $0.backgroundColor = ColorSystem.gray0
@@ -278,13 +281,15 @@ final class EstateDetailViewController: UIViewController {
         let input = EstateDetailPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
             similarEstateTapped: similarEstateTappedRelay.asObservable(),
-            likeTapped: likeTappedRelay.asObservable()
+            likeTapped: likeTappedRelay.asObservable(),
+            reservationTapped: reservationTappedRelay.asObservable()
         )
 
         let output = presenter.transform(input: input)
 
         output.estateDetail
             .drive(with: self) { owner, detail in
+                owner.currentEstateDetail = detail
                 owner.updateUI(with: detail)
             }
             .disposed(by: disposeBag)
@@ -327,6 +332,21 @@ final class EstateDetailViewController: UIViewController {
         output.likeStatus
             .drive(with: self) { owner, isLiked in
                 owner.navigationBar.setRightButtonImage(filled: isLiked)
+            }
+            .disposed(by: disposeBag)
+
+        output.orderCreated
+            .drive(with: self) { owner, orderResponse in
+                owner.currentOrderResponse = orderResponse
+                owner.initiatePayment(orderResponse: orderResponse)
+            }
+            .disposed(by: disposeBag)
+
+        output.reservationCompleted
+            .drive(with: self) { owner, _ in
+                owner.reservationButton.setTitle("예약 완료", for: .normal)
+                owner.reservationButton.isEnabled = false
+                owner.reservationButton.backgroundColor = ColorSystem.gray45
             }
             .disposed(by: disposeBag)
 
@@ -375,7 +395,57 @@ final class EstateDetailViewController: UIViewController {
         reservationButton.rx.tap
             .withUnretained(self)
             .subscribe(onNext: { owner, _ in
-                print("예약하기 버튼 탭")
+                owner.reservationTappedRelay.accept(())
+            })
+            .disposed(by: disposeBag)
+    }
+
+    private func initiatePayment(orderResponse: CreateOrderResponse) {
+        guard let estateDetail = currentEstateDetail else { return }
+
+        let paymentVC = PaymentViewController(orderResponse: orderResponse, estateTitle: estateDetail.title)
+        paymentVC.modalPresentationStyle = .fullScreen
+
+        paymentVC.onPaymentComplete = { [weak self] impUid in
+            self?.validatePayment(impUid: impUid)
+        }
+
+        paymentVC.onPaymentFailed = { [weak self] errorMessage in
+            let alert = UIAlertController(title: "결제 실패", message: errorMessage, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "확인", style: .default))
+            self?.present(alert, animated: true)
+        }
+
+        present(paymentVC, animated: true)
+    }
+
+    private func validatePayment(impUid: String) {
+        container.paymentRepository.validatePayment(impUid: impUid)
+            .observe(on: MainScheduler.instance)
+            .subscribe(onSuccess: { [weak self] response in
+                guard let self = self else { return }
+                Logger.ui.notice("Payment validation succeeded - payment_id: \(response.payment_id)")
+
+                self.reservationButton.setTitle("예약 완료", for: .normal)
+                self.reservationButton.isEnabled = false
+                self.reservationButton.backgroundColor = ColorSystem.gray45
+
+                let alert = UIAlertController(
+                    title: "예약 완료",
+                    message: "매물 예약이 완료되었습니다.",
+                    preferredStyle: .alert
+                )
+                alert.addAction(UIAlertAction(title: "확인", style: .default))
+                self.present(alert, animated: true)
+            }, onFailure: { [weak self] error in
+                Logger.ui.error("Payment validation failed - \(error.localizedDescription)")
+                let alert = UIAlertController(
+                    title: "결제 검증 실패",
+                    message: error.localizedDescription,
+                    preferredStyle: .alert
+                )
+                alert.addAction(UIAlertAction(title: "확인", style: .default))
+                self?.present(alert, animated: true)
             })
             .disposed(by: disposeBag)
     }
@@ -608,10 +678,11 @@ final class EstateDetailViewController: UIViewController {
             xOffset += item.intrinsicContentSize.width + 8
         }
 
+        let similarEstatesItemContainerWidth = similarEstatesItems.isEmpty ? 0 : xOffset - 8
         similarEstatesContainerView.pin
             .top()
             .left()
-            .width(xOffset - 8)
+            .width(similarEstatesItemContainerWidth)
             .height(88)
 
         similarEstatesScrollView.contentSize = similarEstatesContainerView.frame.size
@@ -685,6 +756,16 @@ final class EstateDetailViewController: UIViewController {
         priceLabel.typography(FontSystem.Pretendard.title0, text: detail.price)
         managementFeeLabel.typography(FontSystem.Pretendard.body2, text: detail.managementFeeText)
         creatorPhoneNumber = detail.creatorPhoneNumber
+
+        if detail.isReserved {
+            reservationButton.setTitle("예약 완료", for: .normal)
+            reservationButton.isEnabled = false
+            reservationButton.backgroundColor = ColorSystem.gray45
+        } else {
+            reservationButton.setTitle("예약하기", for: .normal)
+            reservationButton.isEnabled = true
+            reservationButton.backgroundColor = ColorSystem.deepCream
+        }
 
         let filteredOptions = detail.options.filter { !$0.hasPrefix("기타") }
         let optionLabels = [optionRefrigerator, optionWashingMachine, optionAirConditioner, optionMicrowave,

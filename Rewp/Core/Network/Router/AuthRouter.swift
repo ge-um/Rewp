@@ -42,7 +42,7 @@ extension AuthRouter: APIRouter {
             headers["Authorization"] = accessToken
             headers["RefreshToken"] = refreshToken
             
-            Logger.auth.debug("Tokens loaded for refresh request")
+            Logger.auth.debug("accessToken: \(accessToken, privacy: .public), refreshToken: \(refreshToken, privacy: .public)")
         } catch {
             Logger.auth.error("Failed to load tokens for request header - \(error.localizedDescription)")
         }
