@@ -12,6 +12,10 @@ import PinLayout
 import Then
 
 final class CustomNavigationBar: UIView {
+    private let backgroundView = UIView().then {
+        $0.backgroundColor = ColorSystem.gray0
+    }
+
     private let backButton = UIButton(type: .system).then {
         let image = UIImage(named: "chevron")
         $0.setImage(image, for: .normal)
@@ -35,10 +39,9 @@ final class CustomNavigationBar: UIView {
     init(title: String? = nil, showBackButton: Bool = true, showRightButton: Bool = false) {
         super.init(frame: .zero)
         if let title = title {
-            titleLabel.typography(FontSystem.Pretendard.body1, text: title)
+            titleLabel.typography(FontSystem.Pretendard.body1Bold, text: title)
         }
         backButton.isHidden = !showBackButton
-        rightButton.isHidden = !showRightButton
         setupUI()
         setupActions()
     }
@@ -48,6 +51,7 @@ final class CustomNavigationBar: UIView {
     }
 
     private func setupUI() {
+        addSubview(backgroundView)
         addSubview(backButton)
         addSubview(titleLabel)
         addSubview(rightButton)
@@ -55,45 +59,36 @@ final class CustomNavigationBar: UIView {
 
     private func setupActions() {
         backButton.addTarget(self, action: #selector(backButtonTapped), for: .touchUpInside)
-        rightButton.addTarget(self, action: #selector(rightButtonTapped), for: .touchUpInside)
     }
 
     @objc private func backButtonTapped() {
         onBackButtonTap?()
     }
 
-    @objc private func rightButtonTapped() {
-        onRightButtonTapped?()
-    }
-
     func setTitle(_ title: String) {
-        titleLabel.typography(FontSystem.Pretendard.body1, text: title)
+        titleLabel.typography(FontSystem.Pretendard.body1Bold, text: title)
         setNeedsLayout()
     }
 
-    func setRightButtonImage(filled: Bool = false) {
-        let imageName = filled ? "Like_Fill" : "Like_Empty"
-        rightButton.setImage(UIImage(named: imageName)?.withRenderingMode(.alwaysTemplate), for: .normal)
-    }
 
     override func layoutSubviews() {
         super.layoutSubviews()
 
-        backButton.pin
-            .left(16)
-            .vCenter()
-            .size(44)
+        let safeAreaTop = superview?.safeAreaInsets.top ?? 0
+        backgroundView.pin
+            .top(-safeAreaTop)
+            .horizontally()
+            .bottom()
 
-        rightButton.pin
-            .right(20)
+        backButton.pin
+            .left(12)
             .vCenter()
-            .size(24)
+            .size(32)
 
         titleLabel.pin
             .after(of: backButton)
             .marginLeft(8)
-            .before(of: rightButton)
-            .marginRight(8)
+            .right()
             .vCenter()
             .sizeToFit(.width)
     }
@@ -104,8 +99,8 @@ final class CustomNavigationBar: UIView {
 }
 
 extension UIViewController {
-    func addCustomNavigationBar(title: String? = nil, showBackButton: Bool = true) -> CustomNavigationBar {
-        let navBar = CustomNavigationBar(title: title, showBackButton: showBackButton)
+    func addCustomNavigationBar(title: String? = nil) -> CustomNavigationBar {
+        let navBar = CustomNavigationBar(title: title)
         view.addSubview(navBar)
 
         navBar.onBackButtonTap = { [weak self] in

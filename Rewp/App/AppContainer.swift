@@ -60,6 +60,10 @@ final class AppContainer {
         return ChatRoomFactory.create(roomId: roomId, roomTitle: roomTitle, container: self)
     }
 
+    func makeChatRoomViewController(chatRoom: ChatRoom) -> ChatRoomViewController {
+        return ChatRoomFactory.create(roomId: chatRoom.roomId, roomTitle: chatRoom.participantName, container: self)
+    }
+
     func makeChatListViewController() -> ChatListViewController {
         return ChatListFactory.create(container: self)
     }

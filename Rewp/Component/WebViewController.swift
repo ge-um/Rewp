@@ -33,7 +33,7 @@ final class WebViewController: UIViewController {
     }
 
     private func setupUI() {
-        navigationBar = addCustomNavigationBar(title: "부동산 TOPIC", showBackButton: true)
+        navigationBar = addCustomNavigationBar(title: "부동산 TOPIC")
         enableSwipeBackGesture()
 
         view.addSubview(webView)
