@@ -117,12 +117,21 @@ final class AuthService: AuthServiceProtocol {
                         observer(.success(value))
                     case .failure:
                         let statusCode = response.response?.statusCode ?? 0
-                        if let data = response.data,
-                           let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
-                            Logger.network.error("Request failed [\(statusCode)] - \(errorResponse.message)")
-                            observer(.failure(NetworkError.serverError(message: errorResponse.message)))
+
+                        if let data = response.data {
+                            if let jsonString = String(data: data, encoding: .utf8) {
+                                Logger.network.error("Response JSON - \(jsonString)")
+                            }
+
+                            if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                                Logger.network.error("Request failed [\(statusCode)] - \(errorResponse.message)")
+                                observer(.failure(NetworkError.serverError(message: errorResponse.message)))
+                            } else {
+                                Logger.network.error("Request failed [\(statusCode)] - decoding error")
+                                observer(.failure(NetworkError.decodingError))
+                            }
                         } else {
-                            Logger.network.error("Request failed [\(statusCode)] - decoding error")
+                            Logger.network.error("Request failed [\(statusCode)] - no data")
                             observer(.failure(NetworkError.decodingError))
                         }
                     }
