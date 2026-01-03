@@ -30,6 +30,10 @@ final class AppContainer {
         EstateRepositoryImpl(authService: authService)
     }()
 
+    lazy var paymentRepository: PaymentRepository = {
+        PaymentRepositoryImpl(authService: authService)
+    }()
+
     // MARK: - Factory Methods
 
     func makeLoginViewController() -> LoginViewController {
