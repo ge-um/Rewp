@@ -39,17 +39,29 @@ final class ChatListPresenter {
                     return .just([])
                 }
 
-                return owner.repository.getChatRooms()
+                let localRooms = owner.repository.fetchChatRoomsFromLocal()
+                    .catch { error in
+                        Logger.network.error("Failed to fetch local chat rooms - \(error.localizedDescription)")
+                        return .just([])
+                    }
+
+                let remoteRooms = owner.repository.getChatRooms()
                     .asObservable()
                     .map { response in
                         response.data.compactMap { dto in
                             dto.toDomain(currentUserId: currentUserId)
                         }
                     }
-                    .catch { error in
-                        Logger.network.error("Failed to fetch chat rooms - \(error.localizedDescription)")
-                        return .just([])
+                    .flatMap { rooms -> Observable<[ChatRoom]> in
+                        owner.repository.saveChatRoomsToLocal(rooms)
+                            .andThen(owner.repository.fetchChatRoomsFromLocal())
                     }
+                    .catch { error in
+                        Logger.network.error("Failed to fetch remote chat rooms - \(error.localizedDescription)")
+                        return .empty()
+                    }
+
+                return Observable.concat([localRooms, remoteRooms])
             }
             .asDriver(onErrorJustReturn: [])
 

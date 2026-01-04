@@ -13,13 +13,18 @@ protocol ChatRepository {
     func createChatRoom(opponentId: String) -> Single<CreateChatRoomResponse>
     func sendMessage(roomId: String, content: String, files: [String]?) -> Single<SendMessageResponse>
     func getChatHistory(roomId: String, next: String?) -> Single<GetChatHistoryResponse>
+
+    func fetchChatRoomsFromLocal() -> Observable<[ChatRoom]>
+    func saveChatRoomsToLocal(_ rooms: [ChatRoom]) -> Completable
 }
 
 final class ChatRepositoryImpl: ChatRepository {
     private let authService: AuthServiceProtocol
+    private let localStorage: ChatLocalStorage
 
-    init(authService: AuthServiceProtocol) {
+    init(authService: AuthServiceProtocol, localStorage: ChatLocalStorage) {
         self.authService = authService
+        self.localStorage = localStorage
     }
 
     func getChatRooms() -> Single<GetChatRoomsResponse> {
@@ -36,5 +41,19 @@ final class ChatRepositoryImpl: ChatRepository {
 
     func getChatHistory(roomId: String, next: String?) -> Single<GetChatHistoryResponse> {
         return authService.authenticatedRequest(ChatRouter.getChatHistory(roomId: roomId, next: next))
+    }
+
+    func fetchChatRoomsFromLocal() -> Observable<[ChatRoom]> {
+        return localStorage.fetchChatRooms()
+    }
+
+    func saveChatRoomsToLocal(_ rooms: [ChatRoom]) -> Completable {
+        return Observable.from(rooms)
+            .flatMap { [weak self] room -> Completable in
+                guard let self = self else { return .empty() }
+                return self.localStorage.saveChatRoom(room)
+            }
+            .toArray()
+            .asCompletable()
     }
 }

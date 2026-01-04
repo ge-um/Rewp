@@ -34,8 +34,12 @@ final class AppContainer {
         PaymentRepositoryImpl(authService: authService)
     }()
 
+    lazy var chatLocalStorage: ChatLocalStorage = {
+        ChatLocalStorage()
+    }()
+
     lazy var chatRepository: ChatRepository = {
-        ChatRepositoryImpl(authService: authService)
+        ChatRepositoryImpl(authService: authService, localStorage: chatLocalStorage)
     }()
 
     lazy var socketService: SocketServiceProtocol = {
