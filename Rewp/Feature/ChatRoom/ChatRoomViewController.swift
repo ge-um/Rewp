@@ -35,6 +35,8 @@ final class ChatRoomViewController: UIViewController {
     private var messages: [ChatMessage] = []
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let viewWillDisappearTrigger = PublishSubject<Void>()
+    private let retryMessageRelay = PublishRelay<String>()
+    private let deleteMessageRelay = PublishRelay<String>()
     private let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
@@ -74,11 +76,16 @@ final class ChatRoomViewController: UIViewController {
         let sendMessage = inputBar.sendButtonTapped
             .withLatestFrom(inputBar.textInput)
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .do(onNext: { [weak self] _ in
+                self?.inputBar.clearText()
+            })
 
         let input = ChatRoomPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
             viewWillDisappear: viewWillDisappearTrigger.asObservable(),
-            sendButtonTapped: sendMessage
+            sendButtonTapped: sendMessage,
+            retryMessageTapped: retryMessageRelay.asObservable(),
+            deleteMessageTapped: deleteMessageRelay.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -97,9 +104,7 @@ final class ChatRoomViewController: UIViewController {
             .disposed(by: disposeBag)
 
         output.messageSent
-            .drive(with: self) { owner, _ in
-                owner.inputBar.clearText()
-            }
+            .drive()
             .disposed(by: disposeBag)
 
         NotificationCenter.default.rx.notification(UIResponder.keyboardWillShowNotification)
@@ -177,6 +182,14 @@ extension ChatRoomViewController: UITableViewDataSource {
                 return UITableViewCell()
             }
             cell.configure(with: message)
+            cell.onRetryTapped = { [weak self] in
+                guard let tempId = message.tempId else { return }
+                self?.retryMessageRelay.accept(tempId)
+            }
+            cell.onDeleteTapped = { [weak self] in
+                guard let tempId = message.tempId else { return }
+                self?.deleteMessageRelay.accept(tempId)
+            }
             cell.contentView.transform = CGAffineTransform(scaleX: 1, y: -1)
             return cell
         } else {

@@ -16,6 +16,8 @@ struct ChatMessage {
     let senderProfileImage: String?
     let createdAt: Date
     let isFromMe: Bool
+    let isSent: Bool
+    let tempId: String?
 
     init(
         chatId: String,
@@ -25,7 +27,9 @@ struct ChatMessage {
         senderNickname: String,
         senderProfileImage: String?,
         createdAt: Date,
-        isFromMe: Bool
+        isFromMe: Bool,
+        isSent: Bool = true,
+        tempId: String? = nil
     ) {
         self.chatId = chatId
         self.roomId = roomId
@@ -35,6 +39,8 @@ struct ChatMessage {
         self.senderProfileImage = senderProfileImage
         self.createdAt = createdAt
         self.isFromMe = isFromMe
+        self.isSent = isSent
+        self.tempId = tempId
     }
 }
 

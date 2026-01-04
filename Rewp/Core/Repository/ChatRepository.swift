@@ -19,9 +19,11 @@ protocol ChatRepository {
 
     func fetchMessagesFromLocal(roomId: String) -> Observable<[ChatMessage]>
     func fetchMessagesFromRemote(roomId: String, after: Date?) -> Observable<[ChatMessage]>
-    func saveMessageToLocal(_ message: ChatMessage) -> Completable
+    func saveMessageToLocal(_ message: ChatMessage, isSent: Bool, tempId: String?) -> Completable
     func saveMessagesToLocal(_ messages: [ChatMessage]) -> Completable
     func getLastMessageDate(roomId: String) -> Date?
+    func updateMessageSentStatus(tempId: String, isSent: Bool, chatId: String?) -> Completable
+    func deleteTempMessage(tempId: String) -> Completable
 }
 
 final class ChatRepositoryImpl: ChatRepository {
@@ -90,8 +92,8 @@ final class ChatRepositoryImpl: ChatRepository {
             }
     }
 
-    func saveMessageToLocal(_ message: ChatMessage) -> Completable {
-        return localStorage.saveMessage(message)
+    func saveMessageToLocal(_ message: ChatMessage, isSent: Bool = true, tempId: String? = nil) -> Completable {
+        return localStorage.saveMessage(message, isSent: isSent, tempId: tempId)
     }
 
     func saveMessagesToLocal(_ messages: [ChatMessage]) -> Completable {
@@ -100,5 +102,13 @@ final class ChatRepositoryImpl: ChatRepository {
 
     func getLastMessageDate(roomId: String) -> Date? {
         return localStorage.getLastMessageDate(roomId: roomId)
+    }
+
+    func updateMessageSentStatus(tempId: String, isSent: Bool, chatId: String?) -> Completable {
+        return localStorage.updateMessageSentStatus(tempId: tempId, isSent: isSent, chatId: chatId)
+    }
+
+    func deleteTempMessage(tempId: String) -> Completable {
+        return localStorage.deleteTempMessage(tempId: tempId)
     }
 }

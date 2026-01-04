@@ -266,6 +266,38 @@ final class ChatLocalStorage {
         }
     }
 
+    func updateMessageSentStatus(tempId: String, isSent: Bool, chatId: String?) -> Completable {
+        return Completable.create { [weak self] completable in
+            guard let self = self else {
+                completable(.error(NSError(domain: "ChatLocalStorage", code: -1)))
+                return Disposables.create()
+            }
+
+            do {
+                let realm = try self.realmProvider.realm()
+                guard let message = realm.objects(ChatMessageObject.self)
+                    .filter("tempId == %@", tempId).first else {
+                    completable(.error(NSError(domain: "ChatLocalStorage", code: -2)))
+                    return Disposables.create()
+                }
+
+                try realm.write {
+                    message.isSent = isSent
+                    if let chatId = chatId {
+                        message.chatId = chatId
+                        message.tempId = nil
+                    }
+                }
+
+                completable(.completed)
+            } catch {
+                completable(.error(error))
+            }
+
+            return Disposables.create()
+        }
+    }
+
     func deleteTempMessage(tempId: String) -> Completable {
         return Completable.create { [weak self] completable in
             guard let self = self else {

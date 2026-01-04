@@ -57,7 +57,9 @@ extension ChatMessageObject {
             senderNickname: senderNickname,
             senderProfileImage: senderProfileImage,
             createdAt: createdAt,
-            isFromMe: isFromMe
+            isFromMe: isFromMe,
+            isSent: isSent,
+            tempId: tempId
         )
     }
 

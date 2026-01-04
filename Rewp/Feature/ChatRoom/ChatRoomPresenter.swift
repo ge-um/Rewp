@@ -36,6 +36,8 @@ final class ChatRoomPresenter {
         let viewDidLoad: Observable<Void>
         let viewWillDisappear: Observable<Void>
         let sendButtonTapped: Observable<String>
+        let retryMessageTapped: Observable<String>
+        let deleteMessageTapped: Observable<String>
     }
 
     struct Output {
@@ -85,26 +87,136 @@ final class ChatRoomPresenter {
                     return .empty()
                 }
 
+                let tempId = UUID().uuidString
+                let tempMessage = ChatMessage(
+                    chatId: tempId,
+                    roomId: owner.roomId,
+                    content: content,
+                    senderId: currentUserId,
+                    senderNickname: "나",
+                    senderProfileImage: nil,
+                    createdAt: Date(),
+                    isFromMe: true,
+                    isSent: false,
+                    tempId: nil
+                )
+
+                var currentMessages = messagesRelay.value
+                currentMessages.append(tempMessage)
+                messagesRelay.accept(currentMessages)
+
                 return owner.chatRepository.sendMessage(roomId: owner.roomId, content: content, files: nil)
                     .asObservable()
                     .flatMap { response -> Observable<Void> in
-                        let message = response.toDomain(currentUserId: currentUserId)
+                        let serverMessage = response.toDomain(currentUserId: currentUserId)
 
-                        return owner.chatRepository.saveMessageToLocal(message)
+                        return owner.chatRepository.saveMessageToLocal(serverMessage, isSent: true, tempId: nil)
                             .do(onCompleted: {
                                 var currentMessages = messagesRelay.value
-                                currentMessages.append(message)
+
+                                currentMessages.removeAll { $0.chatId == tempId }
+
+                                currentMessages.append(serverMessage)
+
                                 messagesRelay.accept(currentMessages)
-                                Logger.socket.notice("Message sent and saved - \(message.chatId, privacy: .public)")
+                                Logger.socket.notice("Message sent - \(serverMessage.chatId, privacy: .public)")
                             })
                             .andThen(Observable.just(()))
                     }
-                    .catch { error in
+                    .catch { error -> Observable<Void> in
                         Logger.socket.error("Failed to send message - \(error.localizedDescription)")
-                        return .empty()
+
+                        let failedMessage = ChatMessage(
+                            chatId: tempMessage.chatId,
+                            roomId: tempMessage.roomId,
+                            content: tempMessage.content,
+                            senderId: tempMessage.senderId,
+                            senderNickname: tempMessage.senderNickname,
+                            senderProfileImage: tempMessage.senderProfileImage,
+                            createdAt: tempMessage.createdAt,
+                            isFromMe: tempMessage.isFromMe,
+                            isSent: false,
+                            tempId: tempId
+                        )
+
+                        return owner.chatRepository.saveMessageToLocal(failedMessage, isSent: false, tempId: tempId)
+                            .do(onCompleted: {
+                                var currentMessages = messagesRelay.value
+                                if let index = currentMessages.firstIndex(where: { $0.chatId == tempId }) {
+                                    currentMessages[index] = failedMessage
+                                }
+                                messagesRelay.accept(currentMessages)
+                                Logger.socket.error("Message marked as failed - tempId: \(tempId, privacy: .public)")
+                            })
+                            .andThen(Observable.just(()))
+                            .catch { _ in .empty() }
                     }
             }
             .asDriver(onErrorDriveWith: .empty())
+
+        input.retryMessageTapped
+            .withUnretained(self)
+            .flatMapLatest { owner, tempId -> Observable<Void> in
+                guard let currentUserId = owner.authService.currentUserId else {
+                    return .empty()
+                }
+
+                return owner.chatRepository.fetchMessagesFromLocal(roomId: owner.roomId)
+                    .flatMap { messages -> Observable<Void> in
+                        guard let failedMessage = messages.first(where: { $0.tempId == tempId }) else {
+                            return .empty()
+                        }
+
+                        return owner.chatRepository.sendMessage(
+                            roomId: owner.roomId,
+                            content: failedMessage.content,
+                            files: nil
+                        )
+                        .asObservable()
+                        .flatMap { response -> Observable<Void> in
+                            let serverMessage = response.toDomain(currentUserId: currentUserId)
+
+                            return owner.chatRepository.deleteTempMessage(tempId: tempId)
+                                .andThen(owner.chatRepository.saveMessageToLocal(serverMessage, isSent: true, tempId: nil))
+                                .do(onCompleted: {
+                                    var currentMessages = messagesRelay.value
+
+                                    currentMessages.removeAll { $0.tempId == tempId }
+
+                                    currentMessages.append(serverMessage)
+
+                                    messagesRelay.accept(currentMessages)
+                                    Logger.socket.notice("Message resent - \(serverMessage.chatId, privacy: .public)")
+                                })
+                                .andThen(Observable.just(()))
+                        }
+                        .catch { error in
+                            Logger.socket.error("Failed to resend message - \(error.localizedDescription)")
+                            return .empty()
+                        }
+                    }
+            }
+            .subscribe()
+            .disposed(by: disposeBag)
+
+        input.deleteMessageTapped
+            .withUnretained(self)
+            .flatMapLatest { owner, tempId -> Observable<Void> in
+                return owner.chatRepository.deleteTempMessage(tempId: tempId)
+                    .do(onCompleted: {
+                        var currentMessages = messagesRelay.value
+                        currentMessages.removeAll { $0.tempId == tempId }
+                        messagesRelay.accept(currentMessages)
+                        Logger.socket.notice("Failed message deleted - tempId: \(tempId, privacy: .public)")
+                    })
+                    .andThen(Observable.just(()))
+                    .catch { error in
+                        Logger.socket.error("Failed to delete message - \(error.localizedDescription)")
+                        return .empty()
+                    }
+            }
+            .subscribe()
+            .disposed(by: disposeBag)
 
         return Output(
             title: .just(roomTitle),
