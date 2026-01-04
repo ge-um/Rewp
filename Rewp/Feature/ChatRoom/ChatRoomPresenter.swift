@@ -72,10 +72,16 @@ final class ChatRoomPresenter {
             .subscribe(onNext: { owner, message in
                 guard !message.isFromMe else { return }
 
+                let isDuplicate = messagesRelay.value.contains { $0.chatId == message.chatId }
+                guard !isDuplicate else {
+                    Logger.socket.notice("Duplicate message ignored - chatId: \(message.chatId, privacy: .public)")
+                    return
+                }
+
                 var currentMessages = messagesRelay.value
                 currentMessages.append(message)
                 messagesRelay.accept(currentMessages)
-                Logger.socket.notice("Message added to list - total: \(currentMessages.count, privacy: .public)")
+                Logger.socket.notice("Message added to list - chatId: \(message.chatId, privacy: .public)")
             })
             .disposed(by: disposeBag)
 
