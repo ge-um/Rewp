@@ -34,6 +34,7 @@ final class ChatRoomViewController: UIViewController {
 
     private var messages: [ChatMessage] = []
     private let viewDidLoadTrigger = PublishSubject<Void>()
+    private let viewWillDisappearTrigger = PublishSubject<Void>()
     private let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
@@ -42,6 +43,11 @@ final class ChatRoomViewController: UIViewController {
         setupUI()
         bind()
         viewDidLoadTrigger.onNext(())
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        viewWillDisappearTrigger.onNext(())
     }
 
     private func setupUI() {
@@ -71,7 +77,8 @@ final class ChatRoomViewController: UIViewController {
 
         let input = ChatRoomPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
-            sendButtonTapped: sendMessage,
+            viewWillDisappear: viewWillDisappearTrigger.asObservable(),
+            sendButtonTapped: sendMessage
         )
 
         let output = presenter.transform(input: input)

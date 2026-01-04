@@ -14,12 +14,14 @@ final class EstateDetailPresenter {
     private let estateId: String
     private let repository: EstateRepository
     private let paymentRepository: PaymentRepository
+    private let chatRepository: ChatRepository
     private let disposeBag = DisposeBag()
 
-    init(estateId: String, repository: EstateRepository, paymentRepository: PaymentRepository) {
+    init(estateId: String, repository: EstateRepository, paymentRepository: PaymentRepository, chatRepository: ChatRepository) {
         self.estateId = estateId
         self.repository = repository
         self.paymentRepository = paymentRepository
+        self.chatRepository = chatRepository
     }
 
     struct Input {
@@ -27,6 +29,7 @@ final class EstateDetailPresenter {
         let similarEstateTapped: Observable<String>
         let likeTapped: Observable<Void>
         let reservationTapped: Observable<Void>
+        let chatTapped: Observable<Void>
     }
 
     struct Output {
@@ -38,6 +41,7 @@ final class EstateDetailPresenter {
         let likeStatus: Driver<Bool>
         let orderCreated: Driver<CreateOrderResponse>
         let reservationCompleted: Driver<Void>
+        let chatRoomCreated: Driver<(roomId: String, roomTitle: String)>
     }
 
     func transform(input: Input) -> Output {
@@ -47,6 +51,7 @@ final class EstateDetailPresenter {
         let orderCreatedRelay = PublishRelay<CreateOrderResponse>()
         let estateDetailRelay = BehaviorRelay<EstateDetail?>(value: nil)
         let reservationCompletedRelay = PublishRelay<Void>()
+        let chatRoomCreatedRelay = PublishRelay<(roomId: String, roomTitle: String)>()
 
         let estateDetail = input.viewDidLoad
             .do(onNext: {
@@ -147,6 +152,30 @@ final class EstateDetailPresenter {
             })
             .disposed(by: disposeBag)
 
+        input.chatTapped
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                guard let detail = estateDetailRelay.value else {
+                    errorRelay.accept("매물 정보를 불러오는 중입니다.")
+                    return
+                }
+
+                loadingRelay.accept(true)
+
+                owner.chatRepository.createChatRoom(opponentId: detail.creatorId)
+                    .subscribe(onSuccess: { response in
+                        loadingRelay.accept(false)
+                        Logger.socket.notice("Chat room created - room_id: \(response.room_id, privacy: .public)")
+                        chatRoomCreatedRelay.accept((roomId: response.room_id, roomTitle: detail.creatorName))
+                    }, onFailure: { error in
+                        loadingRelay.accept(false)
+                        Logger.socket.error("Create chat room failed - \(error.localizedDescription)")
+                        errorRelay.accept("채팅방 생성에 실패했습니다.")
+                    })
+                    .disposed(by: owner.disposeBag)
+            })
+            .disposed(by: disposeBag)
+
         return Output(
             estateDetail: estateDetail,
             similarEstates: similarEstates,
@@ -155,7 +184,8 @@ final class EstateDetailPresenter {
             isLoading: loadingRelay.asDriver(onErrorJustReturn: false),
             likeStatus: likeStatusRelay.asDriver(),
             orderCreated: orderCreatedRelay.asDriver(onErrorDriveWith: .empty()),
-            reservationCompleted: reservationCompletedRelay.asDriver(onErrorDriveWith: .empty())
+            reservationCompleted: reservationCompletedRelay.asDriver(onErrorDriveWith: .empty()),
+            chatRoomCreated: chatRoomCreatedRelay.asDriver(onErrorDriveWith: .empty())
         )
     }
 }

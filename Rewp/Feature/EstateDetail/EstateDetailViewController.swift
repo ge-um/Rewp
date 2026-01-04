@@ -22,6 +22,7 @@ final class EstateDetailViewController: UIViewController {
     private let similarEstateTappedRelay = PublishRelay<String>()
     private let likeTappedRelay = PublishRelay<Void>()
     private let reservationTappedRelay = PublishRelay<Void>()
+    private let chatTappedRelay = PublishRelay<Void>()
     private var creatorPhoneNumber: String?
     private var currentEstateDetail: EstateDetail?
     private var currentOrderResponse: CreateOrderResponse?
@@ -282,7 +283,8 @@ final class EstateDetailViewController: UIViewController {
             viewDidLoad: viewDidLoadTrigger.asObservable(),
             similarEstateTapped: similarEstateTappedRelay.asObservable(),
             likeTapped: likeTappedRelay.asObservable(),
-            reservationTapped: reservationTappedRelay.asObservable()
+            reservationTapped: reservationTappedRelay.asObservable(),
+            chatTapped: chatTappedRelay.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -344,6 +346,16 @@ final class EstateDetailViewController: UIViewController {
             }
             .disposed(by: disposeBag)
 
+        output.chatRoomCreated
+            .drive(with: self) { owner, roomInfo in
+                let chatRoomVC = owner.container.makeChatRoomViewController(
+                    roomId: roomInfo.roomId,
+                    roomTitle: roomInfo.roomTitle
+                )
+                owner.navigationController?.pushViewController(chatRoomVC, animated: true)
+            }
+            .disposed(by: disposeBag)
+
         viewDidLoadTrigger.onNext(())
 
         navigationBar.onBackButtonTap = { [weak self] in
@@ -382,12 +394,7 @@ final class EstateDetailViewController: UIViewController {
         agentChatButton.rx.tap
             .withUnretained(self)
             .subscribe(onNext: { owner, _ in
-                guard let detail = owner.currentEstateDetail else { return }
-                let chatRoomVC = owner.container.makeChatRoomViewController(
-                    roomId: "estate-\(detail.estateId)-\(detail.creatorId)",
-                    roomTitle: detail.creatorName
-                )
-                owner.navigationController?.pushViewController(chatRoomVC, animated: true)
+                owner.chatTappedRelay.accept(())
             })
             .disposed(by: disposeBag)
 

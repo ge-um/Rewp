@@ -9,7 +9,12 @@ import UIKit
 
 final class ChatRoomFactory {
     static func create(roomId: String, roomTitle: String, container: AppContainer) -> ChatRoomViewController {
-        let presenter = ChatRoomPresenter(roomId: roomId, roomTitle: roomTitle)
+        let presenter = ChatRoomPresenter(
+            roomId: roomId,
+            roomTitle: roomTitle,
+            socketService: container.socketService,
+            chatRepository: container.chatRepository
+        )
         let viewController = ChatRoomViewController()
 
         viewController.presenter = presenter

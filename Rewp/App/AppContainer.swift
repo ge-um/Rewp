@@ -34,6 +34,14 @@ final class AppContainer {
         PaymentRepositoryImpl(authService: authService)
     }()
 
+    lazy var chatRepository: ChatRepository = {
+        ChatRepositoryImpl(authService: authService)
+    }()
+
+    lazy var socketService: SocketServiceProtocol = {
+        SocketService()
+    }()
+
     // MARK: - Factory Methods
 
     func makeLoginViewController() -> LoginViewController {
