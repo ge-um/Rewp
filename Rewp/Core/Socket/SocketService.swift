@@ -65,7 +65,7 @@ final class SocketService: SocketServiceProtocol {
         manager = SocketManager(
             socketURL: url,
             config: [
-                .log(true),
+                .log(false),
                 .compress,
                 .extraHeaders([
                     "Authorization": accessToken,
@@ -111,33 +111,23 @@ final class SocketService: SocketServiceProtocol {
             }
         }
 
-        socket?.on(clientEvent: .statusChange) { data, _ in
-            Logger.socket.debug("Socket status changed - \(data)")
-        }
-
         socket?.on(clientEvent: .reconnect) { data, _ in
-            Logger.socket.notice("Socket reconnecting - \(data)")
-        }
-
-        socket?.on(clientEvent: .reconnectAttempt) { data, _ in
-            Logger.socket.debug("Socket reconnect attempt - \(data)")
+            Logger.socket.notice("Socket reconnected")
         }
 
         socket?.on("chat") { [weak self] data, _ in
             guard let self = self else { return }
 
-            Logger.socket.debug("Socket chat event received - data: \(data)")
-
             guard let messageData = data.first as? [String: Any] else {
-                Logger.socket.error("Failed to parse socket message data - data type: \(type(of: data))")
+                Logger.socket.error("Failed to parse socket message data")
                 return
             }
 
             if let message = self.parseMessage(from: messageData) {
                 self.receivedMessageRelay.accept(message)
-                Logger.socket.notice("Message received - sender: \(message.senderNickname, privacy: .public), length: \(message.content.count, privacy: .public)")
+                Logger.socket.notice("Message received - sender: \(message.senderNickname, privacy: .public)")
             } else {
-                Logger.socket.error("Failed to parse message from socket data - keys: \(messageData.keys)")
+                Logger.socket.error("Failed to parse message from socket data")
             }
         }
     }
