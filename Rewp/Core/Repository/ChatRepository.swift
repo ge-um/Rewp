@@ -16,6 +16,12 @@ protocol ChatRepository {
 
     func fetchChatRoomsFromLocal() -> Observable<[ChatRoom]>
     func saveChatRoomsToLocal(_ rooms: [ChatRoom]) -> Completable
+
+    func fetchMessagesFromLocal(roomId: String) -> Observable<[ChatMessage]>
+    func fetchMessagesFromRemote(roomId: String, after: Date?) -> Observable<[ChatMessage]>
+    func saveMessageToLocal(_ message: ChatMessage) -> Completable
+    func saveMessagesToLocal(_ messages: [ChatMessage]) -> Completable
+    func getLastMessageDate(roomId: String) -> Date?
 }
 
 final class ChatRepositoryImpl: ChatRepository {
@@ -55,5 +61,44 @@ final class ChatRepositoryImpl: ChatRepository {
             }
             .toArray()
             .asCompletable()
+    }
+
+    func fetchMessagesFromLocal(roomId: String) -> Observable<[ChatMessage]> {
+        return localStorage.fetchMessages(roomId: roomId)
+    }
+
+    func fetchMessagesFromRemote(roomId: String, after: Date?) -> Observable<[ChatMessage]> {
+        guard let currentUserId = authService.currentUserId else {
+            return .just([])
+        }
+
+        let nextString: String?
+        if let after = after {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            nextString = formatter.string(from: after)
+        } else {
+            nextString = nil
+        }
+
+        return getChatHistory(roomId: roomId, next: nextString)
+            .asObservable()
+            .map { response in
+                response.data.map { dto in
+                    dto.toDomain(currentUserId: currentUserId)
+                }
+            }
+    }
+
+    func saveMessageToLocal(_ message: ChatMessage) -> Completable {
+        return localStorage.saveMessage(message)
+    }
+
+    func saveMessagesToLocal(_ messages: [ChatMessage]) -> Completable {
+        return localStorage.saveMessages(messages)
+    }
+
+    func getLastMessageDate(roomId: String) -> Date? {
+        return localStorage.getLastMessageDate(roomId: roomId)
     }
 }

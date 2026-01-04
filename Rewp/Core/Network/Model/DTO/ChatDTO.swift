@@ -111,3 +111,21 @@ extension ChatMessageDTO {
         )
     }
 }
+
+extension SendMessageResponse {
+    func toDomain(currentUserId: String) -> ChatMessage {
+        let formatter = ISO8601DateFormatter()
+        let date = formatter.date(from: createdAt) ?? Date()
+
+        return ChatMessage(
+            chatId: chat_id,
+            roomId: room_id,
+            content: content,
+            senderId: sender.user_id,
+            senderNickname: sender.nick,
+            senderProfileImage: sender.profileImage,
+            createdAt: date,
+            isFromMe: sender.user_id == currentUserId
+        )
+    }
+}

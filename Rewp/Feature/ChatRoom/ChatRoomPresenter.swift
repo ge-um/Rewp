@@ -77,15 +77,31 @@ final class ChatRoomPresenter {
 
         let messageSent = input.sendButtonTapped
             .withUnretained(self)
-            .flatMapLatest { owner, content in
-                owner.chatRepository.sendMessage(roomId: owner.roomId, content: content, files: nil)
+            .flatMapLatest { owner, content -> Observable<Void> in
+                guard let currentUserId = owner.authService.currentUserId else {
+                    Logger.auth.error("Failed to extract user ID from token")
+                    return .empty()
+                }
+
+                return owner.chatRepository.sendMessage(roomId: owner.roomId, content: content, files: nil)
                     .asObservable()
+                    .flatMap { response -> Observable<Void> in
+                        let message = response.toDomain(currentUserId: currentUserId)
+
+                        return owner.chatRepository.saveMessageToLocal(message)
+                            .do(onCompleted: {
+                                var currentMessages = messagesRelay.value
+                                currentMessages.append(message)
+                                messagesRelay.accept(currentMessages)
+                                Logger.socket.notice("Message sent and saved - \(message.chatId, privacy: .public)")
+                            })
+                            .andThen(Observable.just(()))
+                    }
                     .catch { error in
                         Logger.socket.error("Failed to send message - \(error.localizedDescription)")
                         return .empty()
                     }
             }
-            .map { _ in () }
             .asDriver(onErrorDriveWith: .empty())
 
         return Output(
@@ -97,20 +113,30 @@ final class ChatRoomPresenter {
     }
 
     private func loadChatHistory(messagesRelay: BehaviorRelay<[ChatMessage]>) {
-        guard let currentUserId = authService.currentUserId else {
-            Logger.auth.error("Failed to extract user ID from token")
-            return
-        }
+        let localMessages = chatRepository.fetchMessagesFromLocal(roomId: roomId)
+            .catch { error in
+                Logger.network.error("Failed to fetch local messages - \(error.localizedDescription)")
+                return .just([])
+            }
 
-        chatRepository.getChatHistory(roomId: roomId, next: nil)
-            .asObservable()
+        let lastDate = chatRepository.getLastMessageDate(roomId: roomId)
+
+        let remoteMessages = chatRepository.fetchMessagesFromRemote(roomId: roomId, after: lastDate)
+            .flatMap { [weak self] messages -> Observable<[ChatMessage]> in
+                guard let self = self else { return .just([]) }
+                return self.chatRepository.saveMessagesToLocal(messages)
+                    .andThen(self.chatRepository.fetchMessagesFromLocal(roomId: self.roomId))
+            }
+            .catch { error in
+                Logger.network.error("Failed to fetch remote messages - \(error.localizedDescription)")
+                return .empty()
+            }
+
+        Observable.concat([localMessages, remoteMessages])
             .withUnretained(self)
-            .subscribe(onNext: { owner, response in
-                let messages = response.data.map { $0.toDomain(currentUserId: currentUserId) }
+            .subscribe(onNext: { owner, messages in
                 messagesRelay.accept(messages)
                 Logger.network.notice("Chat history loaded - count: \(messages.count, privacy: .public)")
-            }, onError: { error in
-                Logger.network.error("Failed to load chat history - \(error.localizedDescription)")
             })
             .disposed(by: disposeBag)
     }
