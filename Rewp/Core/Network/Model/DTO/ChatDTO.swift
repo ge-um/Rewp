@@ -57,6 +57,12 @@ struct GetChatRoomsResponse: Decodable {
     let data: [ChatRoomDTO]
 }
 
+struct GetChatHistoryResponse: Decodable {
+    let data: [ChatMessageDTO]
+}
+
+typealias ChatMessageDTO = LastChatDTO
+
 extension ChatRoomDTO {
     func toDomain(currentUserId: String) -> ChatRoom? {
         guard let opponent = participants.first(where: { $0.user_id != currentUserId }) else {
@@ -84,6 +90,24 @@ extension ChatRoomDTO {
             lastMessage: lastMessageText,
             lastMessageDate: lastMessageDate,
             unreadCount: 0
+        )
+    }
+}
+
+extension ChatMessageDTO {
+    func toDomain(currentUserId: String) -> ChatMessage {
+        let formatter = ISO8601DateFormatter()
+        let date = formatter.date(from: createdAt) ?? Date()
+
+        return ChatMessage(
+            chatId: chat_id,
+            roomId: room_id,
+            content: content,
+            senderId: sender.user_id,
+            senderNickname: sender.nick,
+            senderProfileImage: sender.profileImage,
+            createdAt: date,
+            isFromMe: sender.user_id == currentUserId
         )
     }
 }

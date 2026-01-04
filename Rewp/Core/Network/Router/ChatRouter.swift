@@ -12,6 +12,7 @@ enum ChatRouter {
     case getChatRooms
     case createChatRoom(opponentId: String)
     case sendMessage(roomId: String, content: String, files: [String]?)
+    case getChatHistory(roomId: String, next: String?)
 }
 
 extension ChatRouter: APIRouter {
@@ -25,12 +26,14 @@ extension ChatRouter: APIRouter {
             return "/chats"
         case .sendMessage(let roomId, _, _):
             return "/chats/\(roomId)"
+        case .getChatHistory(let roomId, _):
+            return "/chats/\(roomId)"
         }
     }
 
     var method: HTTPMethod {
         switch self {
-        case .getChatRooms:
+        case .getChatRooms, .getChatHistory:
             return .get
         case .createChatRoom, .sendMessage:
             return .post
@@ -46,12 +49,24 @@ extension ChatRouter: APIRouter {
 
     var body: Encodable? {
         switch self {
-        case .getChatRooms:
+        case .getChatRooms, .getChatHistory:
             return nil
         case .createChatRoom(let opponentId):
             return CreateChatRoomRequest(opponent_id: opponentId)
         case .sendMessage(_, let content, let files):
             return SendMessageRequest(content: content, files: files)
+        }
+    }
+
+    var queryParameters: [String: String]? {
+        switch self {
+        case .getChatHistory(_, let next):
+            if let next = next {
+                return ["next": next]
+            }
+            return nil
+        default:
+            return nil
         }
     }
 }

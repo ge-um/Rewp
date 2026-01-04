@@ -12,6 +12,7 @@ protocol ChatRepository {
     func getChatRooms() -> Single<GetChatRoomsResponse>
     func createChatRoom(opponentId: String) -> Single<CreateChatRoomResponse>
     func sendMessage(roomId: String, content: String, files: [String]?) -> Single<SendMessageResponse>
+    func getChatHistory(roomId: String, next: String?) -> Single<GetChatHistoryResponse>
 }
 
 final class ChatRepositoryImpl: ChatRepository {
@@ -31,5 +32,9 @@ final class ChatRepositoryImpl: ChatRepository {
 
     func sendMessage(roomId: String, content: String, files: [String]?) -> Single<SendMessageResponse> {
         return authService.authenticatedRequest(ChatRouter.sendMessage(roomId: roomId, content: content, files: files))
+    }
+
+    func getChatHistory(roomId: String, next: String?) -> Single<GetChatHistoryResponse> {
+        return authService.authenticatedRequest(ChatRouter.getChatHistory(roomId: roomId, next: next))
     }
 }

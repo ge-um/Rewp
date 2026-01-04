@@ -15,13 +15,21 @@ final class ChatRoomPresenter {
     private let roomTitle: String
     private let socketService: SocketServiceProtocol
     private let chatRepository: ChatRepository
+    private let keychainManager: KeychainManager
     private let disposeBag = DisposeBag()
 
-    init(roomId: String, roomTitle: String, socketService: SocketServiceProtocol, chatRepository: ChatRepository) {
+    init(
+        roomId: String,
+        roomTitle: String,
+        socketService: SocketServiceProtocol,
+        chatRepository: ChatRepository,
+        keychainManager: KeychainManager = .shared
+    ) {
         self.roomId = roomId
         self.roomTitle = roomTitle
         self.socketService = socketService
         self.chatRepository = chatRepository
+        self.keychainManager = keychainManager
     }
 
     struct Input {
@@ -45,6 +53,7 @@ final class ChatRoomPresenter {
             .subscribe(onNext: { owner, _ in
                 owner.socketService.connect(roomId: owner.roomId)
                 Logger.socket.notice("Chat room loaded - \(owner.roomId, privacy: .public)")
+                owner.loadChatHistory(messagesRelay: messagesRelay)
             })
             .disposed(by: disposeBag)
 
@@ -85,5 +94,47 @@ final class ChatRoomPresenter {
             messageSent: messageSent,
             isConnected: socketService.isConnected.asDriver(onErrorJustReturn: false)
         )
+    }
+
+    private func loadChatHistory(messagesRelay: BehaviorRelay<[ChatMessage]>) {
+        guard let currentUserId = getCurrentUserId() else {
+            Logger.auth.error("Failed to extract user ID from token")
+            return
+        }
+
+        chatRepository.getChatHistory(roomId: roomId, next: nil)
+            .asObservable()
+            .withUnretained(self)
+            .subscribe(onNext: { owner, response in
+                let messages = response.data.map { $0.toDomain(currentUserId: currentUserId) }
+                messagesRelay.accept(messages)
+                Logger.network.notice("Chat history loaded - count: \(messages.count, privacy: .public)")
+            }, onError: { error in
+                Logger.network.error("Failed to load chat history - \(error.localizedDescription)")
+            })
+            .disposed(by: disposeBag)
+    }
+
+    private func getCurrentUserId() -> String? {
+        guard let accessToken = try? keychainManager.loadAccessToken() else {
+            return nil
+        }
+
+        let segments = accessToken.components(separatedBy: ".")
+        guard segments.count > 1 else { return nil }
+
+        var base64 = segments[1]
+        let remainder = base64.count % 4
+        if remainder > 0 {
+            base64 += String(repeating: "=", count: 4 - remainder)
+        }
+
+        guard let data = Data(base64Encoded: base64),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let userId = json["id"] as? String else {
+            return nil
+        }
+
+        return userId
     }
 }
