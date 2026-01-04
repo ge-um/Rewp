@@ -107,7 +107,9 @@ extension ChatMessageDTO {
             senderNickname: sender.nick,
             senderProfileImage: sender.profileImage,
             createdAt: date,
-            isFromMe: sender.user_id == currentUserId
+            isFromMe: sender.user_id == currentUserId,
+            sendStatus: .sent,
+            tempId: nil
         )
     }
 }
@@ -125,7 +127,9 @@ extension SendMessageResponse {
             senderNickname: sender.nick,
             senderProfileImage: sender.profileImage,
             createdAt: date,
-            isFromMe: sender.user_id == currentUserId
+            isFromMe: sender.user_id == currentUserId,
+            sendStatus: .sent,
+            tempId: nil
         )
     }
 }

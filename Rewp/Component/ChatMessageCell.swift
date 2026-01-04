@@ -195,15 +195,18 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
         messageLabel.typography(FontSystem.Pretendard.body2, text: message.content)
         timeLabel.typography(FontSystem.Pretendard.caption2, text: formatTime(message.createdAt))
 
-        if message.isSent {
+        switch message.sendStatus {
+        case .sent:
             sendingIndicator.isHidden = true
             failedContainer.isHidden = true
-        } else if message.tempId != nil {
-            sendingIndicator.isHidden = true
-            failedContainer.isHidden = false
-        } else {
+
+        case .sending:
             sendingIndicator.isHidden = false
             failedContainer.isHidden = true
+
+        case .failed:
+            sendingIndicator.isHidden = true
+            failedContainer.isHidden = false
         }
     }
 

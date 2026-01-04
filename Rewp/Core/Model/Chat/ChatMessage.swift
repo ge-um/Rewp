@@ -7,6 +7,12 @@
 
 import Foundation
 
+enum SendStatus: String {
+    case sending = "sending"
+    case failed = "failed"
+    case sent = "sent"
+}
+
 struct ChatMessage {
     let chatId: String
     let roomId: String
@@ -16,7 +22,7 @@ struct ChatMessage {
     let senderProfileImage: String?
     let createdAt: Date
     let isFromMe: Bool
-    let isSent: Bool
+    let sendStatus: SendStatus
     let tempId: String?
 
     init(
@@ -28,7 +34,7 @@ struct ChatMessage {
         senderProfileImage: String?,
         createdAt: Date,
         isFromMe: Bool,
-        isSent: Bool = true,
+        sendStatus: SendStatus = .sent,
         tempId: String? = nil
     ) {
         self.chatId = chatId
@@ -39,7 +45,7 @@ struct ChatMessage {
         self.senderProfileImage = senderProfileImage
         self.createdAt = createdAt
         self.isFromMe = isFromMe
-        self.isSent = isSent
+        self.sendStatus = sendStatus
         self.tempId = tempId
     }
 }

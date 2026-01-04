@@ -18,32 +18,12 @@ final class ChatMessageObject: Object {
     @Persisted var createdAt: Date
     @Persisted var isFromMe: Bool
 
-    @Persisted var isSent: Bool = true
+    @Persisted var sendStatusRaw: String = SendStatus.sent.rawValue
     @Persisted var tempId: String?
 
-    convenience init(
-        chatId: String,
-        roomId: String,
-        content: String,
-        senderId: String,
-        senderNickname: String,
-        senderProfileImage: String?,
-        createdAt: Date,
-        isFromMe: Bool,
-        isSent: Bool = true,
-        tempId: String? = nil
-    ) {
-        self.init()
-        self.chatId = chatId
-        self.roomId = roomId
-        self.content = content
-        self.senderId = senderId
-        self.senderNickname = senderNickname
-        self.senderProfileImage = senderProfileImage
-        self.createdAt = createdAt
-        self.isFromMe = isFromMe
-        self.isSent = isSent
-        self.tempId = tempId
+    var sendStatus: SendStatus {
+        get { SendStatus(rawValue: sendStatusRaw) ?? .sent }
+        set { sendStatusRaw = newValue.rawValue }
     }
 }
 
@@ -58,27 +38,27 @@ extension ChatMessageObject {
             senderProfileImage: senderProfileImage,
             createdAt: createdAt,
             isFromMe: isFromMe,
-            isSent: isSent,
+            sendStatus: sendStatus,
             tempId: tempId
         )
     }
 
     static func fromDomain(
         _ message: ChatMessage,
-        isSent: Bool = true,
+        sendStatus: SendStatus? = nil,
         tempId: String? = nil
     ) -> ChatMessageObject {
-        return ChatMessageObject(
-            chatId: message.chatId,
-            roomId: message.roomId,
-            content: message.content,
-            senderId: message.senderId,
-            senderNickname: message.senderNickname,
-            senderProfileImage: message.senderProfileImage,
-            createdAt: message.createdAt,
-            isFromMe: message.isFromMe,
-            isSent: isSent,
-            tempId: tempId
-        )
+        let object = ChatMessageObject()
+        object.chatId = message.chatId
+        object.roomId = message.roomId
+        object.content = message.content
+        object.senderId = message.senderId
+        object.senderNickname = message.senderNickname
+        object.senderProfileImage = message.senderProfileImage
+        object.createdAt = message.createdAt
+        object.isFromMe = message.isFromMe
+        object.sendStatus = sendStatus ?? message.sendStatus
+        object.tempId = tempId ?? message.tempId
+        return object
     }
 }

@@ -88,7 +88,7 @@ final class ChatLocalStorage {
         }
     }
 
-    func saveMessage(_ message: ChatMessage, isSent: Bool = true, tempId: String? = nil) -> Completable {
+    func saveMessage(_ message: ChatMessage, sendStatus: SendStatus? = nil, tempId: String? = nil) -> Completable {
         return Completable.create { [weak self] completable in
             guard let self = self else {
                 completable(.error(NSError(domain: "ChatLocalStorage", code: -1)))
@@ -97,7 +97,7 @@ final class ChatLocalStorage {
 
             do {
                 let realm = try self.realmProvider.realm()
-                let messageObject = ChatMessageObject.fromDomain(message, isSent: isSent, tempId: tempId)
+                let messageObject = ChatMessageObject.fromDomain(message, sendStatus: sendStatus, tempId: tempId)
 
                 try realm.write {
                     realm.add(messageObject, update: .modified)
@@ -260,38 +260,6 @@ final class ChatLocalStorage {
                 observer.onCompleted()
             } catch {
                 observer.onError(error)
-            }
-
-            return Disposables.create()
-        }
-    }
-
-    func updateMessageSentStatus(tempId: String, isSent: Bool, chatId: String?) -> Completable {
-        return Completable.create { [weak self] completable in
-            guard let self = self else {
-                completable(.error(NSError(domain: "ChatLocalStorage", code: -1)))
-                return Disposables.create()
-            }
-
-            do {
-                let realm = try self.realmProvider.realm()
-                guard let message = realm.objects(ChatMessageObject.self)
-                    .filter("tempId == %@", tempId).first else {
-                    completable(.error(NSError(domain: "ChatLocalStorage", code: -2)))
-                    return Disposables.create()
-                }
-
-                try realm.write {
-                    message.isSent = isSent
-                    if let chatId = chatId {
-                        message.chatId = chatId
-                        message.tempId = nil
-                    }
-                }
-
-                completable(.completed)
-            } catch {
-                completable(.error(error))
             }
 
             return Disposables.create()

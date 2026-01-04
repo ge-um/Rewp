@@ -97,7 +97,7 @@ final class ChatRoomPresenter {
                     senderProfileImage: nil,
                     createdAt: Date(),
                     isFromMe: true,
-                    isSent: false,
+                    sendStatus: .sending,
                     tempId: nil
                 )
 
@@ -110,7 +110,7 @@ final class ChatRoomPresenter {
                     .flatMap { response -> Observable<Void> in
                         let serverMessage = response.toDomain(currentUserId: currentUserId)
 
-                        return owner.chatRepository.saveMessageToLocal(serverMessage, isSent: true, tempId: nil)
+                        return owner.chatRepository.saveMessageToLocal(serverMessage)
                             .do(onCompleted: {
                                 var currentMessages = messagesRelay.value
 
@@ -135,11 +135,11 @@ final class ChatRoomPresenter {
                             senderProfileImage: tempMessage.senderProfileImage,
                             createdAt: tempMessage.createdAt,
                             isFromMe: tempMessage.isFromMe,
-                            isSent: false,
+                            sendStatus: .failed,
                             tempId: tempId
                         )
 
-                        return owner.chatRepository.saveMessageToLocal(failedMessage, isSent: false, tempId: tempId)
+                        return owner.chatRepository.saveMessageToLocal(failedMessage, sendStatus: .failed, tempId: tempId)
                             .do(onCompleted: {
                                 var currentMessages = messagesRelay.value
                                 if let index = currentMessages.firstIndex(where: { $0.chatId == tempId }) {
@@ -167,6 +167,25 @@ final class ChatRoomPresenter {
                             return .empty()
                         }
 
+                        let sendingMessage = ChatMessage(
+                            chatId: failedMessage.chatId,
+                            roomId: failedMessage.roomId,
+                            content: failedMessage.content,
+                            senderId: failedMessage.senderId,
+                            senderNickname: failedMessage.senderNickname,
+                            senderProfileImage: failedMessage.senderProfileImage,
+                            createdAt: failedMessage.createdAt,
+                            isFromMe: failedMessage.isFromMe,
+                            sendStatus: .sending,
+                            tempId: tempId
+                        )
+
+                        var currentMessages = messagesRelay.value
+                        if let index = currentMessages.firstIndex(where: { $0.tempId == tempId }) {
+                            currentMessages[index] = sendingMessage
+                        }
+                        messagesRelay.accept(currentMessages)
+
                         return owner.chatRepository.sendMessage(
                             roomId: owner.roomId,
                             content: failedMessage.content,
@@ -177,7 +196,7 @@ final class ChatRoomPresenter {
                             let serverMessage = response.toDomain(currentUserId: currentUserId)
 
                             return owner.chatRepository.deleteTempMessage(tempId: tempId)
-                                .andThen(owner.chatRepository.saveMessageToLocal(serverMessage, isSent: true, tempId: nil))
+                                .andThen(owner.chatRepository.saveMessageToLocal(serverMessage))
                                 .do(onCompleted: {
                                     var currentMessages = messagesRelay.value
 
@@ -192,6 +211,26 @@ final class ChatRoomPresenter {
                         }
                         .catch { error in
                             Logger.socket.error("Failed to resend message - \(error.localizedDescription)")
+
+                            let failedAgain = ChatMessage(
+                                chatId: failedMessage.chatId,
+                                roomId: failedMessage.roomId,
+                                content: failedMessage.content,
+                                senderId: failedMessage.senderId,
+                                senderNickname: failedMessage.senderNickname,
+                                senderProfileImage: failedMessage.senderProfileImage,
+                                createdAt: failedMessage.createdAt,
+                                isFromMe: failedMessage.isFromMe,
+                                sendStatus: .failed,
+                                tempId: tempId
+                            )
+
+                            var currentMessages = messagesRelay.value
+                            if let index = currentMessages.firstIndex(where: { $0.tempId == tempId }) {
+                                currentMessages[index] = failedAgain
+                            }
+                            messagesRelay.accept(currentMessages)
+
                             return .empty()
                         }
                     }
