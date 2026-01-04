@@ -17,12 +17,18 @@ final class LoginPresenter: NSObject {
 
     private let userRepository: UserRepository
     private let container: AppContainer
+    private let notificationManager: NotificationManager
     private let disposeBag = DisposeBag()
     private let appleIdTokenSubject = PublishSubject<String>()
 
-    init(userRepository: UserRepository, container: AppContainer) {
+    init(
+        userRepository: UserRepository,
+        container: AppContainer,
+        notificationManager: NotificationManager
+    ) {
         self.userRepository = userRepository
         self.container = container
+        self.notificationManager = notificationManager
         super.init()
     }
 
@@ -80,9 +86,10 @@ final class LoginPresenter: NSObject {
                 loadingRelay.accept(true)
             })
             .flatMapLatest { owner, oauthToken in
-                owner.userRepository.kakaoLogin(
+                let deviceToken = owner.notificationManager.getCurrentToken() ?? ""
+                return owner.userRepository.kakaoLogin(
                     oauthToken: oauthToken,
-                    deviceToken: "temp-device-token"
+                    deviceToken: deviceToken
                 )
                 .asObservable()
                 .catch { error in
@@ -100,6 +107,11 @@ final class LoginPresenter: NSObject {
                         accessToken: response.accessToken,
                         refreshToken: response.refreshToken
                     )
+
+                    owner.notificationManager.requestPermission()
+                        .subscribe()
+                        .disposed(by: owner.disposeBag)
+
                     successRelay.accept((nickname: response.nick, email: response.email))
                 } catch {
                     errorRelay.accept("토큰 저장에 실패했습니다.")
@@ -113,9 +125,10 @@ final class LoginPresenter: NSObject {
                 loadingRelay.accept(true)
             })
             .flatMapLatest { owner, idToken in
-                owner.userRepository.appleLogin(
+                let deviceToken = owner.notificationManager.getCurrentToken() ?? ""
+                return owner.userRepository.appleLogin(
                     idToken: idToken,
-                    deviceToken: "temp-device-token"
+                    deviceToken: deviceToken
                 )
                 .asObservable()
                 .catch { error in
@@ -133,6 +146,11 @@ final class LoginPresenter: NSObject {
                         accessToken: response.accessToken,
                         refreshToken: response.refreshToken
                     )
+
+                    owner.notificationManager.requestPermission()
+                        .subscribe()
+                        .disposed(by: owner.disposeBag)
+
                     successRelay.accept((nickname: response.nick, email: response.email))
                 } catch {
                     errorRelay.accept("토큰 저장에 실패했습니다.")
@@ -193,13 +211,18 @@ final class LoginPresenter: NSObject {
             })
             .flatMapLatest { owner, values in
                 let (email, password) = values
-                return owner.userRepository.login(email: email, password: password)
-                    .asObservable()
-                    .catch { error in
-                        loadingRelay.accept(false)
-                        errorRelay.accept(error.localizedDescription)
-                        return .empty()
-                    }
+                let deviceToken = owner.notificationManager.getCurrentToken() ?? ""
+                return owner.userRepository.login(
+                    email: email,
+                    password: password,
+                    deviceToken: deviceToken
+                )
+                .asObservable()
+                .catch { error in
+                    loadingRelay.accept(false)
+                    errorRelay.accept(error.localizedDescription)
+                    return .empty()
+                }
             }
             .withUnretained(self)
             .subscribe(onNext: { owner, response in
@@ -210,6 +233,11 @@ final class LoginPresenter: NSObject {
                         accessToken: response.accessToken,
                         refreshToken: response.refreshToken
                     )
+
+                    owner.notificationManager.requestPermission()
+                        .subscribe()
+                        .disposed(by: owner.disposeBag)
+
                     successRelay.accept((nickname: response.nick, email: response.email))
                 } catch {
                     errorRelay.accept("토큰 저장에 실패했습니다.")

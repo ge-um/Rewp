@@ -10,6 +10,8 @@ import KakaoSDKAuth
 import KakaoSDKCommon
 import RxSwift
 import OSLog
+import UserNotifications
+import FirebaseMessaging
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
@@ -21,6 +23,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = (scene as? UIWindowScene) else { return }
 
         KakaoSDK.initSDK(appKey: NetworkConfig.kakaoKey)
+
+        UNUserNotificationCenter.current().delegate = container.notificationManager
+        Messaging.messaging().delegate = container.notificationManager
 
         let window = UIWindow(windowScene: windowScene)
         self.window = window

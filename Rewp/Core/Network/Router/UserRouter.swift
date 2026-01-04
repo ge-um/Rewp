@@ -15,6 +15,7 @@ enum UserRouter {
     case appleLogin(AppleLoginRequest)
     case kakaoLogin(KakaoLoginRequest)
     case logout
+    case updateDeviceToken(DeviceTokenRequest)
 }
 
 extension UserRouter: APIRouter {
@@ -36,11 +37,18 @@ extension UserRouter: APIRouter {
             return "/users/login/kakao"
         case .logout:
             return "/users/logout"
+        case .updateDeviceToken:
+            return "/users/deviceToken"
         }
     }
 
     var method: HTTPMethod {
-        return .post
+        switch self {
+        case .updateDeviceToken:
+            return .put
+        default:
+            return .post
+        }
     }
 
     var headers: HTTPHeaders? {
@@ -64,6 +72,8 @@ extension UserRouter: APIRouter {
             return request
         case .logout:
             return nil
+        case .updateDeviceToken(let request):
+            return request
         }
     }
 }

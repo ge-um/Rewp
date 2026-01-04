@@ -46,6 +46,18 @@ final class AppContainer {
         SocketService()
     }()
 
+    lazy var notificationRepository: NotificationRepository = {
+        NotificationRepositoryImpl(authService: authService as! AuthService)
+    }()
+
+    lazy var notificationManager: NotificationManager = {
+        NotificationManager(
+            notificationRepository: notificationRepository,
+            authService: authService as! AuthService,
+            container: self
+        )
+    }()
+
     // MARK: - Factory Methods
 
     func makeLoginViewController() -> LoginViewController {
