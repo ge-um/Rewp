@@ -12,12 +12,12 @@ import OSLog
 
 final class ChatListPresenter {
     private let repository: ChatRepository
-    private let keychainManager: KeychainManager
+    private let authService: AuthServiceProtocol
     private let disposeBag = DisposeBag()
 
-    init(repository: ChatRepository, keychainManager: KeychainManager = .shared) {
+    init(repository: ChatRepository, authService: AuthServiceProtocol) {
         self.repository = repository
-        self.keychainManager = keychainManager
+        self.authService = authService
     }
 
     struct Input {
@@ -34,7 +34,7 @@ final class ChatListPresenter {
         let chatRooms = input.viewDidLoad
             .withUnretained(self)
             .flatMapLatest { owner, _ -> Observable<[ChatRoom]> in
-                guard let currentUserId = owner.getCurrentUserId() else {
+                guard let currentUserId = owner.authService.currentUserId else {
                     Logger.auth.error("Failed to extract user ID from token")
                     return .just([])
                 }
@@ -61,28 +61,4 @@ final class ChatListPresenter {
             navigateToChatRoom: navigateToChatRoom
         )
     }
-
-    private func getCurrentUserId() -> String? {
-        guard let accessToken = try? keychainManager.loadAccessToken() else {
-            return nil
-        }
-
-        let segments = accessToken.components(separatedBy: ".")
-        guard segments.count > 1 else { return nil }
-
-        var base64 = segments[1]
-        let remainder = base64.count % 4
-        if remainder > 0 {
-            base64 += String(repeating: "=", count: 4 - remainder)
-        }
-
-        guard let data = Data(base64Encoded: base64),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let userId = json["id"] as? String else {
-            return nil
-        }
-
-        return userId
-    }
-
 }

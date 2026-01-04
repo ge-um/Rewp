@@ -15,7 +15,7 @@ final class ChatRoomPresenter {
     private let roomTitle: String
     private let socketService: SocketServiceProtocol
     private let chatRepository: ChatRepository
-    private let keychainManager: KeychainManager
+    private let authService: AuthServiceProtocol
     private let disposeBag = DisposeBag()
 
     init(
@@ -23,13 +23,13 @@ final class ChatRoomPresenter {
         roomTitle: String,
         socketService: SocketServiceProtocol,
         chatRepository: ChatRepository,
-        keychainManager: KeychainManager = .shared
+        authService: AuthServiceProtocol
     ) {
         self.roomId = roomId
         self.roomTitle = roomTitle
         self.socketService = socketService
         self.chatRepository = chatRepository
-        self.keychainManager = keychainManager
+        self.authService = authService
     }
 
     struct Input {
@@ -97,7 +97,7 @@ final class ChatRoomPresenter {
     }
 
     private func loadChatHistory(messagesRelay: BehaviorRelay<[ChatMessage]>) {
-        guard let currentUserId = getCurrentUserId() else {
+        guard let currentUserId = authService.currentUserId else {
             Logger.auth.error("Failed to extract user ID from token")
             return
         }
@@ -113,28 +113,5 @@ final class ChatRoomPresenter {
                 Logger.network.error("Failed to load chat history - \(error.localizedDescription)")
             })
             .disposed(by: disposeBag)
-    }
-
-    private func getCurrentUserId() -> String? {
-        guard let accessToken = try? keychainManager.loadAccessToken() else {
-            return nil
-        }
-
-        let segments = accessToken.components(separatedBy: ".")
-        guard segments.count > 1 else { return nil }
-
-        var base64 = segments[1]
-        let remainder = base64.count % 4
-        if remainder > 0 {
-            base64 += String(repeating: "=", count: 4 - remainder)
-        }
-
-        guard let data = Data(base64Encoded: base64),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let userId = json["id"] as? String else {
-            return nil
-        }
-
-        return userId
     }
 }

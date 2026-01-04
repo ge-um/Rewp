@@ -9,7 +9,10 @@ import UIKit
 
 final class ChatListFactory {
     static func create(container: AppContainer) -> ChatListViewController {
-        let presenter = ChatListPresenter(repository: container.chatRepository)
+        let presenter = ChatListPresenter(
+            repository: container.chatRepository,
+            authService: container.authService
+        )
         let viewController = ChatListViewController()
 
         viewController.presenter = presenter

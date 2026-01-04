@@ -15,6 +15,7 @@ extension Notification.Name {
 }
 
 protocol AuthServiceProtocol {
+    var currentUserId: String? { get }
     func login(accessToken: String, refreshToken: String) throws
     func logout() -> Single<Void>
     func isAuthenticated() -> Bool
@@ -27,6 +28,11 @@ final class AuthService: AuthServiceProtocol {
     private let keychainManager: KeychainManager
     private let authenticator: TokenAuthenticator
     private var session: Session
+    private var cachedUserId: String?
+
+    var currentUserId: String? {
+        return cachedUserId
+    }
 
     private var currentCredential: TokenCredential? {
         do {
@@ -55,9 +61,11 @@ final class AuthService: AuthServiceProtocol {
                 accessToken: accessToken,
                 refreshToken: refreshToken
             )
+            self.cachedUserId = Self.extractUserId(from: accessToken)
         } catch {
             Logger.auth.error("Failed to load tokens during AuthService init - \(error.localizedDescription)")
             credential = nil
+            self.cachedUserId = nil
         }
 
         let interceptor = AuthenticationInterceptor(
@@ -84,6 +92,8 @@ final class AuthService: AuthServiceProtocol {
             credential: credential
         )
         self.session = Session(interceptor: interceptor)
+
+        self.cachedUserId = Self.extractUserId(from: accessToken)
         Logger.auth.notice("User logged in")
     }
 
@@ -196,10 +206,31 @@ final class AuthService: AuthServiceProtocol {
         )
         self.session = Session(interceptor: interceptor)
 
+        self.cachedUserId = nil
+
         NotificationCenter.default.post(
             name: .authenticationFailed,
             object: nil
         )
         Logger.auth.notice("Authentication state cleared")
+    }
+
+    private static func extractUserId(from token: String) -> String? {
+        let segments = token.components(separatedBy: ".")
+        guard segments.count > 1 else { return nil }
+
+        var base64 = segments[1]
+        let remainder = base64.count % 4
+        if remainder > 0 {
+            base64 += String(repeating: "=", count: 4 - remainder)
+        }
+
+        guard let data = Data(base64Encoded: base64),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let userId = json["id"] as? String else {
+            return nil
+        }
+
+        return userId
     }
 }
