@@ -264,8 +264,12 @@ final class LoginViewController: UIViewController {
     }
 
     private func navigateToHome(nickname: String, email: String) {
-        let feedVC = container.makeFeedViewController()
-        navigationController?.setViewControllers([feedVC], animated: true)
+        guard let window = view.window else { return }
+        let mainTabBarController = MainTabBarController(container: container, initialTab: 0)
+        let navigationController = UINavigationController(rootViewController: mainTabBarController)
+        navigationController.navigationBar.isHidden = true
+        window.rootViewController = navigationController
+        window.makeKeyAndVisible()
     }
 
     private func showError(_ message: String) {
