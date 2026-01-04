@@ -50,3 +50,40 @@ struct SendMessageResponse: Decodable {
     let sender: ParticipantDTO
     let files: [String]?
 }
+
+typealias ChatRoomDTO = CreateChatRoomResponse
+
+struct GetChatRoomsResponse: Decodable {
+    let data: [ChatRoomDTO]
+}
+
+extension ChatRoomDTO {
+    func toDomain(currentUserId: String) -> ChatRoom? {
+        guard let opponent = participants.first(where: { $0.user_id != currentUserId }) else {
+            return nil
+        }
+
+        let lastMessageText: String
+        let lastMessageDate: Date
+
+        if let lastChat = lastChat {
+            lastMessageText = lastChat.content
+
+            let formatter = ISO8601DateFormatter()
+            lastMessageDate = formatter.date(from: lastChat.createdAt) ?? Date()
+        } else {
+            lastMessageText = ""
+            lastMessageDate = Date()
+        }
+
+        return ChatRoom(
+            roomId: room_id,
+            participantId: opponent.user_id,
+            participantName: opponent.nick,
+            participantProfileImage: opponent.profileImage,
+            lastMessage: lastMessageText,
+            lastMessageDate: lastMessageDate,
+            unreadCount: 0
+        )
+    }
+}

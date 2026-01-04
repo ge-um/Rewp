@@ -9,6 +9,7 @@ import Foundation
 import Alamofire
 
 enum ChatRouter {
+    case getChatRooms
     case createChatRoom(opponentId: String)
     case sendMessage(roomId: String, content: String, files: [String]?)
 }
@@ -20,7 +21,7 @@ extension ChatRouter: APIRouter {
 
     var path: String {
         switch self {
-        case .createChatRoom:
+        case .getChatRooms, .createChatRoom:
             return "/chats"
         case .sendMessage(let roomId, _, _):
             return "/chats/\(roomId)"
@@ -29,6 +30,8 @@ extension ChatRouter: APIRouter {
 
     var method: HTTPMethod {
         switch self {
+        case .getChatRooms:
+            return .get
         case .createChatRoom, .sendMessage:
             return .post
         }
@@ -43,6 +46,8 @@ extension ChatRouter: APIRouter {
 
     var body: Encodable? {
         switch self {
+        case .getChatRooms:
+            return nil
         case .createChatRoom(let opponentId):
             return CreateChatRoomRequest(opponent_id: opponentId)
         case .sendMessage(_, let content, let files):
