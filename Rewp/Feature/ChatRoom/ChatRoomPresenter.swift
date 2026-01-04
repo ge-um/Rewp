@@ -68,6 +68,8 @@ final class ChatRoomPresenter {
         socketService.receivedMessage
             .withUnretained(self)
             .subscribe(onNext: { owner, message in
+                guard !message.isFromMe else { return }
+
                 var currentMessages = messagesRelay.value
                 currentMessages.append(message)
                 messagesRelay.accept(currentMessages)
