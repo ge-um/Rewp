@@ -30,8 +30,6 @@ final class NotificationManager: NSObject {
         super.init()
     }
 
-    /// 알림 권한 요청
-    /// - Returns: 권한 허용 여부
     func requestPermission() -> Observable<Bool> {
         return Observable.create { observer in
             UNUserNotificationCenter.current().requestAuthorization(
@@ -50,14 +48,10 @@ final class NotificationManager: NSObject {
         }
     }
 
-    /// 현재 FCM 토큰 반환 (로그인 API용)
-    /// - Returns: FCM 토큰 (없으면 nil)
     func getCurrentToken() -> String? {
         return fcmToken
     }
 
-    /// 디바이스 토큰을 서버에 전송 (로그인 상태일 때만)
-    /// - Returns: 성공 시 Void, 실패 시 에러
     func updateDeviceToken() -> Single<Void> {
         guard authService.isAuthenticated() else {
             Logger.fcm.debug("Not authenticated - skipping token update")
@@ -78,6 +72,102 @@ final class NotificationManager: NSObject {
                     Logger.fcm.error("Token update failed - \(error.localizedDescription)")
                 }
             )
+    }
+
+    /// 알림 탭 시 딥링킹 처리
+    /// - Parameter userInfo: 알림 payload
+    func handleNotificationTap(_ userInfo: [AnyHashable: Any]) {
+        guard let roomId = userInfo["room_id"] as? String else {
+            Logger.notification.error("Missing room_id in notification payload")
+            return
+        }
+
+        guard let chatRepository = container?.chatRepository else {
+            Logger.notification.error("ChatRepository not available")
+            return
+        }
+
+        guard let currentUserId = authService.currentUserId else {
+            Logger.notification.error("Not authenticated")
+            return
+        }
+
+        chatRepository.fetchChatRoomsFromLocal()
+            .take(1)
+            .map { rooms in
+                rooms.first(where: { $0.roomId == roomId })
+            }
+            .observe(on: MainScheduler.instance)
+            .withUnretained(self)
+            .flatMap { owner, cachedRoom -> Observable<ChatRoom?> in
+                if let cachedRoom = cachedRoom {
+                    return .just(cachedRoom)
+                } else {
+                    return chatRepository.getChatRooms()
+                        .asObservable()
+                        .map { response in
+                            response.data.compactMap { $0.toDomain(currentUserId: currentUserId) }
+                        }
+                        .map { rooms in
+                            rooms.first(where: { $0.roomId == roomId })
+                        }
+                }
+            }
+            .withUnretained(self)
+            .subscribe(
+                onNext: { owner, chatRoom in
+                    if let chatRoom = chatRoom {
+                        owner.navigateToChatRoom(chatRoom)
+                    } else {
+                        Logger.notification.error("Chat room not found - \(roomId, privacy: .public)")
+                        owner.navigateToChatList()
+                    }
+                },
+                onError: { error in
+                    Logger.notification.error("Failed to fetch chat room - \(error.localizedDescription)")
+                    self.navigateToChatList()
+                }
+            )
+            .disposed(by: disposeBag)
+    }
+
+    /// 활성 UIWindow 반환
+    /// - Returns: 현재 활성화된 키 윈도우
+    private func getKeyWindow() -> UIWindow? {
+        return UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first(where: { $0.isKeyWindow })
+    }
+
+    private func navigateToChatRoom(_ chatRoom: ChatRoom) {
+        guard let window = getKeyWindow() else {
+            Logger.notification.error("Navigation failed - window unavailable")
+            return
+        }
+
+        guard let nav = window.rootViewController as? UINavigationController,
+              let mainTab = nav.viewControllers.first as? MainTabBarController else {
+            Logger.notification.error("Navigation failed - MainTabBarController not found")
+            return
+        }
+
+        mainTab.navigateToChatRoom(chatRoom: chatRoom)
+    }
+
+    /// 채팅방 목록으로 네비게이션 (fallback)
+    private func navigateToChatList() {
+        guard let window = getKeyWindow() else {
+            Logger.notification.error("Navigation failed - window unavailable")
+            return
+        }
+
+        if let nav = window.rootViewController as? UINavigationController,
+           let mainTab = nav.viewControllers.first as? MainTabBarController {
+            mainTab.selectTab(at: 2)
+        } else {
+            Logger.notification.error("Navigation failed - MainTabBarController not found")
+        }
     }
 }
 
@@ -100,7 +190,7 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         Logger.notification.notice("Notification tapped")
-        // TODO: 딥링킹 구현 (2단계)
+        handleNotificationTap(response.notification.request.content.userInfo)
         completionHandler()
     }
 }

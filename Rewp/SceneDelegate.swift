@@ -30,6 +30,21 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let window = UIWindow(windowScene: windowScene)
         self.window = window
 
+        if let notificationResponse = connectionOptions.notificationResponse {
+            Logger.notification.notice("Cold start - handling notification tap")
+
+            if container.authService.isAuthenticated() {
+                showFeedScreen()
+            } else {
+                showLoginScreen()
+            }
+
+            container.notificationManager.handleNotificationTap(
+                notificationResponse.notification.request.content.userInfo
+            )
+            return
+        }
+
         NotificationCenter.default.rx
             .notification(.authenticationFailed)
             .observe(on: MainScheduler.instance)

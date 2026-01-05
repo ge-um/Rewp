@@ -109,4 +109,18 @@ final class MainTabBarController: UIViewController {
 
         currentViewController?.view.frame = containerView.bounds
     }
+
+    /// 특정 탭으로 이동
+    /// - Parameter index: 탭 인덱스 (0: Feed, 2: ChatList, 3: Settings)
+    func selectTab(at index: Int) {
+        tabBar.selectTab(at: index)
+    }
+
+    /// 채팅방으로 네비게이션
+    /// - Parameter chatRoom: 이동할 채팅방
+    func navigateToChatRoom(chatRoom: ChatRoom) {
+        selectTab(at: 2)
+        let chatRoomVC = container.makeChatRoomViewController(chatRoom: chatRoom)
+        navigationController?.pushViewController(chatRoomVC, animated: true)
+    }
 }
