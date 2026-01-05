@@ -18,6 +18,7 @@ final class NotificationManager: NSObject {
     private let disposeBag = DisposeBag()
 
     private var fcmToken: String?
+    private var currentChatRoomId: String?
 
     init(
         notificationRepository: NotificationRepository,
@@ -28,6 +29,7 @@ final class NotificationManager: NSObject {
         self.authService = authService
         self.container = container
         super.init()
+        observeCurrentChatRoom()
     }
 
     func requestPermission() -> Observable<Bool> {
@@ -169,6 +171,23 @@ final class NotificationManager: NSObject {
             Logger.notification.error("Navigation failed - MainTabBarController not found")
         }
     }
+
+    private func observeCurrentChatRoom() {
+        NotificationCenter.default.rx
+            .notification(.currentChatRoomChanged)
+            .compactMap { $0.userInfo?["info"] as? CurrentChatRoomInfo }
+            .map { $0.roomId }
+            .withUnretained(self)
+            .subscribe(onNext: { owner, roomId in
+                owner.currentChatRoomId = roomId
+                if let roomId = roomId {
+                    Logger.notification.debug("Current chat room changed - \(roomId, privacy: .public)")
+                } else {
+                    Logger.notification.debug("Current chat room cleared")
+                }
+            })
+            .disposed(by: disposeBag)
+    }
 }
 
 // MARK: - UNUserNotificationCenterDelegate
@@ -181,12 +200,20 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
     ) {
         let userInfo = notification.request.content.userInfo
         Logger.notification.debug("Notification received in foreground - payload: \(userInfo, privacy: .public)")
+
         if let roomId = userInfo["room_id"] as? String {
             NotificationCenter.default.post(
                 name: .chatMessageReceived,
                 object: nil,
                 userInfo: ["info": ChatMessageReceivedInfo(roomId: roomId)]
             )
+
+            // 현재 채팅방과 알림의 채팅방 ID 비교
+            if roomId == currentChatRoomId {
+                Logger.notification.debug("Suppressing banner - user is in chat room \(roomId, privacy: .public)")
+                completionHandler([])
+                return
+            }
         }
 
         completionHandler([.banner, .sound, .badge])
