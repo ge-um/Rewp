@@ -23,6 +23,7 @@ protocol ChatRepository {
     func saveMessagesToLocal(_ messages: [ChatMessage]) -> Completable
     func getLastMessageDate(roomId: String) -> Date?
     func deleteTempMessage(tempId: String) -> Completable
+    func isMessageExists(chatId: String) -> Bool
 }
 
 extension ChatRepository {
@@ -111,5 +112,9 @@ final class ChatRepositoryImpl: ChatRepository {
 
     func deleteTempMessage(tempId: String) -> Completable {
         return localStorage.deleteTempMessage(tempId: tempId)
+    }
+
+    func isMessageExists(chatId: String) -> Bool {
+        return localStorage.isMessageExists(chatId: chatId)
     }
 }

@@ -69,19 +69,31 @@ final class ChatRoomPresenter {
 
         socketService.receivedMessage
             .withUnretained(self)
-            .subscribe(onNext: { owner, message in
-                guard !message.isFromMe else { return }
+            .filter { owner, message in
+                guard !message.isFromMe else { return false }
 
-                let isDuplicate = messagesRelay.value.contains { $0.chatId == message.chatId }
-                guard !isDuplicate else {
+                let isDuplicate = owner.chatRepository.isMessageExists(chatId: message.chatId)
+                if isDuplicate {
                     Logger.socket.notice("Duplicate message ignored - chatId: \(message.chatId, privacy: .public)")
-                    return
+                    return false
                 }
 
+                return true
+            }
+            .flatMapLatest { owner, message -> Observable<ChatMessage> in
+                return owner.chatRepository.saveMessageToLocal(message)
+                    .andThen(Observable.just(message))
+                    .catch { error in
+                        Logger.socket.error("Failed to save socket message to Realm - chatId: \(message.chatId, privacy: .public), error: \(error.localizedDescription)")
+                        return Observable.just(message)
+                    }
+            }
+            .withUnretained(self)
+            .subscribe(onNext: { owner, message in
                 var currentMessages = messagesRelay.value
                 currentMessages.append(message)
                 messagesRelay.accept(currentMessages)
-                Logger.socket.notice("Message added to list - chatId: \(message.chatId, privacy: .public)")
+                Logger.socket.notice("Socket message saved and displayed - chatId: \(message.chatId, privacy: .public)")
             })
             .disposed(by: disposeBag)
 
