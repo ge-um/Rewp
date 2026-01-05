@@ -58,6 +58,10 @@ final class ChatRoomViewController: UIViewController {
         view.addSubview(bottomBackgroundView)
         view.addSubview(inputBar)
 
+        navigationBar.onBackButtonTap = { [weak self] in
+            self?.navigationController?.popViewController(animated: true)
+        }
+
         tableView.register(ChatMessageCell.self, forCellReuseIdentifier: ChatMessageCell.identifier)
         tableView.register(ChatMessageReceivedCell.self, forCellReuseIdentifier: ChatMessageReceivedCell.identifier)
         tableView.dataSource = self
