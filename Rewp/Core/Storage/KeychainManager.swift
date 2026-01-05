@@ -121,4 +121,20 @@ final class KeychainManager: @unchecked Sendable {
             throw KeychainError.deleteError
         }
     }
+
+    private enum UserDefaultsKey {
+        static let lastLoggedInUserId = "com.rewp.lastLoggedInUserId"
+    }
+
+    func getLastLoggedInUserId() -> String? {
+        return UserDefaults.standard.string(forKey: UserDefaultsKey.lastLoggedInUserId)
+    }
+
+    func saveLastLoggedInUserId(_ userId: String) {
+        UserDefaults.standard.set(userId, forKey: UserDefaultsKey.lastLoggedInUserId)
+    }
+
+    func clearLastLoggedInUserId() {
+        UserDefaults.standard.removeObject(forKey: UserDefaultsKey.lastLoggedInUserId)
+    }
 }

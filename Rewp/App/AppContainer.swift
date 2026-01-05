@@ -15,7 +15,7 @@ final class AppContainer {
     }()
 
     lazy var authService: AuthServiceProtocol = {
-        return AuthService(networkService: networkService)
+        return AuthService(networkService: networkService, chatLocalStorage: chatLocalStorage)
     }()
 
     lazy var userRepository: UserRepository = {

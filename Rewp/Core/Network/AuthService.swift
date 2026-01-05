@@ -26,6 +26,7 @@ protocol AuthServiceProtocol {
 final class AuthService: AuthServiceProtocol {
     private let networkService: NetworkServiceProtocol
     private let keychainManager: KeychainManager
+    private let chatLocalStorage: ChatLocalStorage
     private let authenticator: TokenAuthenticator
     private var session: Session
     private var cachedUserId: String?
@@ -48,9 +49,10 @@ final class AuthService: AuthServiceProtocol {
         }
     }
 
-    init(networkService: NetworkServiceProtocol, keychainManager: KeychainManager = .shared) {
+    init(networkService: NetworkServiceProtocol, keychainManager: KeychainManager = .shared, chatLocalStorage: ChatLocalStorage) {
         self.networkService = networkService
         self.keychainManager = keychainManager
+        self.chatLocalStorage = chatLocalStorage
         self.authenticator = TokenAuthenticator(keychainManager: keychainManager)
 
         let credential: TokenCredential?
@@ -87,13 +89,40 @@ final class AuthService: AuthServiceProtocol {
         try keychainManager.saveAccessToken(accessToken)
         try keychainManager.saveRefreshToken(refreshToken)
 
+        guard let newUserId = Self.extractUserId(from: accessToken) else {
+            Logger.auth.error("Failed to extract userId from token")
+            throw AuthError.invalidToken
+        }
+
+        let lastUserId = keychainManager.getLastLoggedInUserId()
+
+        if let lastUserId = lastUserId, lastUserId != newUserId {
+            Logger.auth.notice("User changed - clearing Realm data")
+            do {
+                try chatLocalStorage.deleteAllData()
+                Logger.auth.notice("Realm data cleared for user change")
+            } catch {
+                Logger.auth.error("Failed to clear Realm data - \(error.localizedDescription)")
+
+                do {
+                    try keychainManager.deleteAllTokens()
+                } catch {
+                    Logger.auth.error("Failed to rollback tokens - \(error.localizedDescription)")
+                }
+
+                throw AuthError.invalidToken
+            }
+        }
+
+        keychainManager.saveLastLoggedInUserId(newUserId)
+
         let interceptor = AuthenticationInterceptor(
             authenticator: authenticator,
             credential: credential
         )
         self.session = Session(interceptor: interceptor)
 
-        self.cachedUserId = Self.extractUserId(from: accessToken)
+        self.cachedUserId = newUserId
         Logger.auth.notice("User logged in")
     }
 

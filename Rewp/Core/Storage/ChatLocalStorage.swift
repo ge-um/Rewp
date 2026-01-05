@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OSLog
 import RealmSwift
 import RxSwift
 
@@ -315,5 +316,15 @@ final class ChatLocalStorage {
 
             return Disposables.create()
         }
+    }
+
+    func deleteAllData() throws {
+        let realm = try realmProvider.realm()
+
+        try realm.write {
+            realm.deleteAll()
+        }
+
+        Logger.storage.notice("All Realm data deleted")
     }
 }
