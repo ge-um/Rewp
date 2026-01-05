@@ -179,7 +179,16 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        Logger.notification.debug("Notification received in foreground")
+        let userInfo = notification.request.content.userInfo
+        Logger.notification.debug("Notification received in foreground - payload: \(userInfo, privacy: .public)")
+        if let roomId = userInfo["room_id"] as? String {
+            NotificationCenter.default.post(
+                name: .chatMessageReceived,
+                object: nil,
+                userInfo: ["info": ChatMessageReceivedInfo(roomId: roomId)]
+            )
+        }
+
         completionHandler([.banner, .sound, .badge])
     }
 
@@ -189,8 +198,9 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        Logger.notification.notice("Notification tapped")
-        handleNotificationTap(response.notification.request.content.userInfo)
+        let userInfo = response.notification.request.content.userInfo
+        Logger.notification.notice("Notification tapped - payload: \(userInfo, privacy: .public)")
+        handleNotificationTap(userInfo)
         completionHandler()
     }
 }

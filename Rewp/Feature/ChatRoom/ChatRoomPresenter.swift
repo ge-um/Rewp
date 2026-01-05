@@ -54,6 +54,21 @@ final class ChatRoomPresenter {
             .withUnretained(self)
             .subscribe(onNext: { owner, _ in
                 owner.socketService.connect(roomId: owner.roomId)
+
+                NotificationCenter.default.post(
+                    name: .currentChatRoomChanged,
+                    object: nil,
+                    userInfo: ["info": CurrentChatRoomInfo(roomId: owner.roomId)]
+                )
+
+                owner.chatRepository.markAsRead(roomId: owner.roomId)
+                    .subscribe(onCompleted: {
+                        Logger.socket.notice("Chat room marked as read - \(owner.roomId, privacy: .public)")
+                    }, onError: { error in
+                        Logger.socket.error("Failed to mark as read - \(error.localizedDescription)")
+                    })
+                    .disposed(by: owner.disposeBag)
+
                 Logger.socket.notice("Chat room loaded - \(owner.roomId, privacy: .public)")
                 owner.loadChatHistory(messagesRelay: messagesRelay)
             })
@@ -63,6 +78,13 @@ final class ChatRoomPresenter {
             .withUnretained(self)
             .subscribe(onNext: { owner, _ in
                 owner.socketService.disconnect()
+
+                NotificationCenter.default.post(
+                    name: .currentChatRoomChanged,
+                    object: nil,
+                    userInfo: ["info": CurrentChatRoomInfo(roomId: nil)]
+                )
+
                 Logger.socket.notice("Chat room closed - \(owner.roomId, privacy: .public)")
             })
             .disposed(by: disposeBag)

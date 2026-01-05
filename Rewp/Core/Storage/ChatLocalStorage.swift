@@ -26,7 +26,25 @@ final class ChatLocalStorage {
 
             do {
                 let realm = try self.realmProvider.realm()
-                let roomObject = ChatRoomObject.fromDomain(room)
+
+                let existingUnreadCount: Int
+                if let existingRoom = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: room.roomId) {
+                    existingUnreadCount = existingRoom.unreadCount
+                } else {
+                    existingUnreadCount = room.unreadCount
+                }
+
+                let roomWithPreservedUnread = ChatRoom(
+                    roomId: room.roomId,
+                    participantId: room.participantId,
+                    participantName: room.participantName,
+                    participantProfileImage: room.participantProfileImage,
+                    lastMessage: room.lastMessage,
+                    lastMessageDate: room.lastMessageDate,
+                    unreadCount: existingUnreadCount
+                )
+
+                let roomObject = ChatRoomObject.fromDomain(roomWithPreservedUnread)
 
                 try realm.write {
                     realm.add(roomObject, update: .modified)

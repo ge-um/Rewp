@@ -24,6 +24,10 @@ protocol ChatRepository {
     func getLastMessageDate(roomId: String) -> Date?
     func deleteTempMessage(tempId: String) -> Completable
     func isMessageExists(chatId: String) -> Bool
+
+    func incrementUnreadCount(roomId: String) -> Completable
+    func markAsRead(roomId: String) -> Completable
+    func updateLastMessage(roomId: String, content: String, date: Date) -> Completable
 }
 
 extension ChatRepository {
@@ -116,5 +120,17 @@ final class ChatRepositoryImpl: ChatRepository {
 
     func isMessageExists(chatId: String) -> Bool {
         return localStorage.isMessageExists(chatId: chatId)
+    }
+
+    func incrementUnreadCount(roomId: String) -> Completable {
+        return localStorage.incrementUnreadCount(roomId: roomId)
+    }
+
+    func markAsRead(roomId: String) -> Completable {
+        return localStorage.markAsRead(roomId: roomId)
+    }
+
+    func updateLastMessage(roomId: String, content: String, date: Date) -> Completable {
+        return localStorage.updateLastMessage(roomId: roomId, content: content, date: date)
     }
 }

@@ -72,14 +72,14 @@ extension ChatRoomDTO {
         let lastMessageText: String
         let lastMessageDate: Date
 
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        lastMessageDate = formatter.date(from: updatedAt) ?? Date()
+
         if let lastChat = lastChat {
             lastMessageText = lastChat.content
-
-            let formatter = ISO8601DateFormatter()
-            lastMessageDate = formatter.date(from: lastChat.createdAt) ?? Date()
         } else {
             lastMessageText = ""
-            lastMessageDate = Date()
         }
 
         return ChatRoom(
@@ -97,6 +97,7 @@ extension ChatRoomDTO {
 extension ChatMessageDTO {
     func toDomain(currentUserId: String) -> ChatMessage {
         let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let date = formatter.date(from: createdAt) ?? Date()
 
         return ChatMessage(
@@ -117,6 +118,7 @@ extension ChatMessageDTO {
 extension SendMessageResponse {
     func toDomain(currentUserId: String) -> ChatMessage {
         let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let date = formatter.date(from: createdAt) ?? Date()
 
         return ChatMessage(
