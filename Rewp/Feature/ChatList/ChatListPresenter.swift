@@ -13,12 +13,14 @@ import OSLog
 final class ChatListPresenter {
     private let repository: ChatRepository
     private let authService: AuthServiceProtocol
+    private let unreadCountSyncService: UnreadCountSyncService
     private let disposeBag = DisposeBag()
     private var currentChatRoomId: String?
 
-    init(repository: ChatRepository, authService: AuthServiceProtocol) {
+    init(repository: ChatRepository, authService: AuthServiceProtocol, unreadCountSyncService: UnreadCountSyncService) {
         self.repository = repository
         self.authService = authService
+        self.unreadCountSyncService = unreadCountSyncService
 
         NotificationCenter.default.rx
             .notification(.currentChatRoomChanged)
@@ -32,7 +34,9 @@ final class ChatListPresenter {
 
     struct Input {
         let viewDidLoad: Observable<Void>
+        let viewWillAppear: Observable<Void>
         let chatRoomTapped: Observable<ChatRoom>
+        let foregroundRefresh: Observable<Void>
     }
 
     struct Output {
@@ -95,7 +99,28 @@ final class ChatListPresenter {
                     }
             }
 
-        let chatRooms = Observable.merge(viewDidLoadRooms, fcmUpdate, chatRoomExited)
+        let viewWillAppearRooms = input.viewWillAppear
+            .withUnretained(self)
+            .flatMapLatest { owner, _ -> Observable<[ChatRoom]> in
+                return owner.unreadCountSyncService.syncAllUnreadCounts()
+                    .andThen(owner.repository.fetchChatRoomsFromLocal())
+                    .catch { error in
+                        Logger.network.error("Failed to sync unread counts - \(error.localizedDescription)")
+                        return owner.repository.fetchChatRoomsFromLocal()
+                    }
+            }
+
+        let foregroundRefreshRooms = input.foregroundRefresh
+            .withUnretained(self)
+            .flatMapLatest { owner, _ -> Observable<[ChatRoom]> in
+                return owner.repository.fetchChatRoomsFromLocal()
+                    .catch { error in
+                        Logger.network.error("Failed to fetch chat rooms after foreground refresh - \(error.localizedDescription)")
+                        return .empty()
+                    }
+            }
+
+        let chatRooms = Observable.merge(viewDidLoadRooms, fcmUpdate, chatRoomExited, viewWillAppearRooms, foregroundRefreshRooms)
             .asDriver(onErrorJustReturn: [])
 
         let navigateToChatRoom = input.chatRoomTapped

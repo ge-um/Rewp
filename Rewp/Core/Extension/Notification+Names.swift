@@ -10,6 +10,7 @@ import Foundation
 extension Notification.Name {
     static let chatMessageReceived = Notification.Name("chatMessageReceived")
     static let currentChatRoomChanged = Notification.Name("currentChatRoomChanged")
+    static let chatListNeedsRefresh = Notification.Name("chatListNeedsRefresh")
 }
 
 struct ChatMessageReceivedInfo {

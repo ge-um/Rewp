@@ -58,6 +58,10 @@ final class AppContainer {
         )
     }()
 
+    lazy var unreadCountSyncService: UnreadCountSyncService = {
+        UnreadCountSyncService(chatRepository: chatRepository, authService: authService)
+    }()
+
     // MARK: - Factory Methods
 
     func makeLoginViewController() -> LoginViewController {

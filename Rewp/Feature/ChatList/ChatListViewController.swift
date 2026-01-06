@@ -35,6 +35,7 @@ final class ChatListViewController: UIViewController {
 
     private var chatRooms: [ChatRoom] = []
     private let viewDidLoadTrigger = PublishSubject<Void>()
+    private let viewWillAppearRelay = PublishRelay<Void>()
     private let chatRoomTappedRelay = PublishRelay<ChatRoom>()
     private let disposeBag = DisposeBag()
 
@@ -44,6 +45,11 @@ final class ChatListViewController: UIViewController {
         setupUI()
         bind()
         viewDidLoadTrigger.onNext(())
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        viewWillAppearRelay.accept(())
     }
 
     private func setupUI() {
@@ -59,9 +65,16 @@ final class ChatListViewController: UIViewController {
     }
 
     private func bind() {
+        let foregroundRefresh = NotificationCenter.default.rx
+            .notification(.chatListNeedsRefresh)
+            .map { _ in () }
+            .asObservable()
+
         let input = ChatListPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
-            chatRoomTapped: chatRoomTappedRelay.asObservable()
+            viewWillAppear: viewWillAppearRelay.asObservable(),
+            chatRoomTapped: chatRoomTappedRelay.asObservable(),
+            foregroundRefresh: foregroundRefresh
         )
 
         let output = presenter.transform(input: input)

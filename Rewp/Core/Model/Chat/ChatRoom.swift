@@ -15,6 +15,7 @@ struct ChatRoom {
     let lastMessage: String
     let lastMessageDate: Date
     let unreadCount: Int
+    let updatedAt: Date?
 
     var relativeTime: String {
         let now = Date()
@@ -54,7 +55,8 @@ extension ChatRoom {
                 participantProfileImage: nil,
                 lastMessage: "네, 토요일 오후 2시에 가능합니다.",
                 lastMessageDate: calendar.date(byAdding: .minute, value: -5, to: now)!,
-                unreadCount: 2
+                unreadCount: 2,
+                updatedAt: calendar.date(byAdding: .minute, value: -5, to: now)
             ),
             ChatRoom(
                 roomId: "room-2",
@@ -63,7 +65,8 @@ extension ChatRoom {
                 participantProfileImage: nil,
                 lastMessage: "매물 정보 보내드렸습니다. 확인해주세요!",
                 lastMessageDate: calendar.date(byAdding: .hour, value: -2, to: now)!,
-                unreadCount: 0
+                unreadCount: 0,
+                updatedAt: calendar.date(byAdding: .hour, value: -2, to: now)
             ),
             ChatRoom(
                 roomId: "room-3",
@@ -72,7 +75,8 @@ extension ChatRoom {
                 participantProfileImage: nil,
                 lastMessage: "감사합니다. 좋은 하루 되세요!",
                 lastMessageDate: calendar.date(byAdding: .day, value: -1, to: now)!,
-                unreadCount: 0
+                unreadCount: 0,
+                updatedAt: calendar.date(byAdding: .day, value: -1, to: now)
             )
         ]
     }

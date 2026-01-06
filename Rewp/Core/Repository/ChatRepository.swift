@@ -28,6 +28,11 @@ protocol ChatRepository {
     func incrementUnreadCount(roomId: String) -> Completable
     func markAsRead(roomId: String) -> Completable
     func updateLastMessage(roomId: String, content: String, date: Date) -> Completable
+
+    func updateLastReadAt(roomId: String, date: Date) -> Completable
+    func getLastReadAt(roomId: String) -> Date?
+    func getAllChatRoomIds() -> [String]
+    func updateUnreadCount(roomId: String, count: Int) -> Completable
 }
 
 extension ChatRepository {
@@ -132,5 +137,21 @@ final class ChatRepositoryImpl: ChatRepository {
 
     func updateLastMessage(roomId: String, content: String, date: Date) -> Completable {
         return localStorage.updateLastMessage(roomId: roomId, content: content, date: date)
+    }
+
+    func updateLastReadAt(roomId: String, date: Date) -> Completable {
+        return localStorage.updateLastReadAt(roomId: roomId, date: date)
+    }
+
+    func getLastReadAt(roomId: String) -> Date? {
+        return localStorage.getLastReadAt(roomId: roomId)
+    }
+
+    func getAllChatRoomIds() -> [String] {
+        return localStorage.getAllChatRoomIds()
+    }
+
+    func updateUnreadCount(roomId: String, count: Int) -> Completable {
+        return localStorage.updateUnreadCount(roomId: roomId, count: count)
     }
 }

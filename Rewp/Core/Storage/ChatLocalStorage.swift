@@ -27,24 +27,24 @@ final class ChatLocalStorage {
             do {
                 let realm = try self.realmProvider.realm()
 
-                let existingUnreadCount: Int
+                let existingLastReadAt: Date?
                 if let existingRoom = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: room.roomId) {
-                    existingUnreadCount = existingRoom.unreadCount
+                    existingLastReadAt = existingRoom.lastReadAt
                 } else {
-                    existingUnreadCount = room.unreadCount
+                    existingLastReadAt = nil
                 }
 
-                let roomWithPreservedUnread = ChatRoom(
+                let roomObject = ChatRoomObject(
                     roomId: room.roomId,
                     participantId: room.participantId,
                     participantName: room.participantName,
                     participantProfileImage: room.participantProfileImage,
                     lastMessage: room.lastMessage,
                     lastMessageDate: room.lastMessageDate,
-                    unreadCount: existingUnreadCount
+                    unreadCount: room.unreadCount,
+                    lastReadAt: existingLastReadAt,
+                    updatedAt: room.updatedAt
                 )
-
-                let roomObject = ChatRoomObject.fromDomain(roomWithPreservedUnread)
 
                 try realm.write {
                     realm.add(roomObject, update: .modified)
@@ -69,7 +69,7 @@ final class ChatLocalStorage {
             do {
                 let realm = try self.realmProvider.realm()
                 let rooms = realm.objects(ChatRoomObject.self)
-                    .sorted(byKeyPath: "lastMessageDate", ascending: false)
+                    .sorted(byKeyPath: "updatedAt", ascending: false)
 
                 let chatRooms = rooms.map { $0.toDomain() }
                 observer.onNext(Array(chatRooms))
@@ -344,5 +344,75 @@ final class ChatLocalStorage {
         }
 
         Logger.storage.notice("All Realm data deleted")
+    }
+
+    func updateLastReadAt(roomId: String, date: Date) -> Completable {
+        return Completable.create { [weak self] completable in
+            guard let self = self else {
+                completable(.error(NSError(domain: "ChatLocalStorage", code: -1)))
+                return Disposables.create()
+            }
+
+            do {
+                let realm = try self.realmProvider.realm()
+
+                if let room = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: roomId) {
+                    try realm.write {
+                        room.lastReadAt = date
+                    }
+                }
+
+                completable(.completed)
+            } catch {
+                completable(.error(error))
+            }
+
+            return Disposables.create()
+        }
+    }
+
+    func getLastReadAt(roomId: String) -> Date? {
+        do {
+            let realm = try realmProvider.realm()
+            let room = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: roomId)
+            return room?.lastReadAt
+        } catch {
+            return nil
+        }
+    }
+
+    func getAllChatRoomIds() -> [String] {
+        do {
+            let realm = try realmProvider.realm()
+            let rooms = realm.objects(ChatRoomObject.self)
+            return Array(rooms.map { $0.roomId })
+        } catch {
+            return []
+        }
+    }
+
+    func updateUnreadCount(roomId: String, count: Int) -> Completable {
+        return Completable.create { [weak self] completable in
+            guard let self = self else {
+                completable(.error(NSError(domain: "ChatLocalStorage", code: -1)))
+                return Disposables.create()
+            }
+
+            do {
+                let realm = try self.realmProvider.realm()
+
+                if let room = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: roomId) {
+                    try realm.write {
+                        room.unreadCount = count
+                    }
+                }
+
+                completable(.completed)
+            } catch {
+                completable(.error(error))
+            }
+
+            return Disposables.create()
+        }
     }
 }

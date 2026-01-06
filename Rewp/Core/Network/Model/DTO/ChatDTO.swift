@@ -74,12 +74,15 @@ extension ChatRoomDTO {
 
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        lastMessageDate = formatter.date(from: updatedAt) ?? Date()
+
+        let updatedAtDate = formatter.date(from: updatedAt)
 
         if let lastChat = lastChat {
             lastMessageText = lastChat.content
+            lastMessageDate = formatter.date(from: lastChat.createdAt) ?? Date()
         } else {
             lastMessageText = ""
+            lastMessageDate = updatedAtDate ?? Date()
         }
 
         return ChatRoom(
@@ -89,7 +92,8 @@ extension ChatRoomDTO {
             participantProfileImage: opponent.profileImage,
             lastMessage: lastMessageText,
             lastMessageDate: lastMessageDate,
-            unreadCount: 0
+            unreadCount: 0,
+            updatedAt: updatedAtDate
         )
     }
 }

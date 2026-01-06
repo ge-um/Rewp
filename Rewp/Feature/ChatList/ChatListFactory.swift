@@ -11,7 +11,8 @@ final class ChatListFactory {
     static func create(container: AppContainer) -> ChatListViewController {
         let presenter = ChatListPresenter(
             repository: container.chatRepository,
-            authService: container.authService
+            authService: container.authService,
+            unreadCountSyncService: container.unreadCountSyncService
         )
         let viewController = ChatListViewController()
 

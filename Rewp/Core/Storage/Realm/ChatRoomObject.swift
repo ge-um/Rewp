@@ -16,6 +16,8 @@ final class ChatRoomObject: Object {
     @Persisted var lastMessage: String
     @Persisted var lastMessageDate: Date
     @Persisted var unreadCount: Int
+    @Persisted var lastReadAt: Date?
+    @Persisted var updatedAt: Date?
 
     convenience init(
         roomId: String,
@@ -24,7 +26,9 @@ final class ChatRoomObject: Object {
         participantProfileImage: String?,
         lastMessage: String,
         lastMessageDate: Date,
-        unreadCount: Int
+        unreadCount: Int,
+        lastReadAt: Date? = nil,
+        updatedAt: Date? = nil
     ) {
         self.init()
         self.roomId = roomId
@@ -34,6 +38,8 @@ final class ChatRoomObject: Object {
         self.lastMessage = lastMessage
         self.lastMessageDate = lastMessageDate
         self.unreadCount = unreadCount
+        self.lastReadAt = lastReadAt
+        self.updatedAt = updatedAt
     }
 }
 
@@ -46,7 +52,8 @@ extension ChatRoomObject {
             participantProfileImage: participantProfileImage,
             lastMessage: lastMessage,
             lastMessageDate: lastMessageDate,
-            unreadCount: unreadCount
+            unreadCount: unreadCount,
+            updatedAt: updatedAt
         )
     }
 
@@ -58,7 +65,9 @@ extension ChatRoomObject {
             participantProfileImage: chatRoom.participantProfileImage,
             lastMessage: chatRoom.lastMessage,
             lastMessageDate: chatRoom.lastMessageDate,
-            unreadCount: chatRoom.unreadCount
+            unreadCount: chatRoom.unreadCount,
+            lastReadAt: nil,
+            updatedAt: chatRoom.updatedAt
         )
     }
 }

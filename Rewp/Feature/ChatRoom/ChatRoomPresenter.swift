@@ -61,13 +61,18 @@ final class ChatRoomPresenter {
                     userInfo: ["info": CurrentChatRoomInfo(roomId: owner.roomId)]
                 )
 
-                owner.chatRepository.markAsRead(roomId: owner.roomId)
-                    .subscribe(onCompleted: {
-                        Logger.socket.notice("Chat room marked as read - \(owner.roomId, privacy: .public)")
-                    }, onError: { error in
-                        Logger.socket.error("Failed to mark as read - \(error.localizedDescription)")
-                    })
-                    .disposed(by: owner.disposeBag)
+                let now = Date()
+
+                Observable.zip(
+                    owner.chatRepository.markAsRead(roomId: owner.roomId).asObservable(),
+                    owner.chatRepository.updateLastReadAt(roomId: owner.roomId, date: now).asObservable()
+                )
+                .subscribe(onError: { error in
+                    Logger.socket.error("Failed to mark as read or update lastReadAt - \(error.localizedDescription)")
+                }, onCompleted: {
+                    Logger.socket.notice("Chat room marked as read and lastReadAt updated - \(owner.roomId, privacy: .public)")
+                })
+                .disposed(by: owner.disposeBag)
 
                 Logger.socket.notice("Chat room loaded - \(owner.roomId, privacy: .public)")
                 owner.loadChatHistory(messagesRelay: messagesRelay)

@@ -100,8 +100,22 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneWillEnterForeground(_ scene: UIScene) {
-        // Called as the scene transitions from the background to the foreground.
-        // Use this method to undo the changes made on entering the background.
+        guard container.authService.isAuthenticated() else {
+            return
+        }
+
+        container.unreadCountSyncService.syncAllUnreadCounts()
+            .subscribe(onCompleted: {
+                Logger.chat.notice("Unread counts synchronized on foreground")
+
+                NotificationCenter.default.post(
+                    name: .chatListNeedsRefresh,
+                    object: nil
+                )
+            }, onError: { error in
+                Logger.chat.error("Failed to sync unread counts on foreground - \(error.localizedDescription)")
+            })
+            .disposed(by: disposeBag)
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {
