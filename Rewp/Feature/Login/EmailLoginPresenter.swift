@@ -11,10 +11,12 @@ import RxCocoa
 
 final class EmailLoginPresenter {
     private let userRepository: UserRepository
+    private let notificationManager: NotificationManager
     private let disposeBag = DisposeBag()
 
-    init(userRepository: UserRepository) {
+    init(userRepository: UserRepository, notificationManager: NotificationManager) {
         self.userRepository = userRepository
+        self.notificationManager = notificationManager
     }
 
     struct Input {
@@ -82,13 +84,18 @@ final class EmailLoginPresenter {
             })
             .flatMapLatest { owner, values in
                 let (email, password) = values
-                return owner.userRepository.login(email: email, password: password)
-                    .asObservable()
-                    .catch { error in
-                        loadingRelay.accept(false)
-                        errorRelay.accept(error.localizedDescription)
-                        return .empty()
-                    }
+                let deviceToken = owner.notificationManager.getCurrentToken() ?? ""
+                return owner.userRepository.login(
+                    email: email,
+                    password: password,
+                    deviceToken: deviceToken
+                )
+                .asObservable()
+                .catch { error in
+                    loadingRelay.accept(false)
+                    errorRelay.accept(error.localizedDescription)
+                    return .empty()
+                }
             }
             .withUnretained(self)
             .subscribe(onNext: { owner, response in

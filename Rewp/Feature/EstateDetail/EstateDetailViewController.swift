@@ -22,6 +22,7 @@ final class EstateDetailViewController: UIViewController {
     private let similarEstateTappedRelay = PublishRelay<String>()
     private let likeTappedRelay = PublishRelay<Void>()
     private let reservationTappedRelay = PublishRelay<Void>()
+    private let chatTappedRelay = PublishRelay<Void>()
     private var creatorPhoneNumber: String?
     private var currentEstateDetail: EstateDetail?
     private var currentOrderResponse: CreateOrderResponse?
@@ -31,7 +32,7 @@ final class EstateDetailViewController: UIViewController {
         $0.showsVerticalScrollIndicator = false
     }
 
-    private lazy var navigationBar = CustomNavigationBar(title: "", showBackButton: true, showRightButton: true)
+    private lazy var navigationBar = CustomNavigationBar(title: "")
 
     private let imageCarousel = ImageCarousel()
 
@@ -282,7 +283,8 @@ final class EstateDetailViewController: UIViewController {
             viewDidLoad: viewDidLoadTrigger.asObservable(),
             similarEstateTapped: similarEstateTappedRelay.asObservable(),
             likeTapped: likeTappedRelay.asObservable(),
-            reservationTapped: reservationTappedRelay.asObservable()
+            reservationTapped: reservationTappedRelay.asObservable(),
+            chatTapped: chatTappedRelay.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -329,12 +331,6 @@ final class EstateDetailViewController: UIViewController {
             }
             .disposed(by: disposeBag)
 
-        output.likeStatus
-            .drive(with: self) { owner, isLiked in
-                owner.navigationBar.setRightButtonImage(filled: isLiked)
-            }
-            .disposed(by: disposeBag)
-
         output.orderCreated
             .drive(with: self) { owner, orderResponse in
                 owner.currentOrderResponse = orderResponse
@@ -347,6 +343,16 @@ final class EstateDetailViewController: UIViewController {
                 owner.reservationButton.setTitle("예약 완료", for: .normal)
                 owner.reservationButton.isEnabled = false
                 owner.reservationButton.backgroundColor = ColorSystem.gray45
+            }
+            .disposed(by: disposeBag)
+
+        output.chatRoomCreated
+            .drive(with: self) { owner, roomInfo in
+                let chatRoomVC = owner.container.makeChatRoomViewController(
+                    roomId: roomInfo.roomId,
+                    roomTitle: roomInfo.roomTitle
+                )
+                owner.navigationController?.pushViewController(chatRoomVC, animated: true)
             }
             .disposed(by: disposeBag)
 
@@ -388,7 +394,7 @@ final class EstateDetailViewController: UIViewController {
         agentChatButton.rx.tap
             .withUnretained(self)
             .subscribe(onNext: { owner, _ in
-                print("채팅 버튼 탭")
+                owner.chatTappedRelay.accept(())
             })
             .disposed(by: disposeBag)
 

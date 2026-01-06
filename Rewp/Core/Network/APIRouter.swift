@@ -14,13 +14,24 @@ protocol APIRouter: URLRequestConvertible {
     var method: HTTPMethod { get }
     var headers: HTTPHeaders? { get }
     var body: Encodable? { get }
+    var queryParameters: [String: String]? { get }
 }
 
 extension APIRouter {
     var body: Encodable? { nil }
+    var queryParameters: [String: String]? { nil }
 
     func asURLRequest() throws -> URLRequest {
-        let url = baseURL.appendingPathComponent(path)
+        var urlComponents = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)
+
+        if let queryParameters = queryParameters {
+            urlComponents?.queryItems = queryParameters.map { URLQueryItem(name: $0.key, value: $0.value) }
+        }
+
+        guard let url = urlComponents?.url else {
+            throw URLError(.badURL)
+        }
+
         var request = URLRequest(url: url)
         request.method = method
         request.headers = headers ?? [:]

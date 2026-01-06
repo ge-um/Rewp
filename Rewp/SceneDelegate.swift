@@ -10,6 +10,8 @@ import KakaoSDKAuth
 import KakaoSDKCommon
 import RxSwift
 import OSLog
+import UserNotifications
+import FirebaseMessaging
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
@@ -22,8 +24,26 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         KakaoSDK.initSDK(appKey: NetworkConfig.kakaoKey)
 
+        UNUserNotificationCenter.current().delegate = container.notificationManager
+        Messaging.messaging().delegate = container.notificationManager
+
         let window = UIWindow(windowScene: windowScene)
         self.window = window
+
+        if let notificationResponse = connectionOptions.notificationResponse {
+            Logger.notification.notice("Cold start - handling notification tap")
+
+            if container.authService.isAuthenticated() {
+                showFeedScreen()
+            } else {
+                showLoginScreen()
+            }
+
+            container.notificationManager.handleNotificationTap(
+                notificationResponse.notification.request.content.userInfo
+            )
+            return
+        }
 
         NotificationCenter.default.rx
             .notification(.authenticationFailed)
@@ -54,8 +74,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     private func showFeedScreen() {
         guard let window = window else { return }
-        let feedViewController = container.makeFeedViewController()
-        let navigationController = UINavigationController(rootViewController: feedViewController)
+        let mainTabBarController = MainTabBarController(container: container, initialTab: 0)
+        let navigationController = UINavigationController(rootViewController: mainTabBarController)
         navigationController.navigationBar.isHidden = true
 
         window.rootViewController = navigationController
@@ -80,8 +100,22 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneWillEnterForeground(_ scene: UIScene) {
-        // Called as the scene transitions from the background to the foreground.
-        // Use this method to undo the changes made on entering the background.
+        guard container.authService.isAuthenticated() else {
+            return
+        }
+
+        container.unreadCountSyncService.syncAllUnreadCounts()
+            .subscribe(onCompleted: {
+                Logger.chat.notice("Unread counts synchronized on foreground")
+
+                NotificationCenter.default.post(
+                    name: .chatListNeedsRefresh,
+                    object: nil
+                )
+            }, onError: { error in
+                Logger.chat.error("Failed to sync unread counts on foreground - \(error.localizedDescription)")
+            })
+            .disposed(by: disposeBag)
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {

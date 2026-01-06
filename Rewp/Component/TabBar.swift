@@ -14,12 +14,14 @@ import RxCocoa
 enum TabBarItem: Int, CaseIterable {
     case home
     case favorites
+    case chat
     case settings
 
     var title: String {
         switch self {
         case .home: return "홈"
         case .favorites: return "관심매물"
+        case .chat: return "채팅"
         case .settings: return "설정"
         }
     }
@@ -28,6 +30,7 @@ enum TabBarItem: Int, CaseIterable {
         switch self {
         case .home: return UIImage(named: "Home_Empty")
         case .favorites: return UIImage(named: "Interest_Empty")
+        case .chat: return UIImage(systemName: "bubble.left")
         case .settings: return UIImage(named: "Setting_Empty")
         }
     }
@@ -36,6 +39,7 @@ enum TabBarItem: Int, CaseIterable {
         switch self {
         case .home: return UIImage(named: "Home_Fill")
         case .favorites: return UIImage(named: "Interest_Fill")
+        case .chat: return UIImage(systemName: "bubble.left.fill")
         case .settings: return UIImage(named: "Setting_Fill")
         }
     }
@@ -179,8 +183,15 @@ final class TabBarButton: UIControl {
 }
 
 @available(iOS 17.0, *)
-#Preview("TabBar - Settings Selected") {
+#Preview("TabBar - Chat Selected") {
     TabBar().then {
         $0.selectTab(at: 2)
+    }
+}
+
+@available(iOS 17.0, *)
+#Preview("TabBar - Settings Selected") {
+    TabBar().then {
+        $0.selectTab(at: 3)
     }
 }

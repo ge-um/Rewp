@@ -40,10 +40,6 @@ final class SettingsViewController: UIViewController {
         $0.color = ColorSystem.gray90
     }
 
-    private let tabBar = TabBar().then {
-        $0.selectTab(at: 2)
-    }
-
     private let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
@@ -55,7 +51,6 @@ final class SettingsViewController: UIViewController {
 
     private func setupUI() {
         view.addSubview(scrollView)
-        view.addSubview(tabBar)
 
         scrollView.addSubview(contentView)
 
@@ -100,27 +95,6 @@ final class SettingsViewController: UIViewController {
                 owner.present(alert, animated: true)
             }
             .disposed(by: disposeBag)
-
-        tabBar.selectedIndexRelay
-            .skip(1)
-            .withUnretained(self)
-            .subscribe(onNext: { owner, index in
-                switch index {
-                case 0:
-                    let feedVC = owner.container.makeFeedViewController()
-                    let nav = UINavigationController(rootViewController: feedVC)
-                    nav.navigationBar.isHidden = true
-                    owner.view.window?.rootViewController = nav
-                    owner.view.window?.makeKeyAndVisible()
-                case 1:
-                    break
-                case 2:
-                    break
-                default:
-                    break
-                }
-            })
-            .disposed(by: disposeBag)
     }
 
     override func viewDidLayoutSubviews() {
@@ -129,7 +103,7 @@ final class SettingsViewController: UIViewController {
         scrollView.pin
             .top(view.pin.safeArea.top)
             .horizontally()
-            .bottom(80)
+            .bottom()
 
         contentView.pin
             .top()
@@ -154,10 +128,5 @@ final class SettingsViewController: UIViewController {
         )
 
         scrollView.contentSize = contentView.frame.size
-
-        tabBar.pin
-            .bottom()
-            .horizontally()
-            .height(80)
     }
 }

@@ -11,7 +11,7 @@ import RxSwift
 protocol UserRepository {
     func validateEmail(_ email: String) -> Single<EmailValidationResponse>
     func join(_ request: JoinRequest) -> Single<JoinResponse>
-    func login(email: String, password: String) -> Single<LoginResponse>
+    func login(email: String, password: String, deviceToken: String) -> Single<LoginResponse>
     func appleLogin(idToken: String, deviceToken: String) -> Single<AppleLoginResponse>
     func kakaoLogin(oauthToken: String, deviceToken: String) -> Single<KakaoLoginResponse>
 }
@@ -32,8 +32,7 @@ final class UserRepositoryImpl: UserRepository {
         return networkService.request(UserRouter.join(request))
     }
 
-    func login(email: String, password: String) -> Single<LoginResponse> {
-        let deviceToken = "temp-device-token"
+    func login(email: String, password: String, deviceToken: String) -> Single<LoginResponse> {
         let request = LoginRequest(
             email: email,
             password: password,

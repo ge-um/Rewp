@@ -15,18 +15,26 @@ extension Notification.Name {
 }
 
 protocol AuthServiceProtocol {
+    var currentUserId: String? { get }
     func login(accessToken: String, refreshToken: String) throws
     func logout() -> Single<Void>
     func isAuthenticated() -> Bool
     func authenticatedRequest<T: Decodable>(_ router: APIRouter) -> Single<T>
     func authenticatedRequestEmpty(_ router: APIRouter) -> Single<Void>
+    func uploadFiles(roomId: String, files: [Data]) -> Single<UploadFilesResponse>
 }
 
 final class AuthService: AuthServiceProtocol {
     private let networkService: NetworkServiceProtocol
     private let keychainManager: KeychainManager
+    private let chatLocalStorage: ChatLocalStorage
     private let authenticator: TokenAuthenticator
     private var session: Session
+    private var cachedUserId: String?
+
+    var currentUserId: String? {
+        return cachedUserId
+    }
 
     private var currentCredential: TokenCredential? {
         do {
@@ -42,9 +50,10 @@ final class AuthService: AuthServiceProtocol {
         }
     }
 
-    init(networkService: NetworkServiceProtocol, keychainManager: KeychainManager = .shared) {
+    init(networkService: NetworkServiceProtocol, keychainManager: KeychainManager = .shared, chatLocalStorage: ChatLocalStorage) {
         self.networkService = networkService
         self.keychainManager = keychainManager
+        self.chatLocalStorage = chatLocalStorage
         self.authenticator = TokenAuthenticator(keychainManager: keychainManager)
 
         let credential: TokenCredential?
@@ -55,9 +64,11 @@ final class AuthService: AuthServiceProtocol {
                 accessToken: accessToken,
                 refreshToken: refreshToken
             )
+            self.cachedUserId = Self.extractUserId(from: accessToken)
         } catch {
             Logger.auth.error("Failed to load tokens during AuthService init - \(error.localizedDescription)")
             credential = nil
+            self.cachedUserId = nil
         }
 
         let interceptor = AuthenticationInterceptor(
@@ -79,11 +90,40 @@ final class AuthService: AuthServiceProtocol {
         try keychainManager.saveAccessToken(accessToken)
         try keychainManager.saveRefreshToken(refreshToken)
 
+        guard let newUserId = Self.extractUserId(from: accessToken) else {
+            Logger.auth.error("Failed to extract userId from token")
+            throw AuthError.invalidToken
+        }
+
+        let lastUserId = keychainManager.getLastLoggedInUserId()
+
+        if let lastUserId = lastUserId, lastUserId != newUserId {
+            Logger.auth.notice("User changed - clearing Realm data")
+            do {
+                try chatLocalStorage.deleteAllData()
+                Logger.auth.notice("Realm data cleared for user change")
+            } catch {
+                Logger.auth.error("Failed to clear Realm data - \(error.localizedDescription)")
+
+                do {
+                    try keychainManager.deleteAllTokens()
+                } catch {
+                    Logger.auth.error("Failed to rollback tokens - \(error.localizedDescription)")
+                }
+
+                throw AuthError.invalidToken
+            }
+        }
+
+        keychainManager.saveLastLoggedInUserId(newUserId)
+
         let interceptor = AuthenticationInterceptor(
             authenticator: authenticator,
             credential: credential
         )
         self.session = Session(interceptor: interceptor)
+
+        self.cachedUserId = newUserId
         Logger.auth.notice("User logged in")
     }
 
@@ -196,10 +236,80 @@ final class AuthService: AuthServiceProtocol {
         )
         self.session = Session(interceptor: interceptor)
 
+        self.cachedUserId = nil
+
         NotificationCenter.default.post(
             name: .authenticationFailed,
             object: nil
         )
         Logger.auth.notice("Authentication state cleared")
+    }
+
+    func uploadFiles(roomId: String, files: [Data]) -> Single<UploadFilesResponse> {
+        guard currentCredential != nil else {
+            return .error(AuthError.notAuthenticated)
+        }
+
+        return Single.create { [weak self] observer in
+            guard let self = self else {
+                observer(.failure(NSError(domain: "AuthService", code: -1)))
+                return Disposables.create()
+            }
+
+            let uploadRequest = self.session.upload(
+                multipartFormData: { multipartFormData in
+                    for (index, imageData) in files.enumerated() {
+                        multipartFormData.append(
+                            imageData,
+                            withName: "files",
+                            fileName: "image_\(index).jpg",
+                            mimeType: "image/jpeg"
+                        )
+                    }
+                },
+                with: ChatRouter.uploadFiles(roomId: roomId, files: files)
+            )
+            .validate(statusCode: 200..<300)
+            .responseDecodable(of: UploadFilesResponse.self) { response in
+                switch response.result {
+                case .success(let value):
+                    Logger.network.notice("File upload succeeded")
+                    observer(.success(value))
+                case .failure:
+                    let statusCode = response.response?.statusCode ?? 0
+                    if let data = response.data,
+                       let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                        Logger.network.error("File upload failed [\(statusCode)] - \(errorResponse.message)")
+                        observer(.failure(NetworkError.serverError(message: errorResponse.message)))
+                    } else {
+                        Logger.network.error("File upload failed [\(statusCode)]")
+                        observer(.failure(NetworkError.serverError(message: "파일 업로드 실패")))
+                    }
+                }
+            }
+
+            return Disposables.create {
+                uploadRequest.cancel()
+            }
+        }
+    }
+
+    private static func extractUserId(from token: String) -> String? {
+        let segments = token.components(separatedBy: ".")
+        guard segments.count > 1 else { return nil }
+
+        var base64 = segments[1]
+        let remainder = base64.count % 4
+        if remainder > 0 {
+            base64 += String(repeating: "=", count: 4 - remainder)
+        }
+
+        guard let data = Data(base64Encoded: base64),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let userId = json["id"] as? String else {
+            return nil
+        }
+
+        return userId
     }
 }

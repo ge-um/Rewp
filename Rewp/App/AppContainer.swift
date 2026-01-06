@@ -15,7 +15,7 @@ final class AppContainer {
     }()
 
     lazy var authService: AuthServiceProtocol = {
-        return AuthService(networkService: networkService)
+        return AuthService(networkService: networkService, chatLocalStorage: chatLocalStorage)
     }()
 
     lazy var userRepository: UserRepository = {
@@ -32,6 +32,34 @@ final class AppContainer {
 
     lazy var paymentRepository: PaymentRepository = {
         PaymentRepositoryImpl(authService: authService)
+    }()
+
+    lazy var chatLocalStorage: ChatLocalStorage = {
+        ChatLocalStorage()
+    }()
+
+    lazy var chatRepository: ChatRepository = {
+        ChatRepositoryImpl(authService: authService, localStorage: chatLocalStorage)
+    }()
+
+    lazy var socketService: SocketServiceProtocol = {
+        SocketService()
+    }()
+
+    lazy var notificationRepository: NotificationRepository = {
+        NotificationRepositoryImpl(authService: authService as! AuthService)
+    }()
+
+    lazy var notificationManager: NotificationManager = {
+        NotificationManager(
+            notificationRepository: notificationRepository,
+            authService: authService as! AuthService,
+            container: self
+        )
+    }()
+
+    lazy var unreadCountSyncService: UnreadCountSyncService = {
+        UnreadCountSyncService(chatRepository: chatRepository, authService: authService)
     }()
 
     // MARK: - Factory Methods
@@ -54,5 +82,17 @@ final class AppContainer {
 
     func makeEstateDetailViewController(estateId: String) -> EstateDetailViewController {
         return EstateDetailFactory.create(estateId: estateId, container: self)
+    }
+
+    func makeChatRoomViewController(roomId: String, roomTitle: String) -> ChatRoomViewController {
+        return ChatRoomFactory.create(roomId: roomId, roomTitle: roomTitle, container: self)
+    }
+
+    func makeChatRoomViewController(chatRoom: ChatRoom) -> ChatRoomViewController {
+        return ChatRoomFactory.create(roomId: chatRoom.roomId, roomTitle: chatRoom.participantName, container: self)
+    }
+
+    func makeChatListViewController() -> ChatListViewController {
+        return ChatListFactory.create(container: self)
     }
 }

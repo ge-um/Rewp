@@ -75,7 +75,7 @@ final class SignUpViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = ColorSystem.gray0
-        customNavigationBar = addCustomNavigationBar(showBackButton: true)
+        customNavigationBar = addCustomNavigationBar()
         enableSwipeBackGesture()
         setupUI()
         setupKeyboardDismiss()
