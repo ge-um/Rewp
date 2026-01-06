@@ -7,6 +7,7 @@
 
 import UIKit
 import PinLayout
+import FlexLayout
 import Then
 import Kingfisher
 
@@ -43,11 +44,16 @@ final class ChatMessageReceivedCell: UITableViewCell, IsIdentifiable {
         $0.textColor = ColorSystem.gray60
     }
 
+    private let imageGridView = ChatImageGridView().then {
+        $0.isHidden = true
+    }
+
     private var cachedTextSize: CGSize?
     private var cachedNicknameSize: CGSize?
     private var cachedMaxWidth: CGFloat?
     private var cachedContent: String?
     private var cachedNickname: String?
+    private var cachedFiles: [String]?
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -68,6 +74,7 @@ final class ChatMessageReceivedCell: UITableViewCell, IsIdentifiable {
         containerView.addSubview(nicknameLabel)
         containerView.addSubview(bubbleView)
         bubbleView.addSubview(messageLabel)
+        bubbleView.addSubview(imageGridView)
         containerView.addSubview(timeLabel)
     }
 
@@ -78,6 +85,9 @@ final class ChatMessageReceivedCell: UITableViewCell, IsIdentifiable {
         let padding: CGFloat = 12
 
         containerView.pin.all()
+
+        let hasImages = !imageGridView.isHidden && !(cachedFiles?.isEmpty ?? true)
+        let hasText = !(cachedContent?.isEmpty ?? true)
 
         profileImageView.pin
             .top(8)
@@ -106,8 +116,42 @@ final class ChatMessageReceivedCell: UITableViewCell, IsIdentifiable {
         }
 
         let textSize = cachedTextSize!
-        let bubbleWidth = textSize.width + padding * 2
-        let bubbleHeight = textSize.height + padding * 2
+        var bubbleWidth = hasText ? textSize.width + padding * 2 : padding * 2
+        var contentHeight: CGFloat = 0
+
+        if hasText {
+            messageLabel.pin
+                .top(padding)
+                .left(padding)
+                .width(textSize.width)
+                .height(textSize.height)
+            contentHeight = textSize.height
+        }
+
+        if hasImages {
+            let gridSize = ChatImageGridView.calculateSize(imageCount: cachedFiles?.count ?? 0)
+
+            bubbleWidth = max(bubbleWidth, gridSize.width + padding * 2)
+
+            if hasText {
+                imageGridView.pin
+                    .below(of: messageLabel)
+                    .marginTop(8)
+                    .left(padding)
+                    .size(gridSize)
+                contentHeight += 8 + gridSize.height
+            } else {
+                imageGridView.pin
+                    .top(padding)
+                    .left(padding)
+                    .size(gridSize)
+                contentHeight = gridSize.height
+            }
+
+            imageGridView.flex.layout()
+        }
+
+        let bubbleHeight = contentHeight + padding * 2
 
         bubbleView.pin
             .below(of: nicknameLabel)
@@ -116,12 +160,6 @@ final class ChatMessageReceivedCell: UITableViewCell, IsIdentifiable {
             .marginLeft(8)
             .width(bubbleWidth)
             .height(bubbleHeight)
-
-        messageLabel.pin
-            .top(padding)
-            .left(padding)
-            .width(textSize.width)
-            .height(textSize.height)
 
         timeLabel.pin
             .after(of: bubbleView, aligned: .bottom)
@@ -132,6 +170,9 @@ final class ChatMessageReceivedCell: UITableViewCell, IsIdentifiable {
     override func sizeThatFits(_ size: CGSize) -> CGSize {
         let maxBubbleWidth = size.width * 0.65
         let padding: CGFloat = 12
+
+        let hasImages = !imageGridView.isHidden && !(cachedFiles?.isEmpty ?? true)
+        let hasText = !(cachedContent?.isEmpty ?? true)
 
         if cachedNicknameSize == nil {
             nicknameLabel.pin.sizeToFit()
@@ -147,7 +188,23 @@ final class ChatMessageReceivedCell: UITableViewCell, IsIdentifiable {
             cachedMaxWidth = maxBubbleWidth
         }
 
-        let bubbleHeight = cachedTextSize!.height + padding * 2
+        var contentHeight: CGFloat = 0
+
+        if hasText {
+            contentHeight = cachedTextSize!.height
+        }
+
+        if hasImages {
+            let gridSize = ChatImageGridView.calculateSize(imageCount: cachedFiles?.count ?? 0)
+
+            if hasText {
+                contentHeight += 8 + gridSize.height
+            } else {
+                contentHeight = gridSize.height
+            }
+        }
+
+        let bubbleHeight = contentHeight + padding * 2
         let totalHeight = 8 + cachedNicknameSize!.height + 4 + bubbleHeight + 8
         return CGSize(width: size.width, height: totalHeight)
     }
@@ -159,12 +216,15 @@ final class ChatMessageReceivedCell: UITableViewCell, IsIdentifiable {
         cachedMaxWidth = nil
         cachedContent = nil
         cachedNickname = nil
+        cachedFiles = nil
+        imageGridView.isHidden = true
     }
 
     func configure(with message: ChatMessage) {
-        if cachedContent != message.content {
+        if cachedContent != message.content || cachedFiles != message.files {
             cachedTextSize = nil
             cachedContent = message.content
+            cachedFiles = message.files
         }
 
         if cachedNickname != message.senderNickname {
@@ -175,6 +235,14 @@ final class ChatMessageReceivedCell: UITableViewCell, IsIdentifiable {
         nicknameLabel.typography(FontSystem.Pretendard.caption1Semibold, text: message.senderNickname)
         messageLabel.typography(FontSystem.Pretendard.body2, text: message.content)
         timeLabel.typography(FontSystem.Pretendard.caption2, text: formatTime(message.createdAt))
+
+        if let files = message.files, !files.isEmpty {
+            let fullURLs = files.map { NetworkConfig.baseURL + $0 }
+            imageGridView.configure(with: fullURLs)
+            imageGridView.isHidden = false
+        } else {
+            imageGridView.isHidden = true
+        }
 
         if let profileImageURL = message.senderProfileImage,
            let url = URL(string: NetworkConfig.baseURL.replacingOccurrences(of: "/v1", with: "") + "/" + profileImageURL) {
