@@ -39,6 +39,7 @@ final class ChatRoomViewController: UIViewController {
     private let retryMessageRelay = PublishRelay<String>()
     private let deleteMessageRelay = PublishRelay<String>()
     private let filesSelectedRelay = PublishRelay<[UIImage]>()
+    private let photoSendConfirmedRelay = PublishRelay<(images: [UIImage], text: String)>()
     private let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
@@ -93,7 +94,8 @@ final class ChatRoomViewController: UIViewController {
             retryMessageTapped: retryMessageRelay.asObservable(),
             deleteMessageTapped: deleteMessageRelay.asObservable(),
             attachButtonTapped: inputBar.attachButtonTapped,
-            filesSelected: filesSelectedRelay.asObservable()
+            filesSelected: filesSelectedRelay.asObservable(),
+            photoSendConfirmed: photoSendConfirmedRelay.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -122,6 +124,18 @@ final class ChatRoomViewController: UIViewController {
                     owner?.showImagePicker()
                 }
                 owner.present(bottomSheet, animated: true)
+            }
+            .disposed(by: disposeBag)
+
+        output.showPhotoPreview
+            .drive(with: self) { owner, images in
+                let previewSheet = PhotoPreviewBottomSheet(images: images)
+                previewSheet.onSendTapped = { [weak owner] images, text in
+                    owner?.photoSendConfirmedRelay.accept((images, text))
+                }
+                previewSheet.onCancelTapped = {
+                }
+                owner.present(previewSheet, animated: true)
             }
             .disposed(by: disposeBag)
 

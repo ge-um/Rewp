@@ -41,6 +41,7 @@ final class ChatRoomPresenter {
         let deleteMessageTapped: Observable<String>
         let attachButtonTapped: Observable<Void>
         let filesSelected: Observable<[UIImage]>
+        let photoSendConfirmed: Observable<(images: [UIImage], text: String)>
     }
 
     struct Output {
@@ -49,6 +50,7 @@ final class ChatRoomPresenter {
         let messageSent: Driver<Void>
         let isConnected: Driver<Bool>
         let showAttachmentSheet: Driver<Void>
+        let showPhotoPreview: Driver<[UIImage]>
     }
 
     func transform(input: Input) -> Output {
@@ -315,15 +317,24 @@ final class ChatRoomPresenter {
             })
             .disposed(by: disposeBag)
 
+        let showPhotoPreviewRelay = PublishRelay<[UIImage]>()
+
         input.filesSelected
             .withUnretained(self)
-            .flatMapLatest { owner, images -> Observable<Void> in
-                guard let currentUserId = owner.authService.currentUserId else {
-                    return .empty()
-                }
-
+            .subscribe(onNext: { owner, images in
                 guard images.count <= 5 else {
-                    Logger.ui.error("Too many files selected")
+                    Logger.ui.error("Too many files selected - \(images.count)")
+                    return
+                }
+                showPhotoPreviewRelay.accept(images)
+            })
+            .disposed(by: disposeBag)
+
+        input.photoSendConfirmed
+            .withUnretained(self)
+            .flatMapLatest { owner, data -> Observable<Void> in
+                let (images, text) = data
+                guard let currentUserId = owner.authService.currentUserId else {
                     return .empty()
                 }
 
@@ -348,7 +359,7 @@ final class ChatRoomPresenter {
                         let tempMessage = ChatMessage(
                             chatId: tempId,
                             roomId: owner.roomId,
-                            content: "",
+                            content: text,
                             senderId: currentUserId,
                             senderNickname: "나",
                             senderProfileImage: nil,
@@ -365,7 +376,7 @@ final class ChatRoomPresenter {
 
                         return owner.chatRepository.sendMessage(
                             roomId: owner.roomId,
-                            content: "사진",
+                            content: text,
                             files: filePaths
                         )
                         .asObservable()
@@ -420,7 +431,8 @@ final class ChatRoomPresenter {
             messages: messagesRelay.asDriver(),
             messageSent: messageSent,
             isConnected: socketService.isConnected.asDriver(onErrorJustReturn: false),
-            showAttachmentSheet: showAttachmentSheetRelay.asDriver(onErrorDriveWith: .empty())
+            showAttachmentSheet: showAttachmentSheetRelay.asDriver(onErrorDriveWith: .empty()),
+            showPhotoPreview: showPhotoPreviewRelay.asDriver(onErrorDriveWith: .empty())
         )
     }
 
