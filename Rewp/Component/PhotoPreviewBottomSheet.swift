@@ -13,10 +13,19 @@ import FlexLayout
 import Then
 
 final class PhotoPreviewBottomSheet: UIViewController {
+    private final class ExpandedTouchButton: UIButton {
+        var touchAreaInsets = UIEdgeInsets(top: -12, left: -12, bottom: -12, right: -12)
+
+        override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+            let expandedBounds = bounds.inset(by: touchAreaInsets)
+            return expandedBounds.contains(point)
+        }
+    }
+
     var onSendTapped: (([UIImage], String) -> Void)?
     var onCancelTapped: (() -> Void)?
 
-    private let images: [UIImage]
+    private var images: [UIImage]
     private let disposeBag = DisposeBag()
 
     private let containerView = UIView().then {
@@ -116,6 +125,8 @@ final class PhotoPreviewBottomSheet: UIViewController {
             .direction(.row)
             .define { flex in
                 for (index, image) in images.enumerated() {
+                    let container = UIView()
+
                     let imageView = UIImageView().then {
                         $0.image = image
                         $0.contentMode = .scaleAspectFill
@@ -123,11 +134,44 @@ final class PhotoPreviewBottomSheet: UIViewController {
                         $0.layer.cornerRadius = 8
                         $0.backgroundColor = ColorSystem.gray15
                     }
-                    flex.addItem(imageView)
+
+                    let deleteButton = ExpandedTouchButton().then {
+                        $0.tag = index
+                        let config = UIImage.SymbolConfiguration(pointSize: 8, weight: .bold)
+                        $0.setImage(UIImage(systemName: "xmark", withConfiguration: config), for: .normal)
+                        $0.tintColor = ColorSystem.gray0
+                        $0.backgroundColor = ColorSystem.gray90.withAlphaComponent(0.8)
+                        $0.layer.cornerRadius = 8
+                        $0.addTarget(self, action: #selector(deleteThumbnail(_:)), for: .touchUpInside)
+                    }
+
+                    container.addSubview(imageView)
+                    container.addSubview(deleteButton)
+
+                    flex.addItem(container)
                         .size(60)
                         .marginRight(index < images.count - 1 ? 8 : 0)
                 }
             }
+    }
+
+    @objc private func deleteThumbnail(_ sender: UIButton) {
+        let index = sender.tag
+        images.remove(at: index)
+
+        if images.isEmpty {
+            dismiss(animated: true) {
+                self.onCancelTapped?()
+            }
+        } else {
+            rebuildThumbnails()
+        }
+    }
+
+    private func rebuildThumbnails() {
+        thumbnailStackView.subviews.forEach { $0.removeFromSuperview() }
+        setupThumbnails()
+        view.setNeedsLayout()
     }
 
     private func bindActions() {
@@ -193,5 +237,19 @@ final class PhotoPreviewBottomSheet: UIViewController {
             .sizeToFit()
 
         thumbnailStackView.flex.layout()
+
+        for container in thumbnailStackView.subviews {
+            guard container.subviews.count >= 2 else { continue }
+
+            let imageView = container.subviews[0]
+            let deleteButton = container.subviews[1]
+
+            imageView.pin.all()
+
+            deleteButton.pin
+                .top(-8)
+                .right(-8)
+                .size(16)
+        }
     }
 }
