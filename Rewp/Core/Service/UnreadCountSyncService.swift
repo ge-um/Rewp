@@ -78,6 +78,16 @@ final class UnreadCountSyncService {
         Logger.chat.notice("  lastReadAt: \(lastReadAt?.description ?? "nil", privacy: .public)")
         Logger.chat.notice("  updatedAt: \(updatedAt?.description ?? "nil", privacy: .public)")
 
+        if lastReadAt == nil {
+            Logger.chat.notice("First time loading room - setting unread count to 0")
+
+            return chatRepository.updateLastReadAt(roomId: roomId, date: Date())
+                .andThen(chatRepository.updateUnreadCount(roomId: roomId, count: 0))
+                .do(onCompleted: {
+                    Logger.chat.notice("First load completed - roomId: \(roomId, privacy: .public)")
+                })
+        }
+
         if let lastReadAt = lastReadAt,
            let updatedAt = updatedAt,
            lastReadAt >= updatedAt {
@@ -89,13 +99,7 @@ final class UnreadCountSyncService {
                 })
         }
 
-        if lastReadAt == nil {
-            Logger.chat.notice("Condition failed - lastReadAt is nil")
-        } else if updatedAt == nil {
-            Logger.chat.notice("Condition failed - updatedAt is nil")
-        } else {
-            Logger.chat.notice("Condition failed - lastReadAt < updatedAt")
-        }
+        Logger.chat.notice("Fetching unread messages - lastReadAt < updatedAt")
 
         return chatRepository.fetchMessagesFromRemote(roomId: roomId, after: lastReadAt)
             .withUnretained(self)
