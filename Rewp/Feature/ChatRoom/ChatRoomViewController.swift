@@ -10,6 +10,7 @@ import PinLayout
 import RxSwift
 import RxCocoa
 import Then
+import PhotosUI
 
 final class ChatRoomViewController: UIViewController {
     var presenter: ChatRoomPresenter!
@@ -37,6 +38,7 @@ final class ChatRoomViewController: UIViewController {
     private let viewWillDisappearTrigger = PublishSubject<Void>()
     private let retryMessageRelay = PublishRelay<String>()
     private let deleteMessageRelay = PublishRelay<String>()
+    private let filesSelectedRelay = PublishRelay<[UIImage]>()
     private let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
@@ -89,7 +91,9 @@ final class ChatRoomViewController: UIViewController {
             viewWillDisappear: viewWillDisappearTrigger.asObservable(),
             sendButtonTapped: sendMessage,
             retryMessageTapped: retryMessageRelay.asObservable(),
-            deleteMessageTapped: deleteMessageRelay.asObservable()
+            deleteMessageTapped: deleteMessageRelay.asObservable(),
+            attachButtonTapped: inputBar.attachButtonTapped,
+            filesSelected: filesSelectedRelay.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -109,6 +113,16 @@ final class ChatRoomViewController: UIViewController {
 
         output.messageSent
             .drive()
+            .disposed(by: disposeBag)
+
+        output.showAttachmentSheet
+            .drive(with: self) { owner, _ in
+                let bottomSheet = FileAttachmentBottomSheet()
+                bottomSheet.onPhotoSelected = { [weak owner] in
+                    owner?.showImagePicker()
+                }
+                owner.present(bottomSheet, animated: true)
+            }
             .disposed(by: disposeBag)
 
         NotificationCenter.default.rx.notification(UIResponder.keyboardWillShowNotification)
@@ -217,5 +231,44 @@ extension ChatRoomViewController: UITableViewDelegate {
 
     func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
         return 60
+    }
+}
+
+extension ChatRoomViewController {
+    private func showImagePicker() {
+        var config = PHPickerConfiguration()
+        config.selectionLimit = 5
+        config.filter = .images
+
+        let picker = PHPickerViewController(configuration: config)
+        picker.delegate = self
+        present(picker, animated: true)
+    }
+}
+
+extension ChatRoomViewController: PHPickerViewControllerDelegate {
+    func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        picker.dismiss(animated: true)
+
+        guard !results.isEmpty else { return }
+
+        let group = DispatchGroup()
+        var images: [UIImage] = []
+
+        for result in results {
+            group.enter()
+            result.itemProvider.loadObject(ofClass: UIImage.self) { object, error in
+                defer { group.leave() }
+
+                if let image = object as? UIImage {
+                    images.append(image)
+                }
+            }
+        }
+
+        group.notify(queue: .main) { [weak self] in
+            guard !images.isEmpty else { return }
+            self?.filesSelectedRelay.accept(images)
+        }
     }
 }

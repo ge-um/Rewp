@@ -13,6 +13,7 @@ protocol ChatRepository {
     func createChatRoom(opponentId: String) -> Single<CreateChatRoomResponse>
     func sendMessage(roomId: String, content: String, files: [String]?) -> Single<SendMessageResponse>
     func getChatHistory(roomId: String, next: String?) -> Single<GetChatHistoryResponse>
+    func uploadFiles(roomId: String, images: [Data]) -> Single<[String]>
 
     func fetchChatRoomsFromLocal() -> Observable<[ChatRoom]>
     func saveChatRoomsToLocal(_ rooms: [ChatRoom]) -> Completable
@@ -64,6 +65,11 @@ final class ChatRepositoryImpl: ChatRepository {
 
     func getChatHistory(roomId: String, next: String?) -> Single<GetChatHistoryResponse> {
         return authService.authenticatedRequest(ChatRouter.getChatHistory(roomId: roomId, next: next))
+    }
+
+    func uploadFiles(roomId: String, images: [Data]) -> Single<[String]> {
+        return authService.uploadFiles(roomId: roomId, files: images)
+            .map { $0.files }
     }
 
     func fetchChatRoomsFromLocal() -> Observable<[ChatRoom]> {

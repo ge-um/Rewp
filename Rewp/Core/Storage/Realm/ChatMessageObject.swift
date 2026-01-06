@@ -20,7 +20,7 @@ final class ChatMessageObject: Object {
 
     @Persisted var sendStatusRaw: String = SendStatus.sent.rawValue
     @Persisted var tempId: String?
-    @Persisted var files: List<String>?
+    @Persisted var files: List<String>
 
     var sendStatus: SendStatus {
         get { SendStatus(rawValue: sendStatusRaw) ?? .sent }
@@ -41,7 +41,7 @@ extension ChatMessageObject {
             isFromMe: isFromMe,
             sendStatus: sendStatus,
             tempId: tempId,
-            files: files.map { Array($0) }
+            files: files.isEmpty ? nil : Array(files)
         )
     }
 
@@ -63,9 +63,7 @@ extension ChatMessageObject {
         object.tempId = tempId ?? message.tempId
 
         if let files = message.files {
-            let filesList = List<String>()
-            filesList.append(objectsIn: files)
-            object.files = filesList
+            object.files.append(objectsIn: files)
         }
 
         return object

@@ -60,8 +60,7 @@ final class UnreadCountSyncService {
                         }
 
                         return Completable.zip(syncOperations)
-                            .asObservable()
-                            .map { _ in () }
+                            .andThen(Observable.just(()))
                     }
             }
             .ignoreElements()
@@ -69,7 +68,7 @@ final class UnreadCountSyncService {
     }
 
     private func syncUnreadCountForRoom(roomId: String, updatedAt: Date?) -> Completable {
-        guard let currentUserId = authService.currentUserId else {
+        guard let _ = authService.currentUserId else {
             return .empty()
         }
 

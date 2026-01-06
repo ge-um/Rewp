@@ -9,6 +9,7 @@ import Foundation
 import RxSwift
 import RxCocoa
 import OSLog
+import UIKit
 
 final class ChatRoomPresenter {
     private let roomId: String
@@ -38,6 +39,8 @@ final class ChatRoomPresenter {
         let sendButtonTapped: Observable<String>
         let retryMessageTapped: Observable<String>
         let deleteMessageTapped: Observable<String>
+        let attachButtonTapped: Observable<Void>
+        let filesSelected: Observable<[UIImage]>
     }
 
     struct Output {
@@ -45,6 +48,7 @@ final class ChatRoomPresenter {
         let messages: Driver<[ChatMessage]>
         let messageSent: Driver<Void>
         let isConnected: Driver<Bool>
+        let showAttachmentSheet: Driver<Void>
     }
 
     func transform(input: Input) -> Output {
@@ -302,11 +306,121 @@ final class ChatRoomPresenter {
             .subscribe()
             .disposed(by: disposeBag)
 
+        let showAttachmentSheetRelay = PublishRelay<Void>()
+
+        input.attachButtonTapped
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                showAttachmentSheetRelay.accept(())
+            })
+            .disposed(by: disposeBag)
+
+        input.filesSelected
+            .withUnretained(self)
+            .flatMapLatest { owner, images -> Observable<Void> in
+                guard let currentUserId = owner.authService.currentUserId else {
+                    return .empty()
+                }
+
+                guard images.count <= 5 else {
+                    Logger.ui.error("Too many files selected")
+                    return .empty()
+                }
+
+                let imageDatas = images.compactMap { $0.jpegData(compressionQuality: 0.7) }
+
+                guard !imageDatas.isEmpty else {
+                    return .empty()
+                }
+
+                for data in imageDatas {
+                    let sizeInMB = Double(data.count) / (1024 * 1024)
+                    if sizeInMB > 5.0 {
+                        Logger.ui.error("File size exceeded - \(sizeInMB)MB")
+                        return .empty()
+                    }
+                }
+
+                return owner.chatRepository.uploadFiles(roomId: owner.roomId, images: imageDatas)
+                    .asObservable()
+                    .flatMap { filePaths -> Observable<Void> in
+                        let tempId = UUID().uuidString
+                        let tempMessage = ChatMessage(
+                            chatId: tempId,
+                            roomId: owner.roomId,
+                            content: "",
+                            senderId: currentUserId,
+                            senderNickname: "나",
+                            senderProfileImage: nil,
+                            createdAt: Date(),
+                            isFromMe: true,
+                            sendStatus: .sending,
+                            tempId: nil,
+                            files: filePaths
+                        )
+
+                        var currentMessages = messagesRelay.value
+                        currentMessages.append(tempMessage)
+                        messagesRelay.accept(currentMessages)
+
+                        return owner.chatRepository.sendMessage(
+                            roomId: owner.roomId,
+                            content: "사진",
+                            files: filePaths
+                        )
+                        .asObservable()
+                        .flatMap { response -> Observable<Void> in
+                            let serverMessage = response.toDomain(currentUserId: currentUserId)
+
+                            return owner.chatRepository.saveMessageToLocal(serverMessage)
+                                .do(onCompleted: {
+                                    var currentMessages = messagesRelay.value
+                                    currentMessages.removeAll { $0.chatId == tempId }
+                                    currentMessages.append(serverMessage)
+                                    messagesRelay.accept(currentMessages)
+                                })
+                                .andThen(Observable.just(()))
+                        }
+                        .catch { error -> Observable<Void> in
+                            Logger.socket.error("Failed to send file message")
+
+                            let failedMessage = ChatMessage(
+                                chatId: tempMessage.chatId,
+                                roomId: tempMessage.roomId,
+                                content: tempMessage.content,
+                                senderId: tempMessage.senderId,
+                                senderNickname: tempMessage.senderNickname,
+                                senderProfileImage: tempMessage.senderProfileImage,
+                                createdAt: tempMessage.createdAt,
+                                isFromMe: tempMessage.isFromMe,
+                                sendStatus: .failed,
+                                tempId: tempId,
+                                files: tempMessage.files
+                            )
+
+                            var currentMessages = messagesRelay.value
+                            if let index = currentMessages.firstIndex(where: { $0.chatId == tempId }) {
+                                currentMessages[index] = failedMessage
+                            }
+                            messagesRelay.accept(currentMessages)
+
+                            return .empty()
+                        }
+                    }
+                    .catch { error in
+                        Logger.network.error("File upload failed")
+                        return .empty()
+                    }
+            }
+            .subscribe()
+            .disposed(by: disposeBag)
+
         return Output(
             title: .just(roomTitle),
             messages: messagesRelay.asDriver(),
             messageSent: messageSent,
-            isConnected: socketService.isConnected.asDriver(onErrorJustReturn: false)
+            isConnected: socketService.isConnected.asDriver(onErrorJustReturn: false),
+            showAttachmentSheet: showAttachmentSheetRelay.asDriver(onErrorDriveWith: .empty())
         )
     }
 

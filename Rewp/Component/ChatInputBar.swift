@@ -46,6 +46,11 @@ final class ChatInputBar: UIView {
         $0.isEnabled = false
     }
 
+    private let attachButton = UIButton(type: .system).then {
+        $0.setImage(UIImage(systemName: "plus.circle"), for: .normal)
+        $0.tintColor = ColorSystem.gray60
+    }
+
     private let disposeBag = DisposeBag()
 
     private var cachedTextHeight: CGFloat?
@@ -57,6 +62,10 @@ final class ChatInputBar: UIView {
 
     var textInput: Observable<String> {
         return textView.rx.text.orEmpty.asObservable()
+    }
+
+    var attachButtonTapped: Observable<Void> {
+        return attachButton.rx.tap.asObservable()
     }
 
     var text: String {
@@ -78,6 +87,7 @@ final class ChatInputBar: UIView {
         backgroundColor = ColorSystem.gray0
 
         addSubview(containerView)
+        containerView.addSubview(attachButton)
         containerView.addSubview(textContainerView)
         textContainerView.addSubview(textView)
         textContainerView.addSubview(placeholderLabel)
@@ -115,8 +125,14 @@ final class ChatInputBar: UIView {
             .vCenter()
             .size(36)
 
-        textContainerView.pin
+        attachButton.pin
             .left(16)
+            .vCenter()
+            .size(32)
+
+        textContainerView.pin
+            .after(of: attachButton)
+            .marginLeft(8)
             .before(of: sendButton)
             .marginRight(8)
             .vCenter()
@@ -155,7 +171,7 @@ final class ChatInputBar: UIView {
     override var intrinsicContentSize: CGSize {
         let screenWidth = superview?.bounds.width ?? UIScreen.main.bounds.width
         let padding: CGFloat = 12
-        let availableWidth = screenWidth - 16 - 8 - 36 - 16 - padding * 2
+        let availableWidth = screenWidth - 16 - 32 - 8 - 8 - 36 - 16 - padding * 2
 
         if cachedTextHeight == nil || cachedAvailableWidth != availableWidth {
             let textSize = textView.sizeThatFits(

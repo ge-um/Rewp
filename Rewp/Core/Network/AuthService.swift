@@ -21,7 +21,7 @@ protocol AuthServiceProtocol {
     func isAuthenticated() -> Bool
     func authenticatedRequest<T: Decodable>(_ router: APIRouter) -> Single<T>
     func authenticatedRequestEmpty(_ router: APIRouter) -> Single<Void>
-    func uploadFiles(roomId: String, images: [Data]) -> Single<UploadFilesResponse>
+    func uploadFiles(roomId: String, files: [Data]) -> Single<UploadFilesResponse>
 }
 
 final class AuthService: AuthServiceProtocol {
@@ -245,7 +245,7 @@ final class AuthService: AuthServiceProtocol {
         Logger.auth.notice("Authentication state cleared")
     }
 
-    func uploadFiles(roomId: String, images: [Data]) -> Single<UploadFilesResponse> {
+    func uploadFiles(roomId: String, files: [Data]) -> Single<UploadFilesResponse> {
         guard currentCredential != nil else {
             return .error(AuthError.notAuthenticated)
         }
@@ -258,7 +258,7 @@ final class AuthService: AuthServiceProtocol {
 
             let uploadRequest = self.session.upload(
                 multipartFormData: { multipartFormData in
-                    for (index, imageData) in images.enumerated() {
+                    for (index, imageData) in files.enumerated() {
                         multipartFormData.append(
                             imageData,
                             withName: "files",
@@ -267,7 +267,7 @@ final class AuthService: AuthServiceProtocol {
                         )
                     }
                 },
-                with: ChatRouter.uploadFiles(roomId: roomId, images: images)
+                with: ChatRouter.uploadFiles(roomId: roomId, files: files)
             )
             .validate(statusCode: 200..<300)
             .responseDecodable(of: UploadFilesResponse.self) { response in

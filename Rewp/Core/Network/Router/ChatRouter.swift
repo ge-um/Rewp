@@ -13,7 +13,7 @@ enum ChatRouter {
     case createChatRoom(opponentId: String)
     case sendMessage(roomId: String, content: String, files: [String]?)
     case getChatHistory(roomId: String, next: String?)
-    case uploadFiles(roomId: String, images: [Data])
+    case uploadFiles(roomId: String, files: [Data])
 }
 
 extension ChatRouter: APIRouter {

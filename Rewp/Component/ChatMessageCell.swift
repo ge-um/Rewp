@@ -6,8 +6,10 @@
 //
 
 import UIKit
+import OSLog
 import PinLayout
 import Then
+import Kingfisher
 
 final class ChatMessageCell: UITableViewCell, IsIdentifiable {
     private let containerView = UIView().then {
@@ -51,12 +53,20 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
         $0.tintColor = .systemRed
     }
 
+    private let imageStackView = UIStackView().then {
+        $0.axis = .horizontal
+        $0.spacing = 4
+        $0.distribution = .fillEqually
+        $0.isHidden = true
+    }
+
     var onRetryTapped: (() -> Void)?
     var onDeleteTapped: (() -> Void)?
 
     private var cachedTextSize: CGSize?
     private var cachedMaxWidth: CGFloat?
     private var cachedContent: String?
+    private var cachedFiles: [String]?
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -75,6 +85,7 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
         contentView.addSubview(containerView)
         containerView.addSubview(bubbleView)
         bubbleView.addSubview(messageLabel)
+        bubbleView.addSubview(imageStackView)
         containerView.addSubview(timeLabel)
         containerView.addSubview(sendingIndicator)
         containerView.addSubview(failedContainer)
@@ -102,6 +113,9 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
 
         containerView.pin.all()
 
+        let hasImages = !imageStackView.isHidden && imageStackView.arrangedSubviews.count > 0
+        let hasText = !(cachedContent?.isEmpty ?? true)
+
         if cachedTextSize == nil || cachedMaxWidth != maxBubbleWidth {
             let maxTextWidth = maxBubbleWidth - padding * 2
             let textSize = messageLabel.sizeThatFits(
@@ -112,20 +126,54 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
         }
 
         let textSize = cachedTextSize!
-        let bubbleWidth = textSize.width + padding * 2
-        let bubbleHeight = textSize.height + padding * 2
+        var bubbleWidth = hasText ? textSize.width + padding * 2 : padding * 2
+        var contentHeight: CGFloat = 0
+
+        if hasText {
+            messageLabel.pin
+                .top(padding)
+                .left(padding)
+                .width(textSize.width)
+                .height(textSize.height)
+            contentHeight = textSize.height
+        }
+
+        if hasImages {
+            let imageSize: CGFloat = 120
+            let imageCount = imageStackView.arrangedSubviews.count
+            let totalImageWidth = CGFloat(imageCount) * imageSize + CGFloat(imageCount - 1) * 4
+
+            bubbleWidth = max(bubbleWidth, totalImageWidth + padding * 2)
+
+            if hasText {
+                imageStackView.pin
+                    .below(of: messageLabel)
+                    .marginTop(8)
+                    .left(padding)
+                    .width(totalImageWidth)
+                    .height(imageSize)
+                contentHeight += 8 + imageSize
+            } else {
+                imageStackView.pin
+                    .top(padding)
+                    .left(padding)
+                    .width(totalImageWidth)
+                    .height(imageSize)
+                contentHeight = imageSize
+            }
+
+            for imageView in imageStackView.arrangedSubviews {
+                imageView.pin.width(imageSize).height(imageSize)
+            }
+        }
+
+        let bubbleHeight = contentHeight + padding * 2
 
         bubbleView.pin
             .top(8)
             .right(16)
             .width(bubbleWidth)
             .height(bubbleHeight)
-
-        messageLabel.pin
-            .top(padding)
-            .left(padding)
-            .width(textSize.width)
-            .height(textSize.height)
 
         timeLabel.pin
             .before(of: bubbleView, aligned: .bottom)
@@ -162,6 +210,9 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
         let maxBubbleWidth = size.width * 0.65
         let padding: CGFloat = 12
 
+        let hasImages = !imageStackView.isHidden && imageStackView.arrangedSubviews.count > 0
+        let hasText = !(cachedContent?.isEmpty ?? true)
+
         if cachedTextSize == nil || cachedMaxWidth != maxBubbleWidth {
             let maxTextWidth = maxBubbleWidth - padding * 2
             let textSize = messageLabel.sizeThatFits(
@@ -171,7 +222,22 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
             cachedMaxWidth = maxBubbleWidth
         }
 
-        let bubbleHeight = cachedTextSize!.height + padding * 2
+        var contentHeight: CGFloat = 0
+
+        if hasText {
+            contentHeight = cachedTextSize!.height
+        }
+
+        if hasImages {
+            let imageSize: CGFloat = 120
+            if hasText {
+                contentHeight += 8 + imageSize
+            } else {
+                contentHeight = imageSize
+            }
+        }
+
+        let bubbleHeight = contentHeight + padding * 2
         return CGSize(width: size.width, height: bubbleHeight + 16)
     }
 
@@ -180,20 +246,47 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
         cachedTextSize = nil
         cachedMaxWidth = nil
         cachedContent = nil
+        cachedFiles = nil
         sendingIndicator.isHidden = true
         failedContainer.isHidden = true
+        imageStackView.isHidden = true
+        imageStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
         onRetryTapped = nil
         onDeleteTapped = nil
     }
 
     func configure(with message: ChatMessage) {
-        if cachedContent != message.content {
+        if cachedContent != message.content || cachedFiles != message.files {
             cachedTextSize = nil
             cachedContent = message.content
+            cachedFiles = message.files
         }
 
         messageLabel.typography(FontSystem.Pretendard.body2, text: message.content)
         timeLabel.typography(FontSystem.Pretendard.caption2, text: formatTime(message.createdAt))
+
+        imageStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+
+        if let files = message.files, !files.isEmpty {
+            imageStackView.isHidden = false
+            for filePath in files {
+                let imageView = UIImageView().then {
+                    $0.contentMode = .scaleAspectFill
+                    $0.clipsToBounds = true
+                    $0.layer.cornerRadius = 8
+                    $0.backgroundColor = ColorSystem.gray30
+                }
+
+                let baseURL = NetworkConfig.baseURL
+                let fullURLString = baseURL + filePath
+
+                imageView.setImage(from: fullURLString)
+
+                imageStackView.addArrangedSubview(imageView)
+            }
+        } else {
+            imageStackView.isHidden = true
+        }
 
         switch message.sendStatus {
         case .sent:
