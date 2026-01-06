@@ -25,11 +25,7 @@ final class PhotoPreviewBottomSheet: UIViewController {
 
     private let headerContainer = UIView()
 
-    private let thumbnailStackView = UIStackView().then {
-        $0.axis = .horizontal
-        $0.spacing = 8
-        $0.distribution = .fillEqually
-    }
+    private let thumbnailStackView = UIView()
 
     private let textViewContainer = UIView().then {
         $0.backgroundColor = ColorSystem.gray15
@@ -116,16 +112,22 @@ final class PhotoPreviewBottomSheet: UIViewController {
     }
 
     private func setupThumbnails() {
-        for image in images {
-            let imageView = UIImageView().then {
-                $0.image = image
-                $0.contentMode = .scaleAspectFill
-                $0.clipsToBounds = true
-                $0.layer.cornerRadius = 8
-                $0.backgroundColor = ColorSystem.gray15
+        thumbnailStackView.flex
+            .direction(.row)
+            .define { flex in
+                for (index, image) in images.enumerated() {
+                    let imageView = UIImageView().then {
+                        $0.image = image
+                        $0.contentMode = .scaleAspectFill
+                        $0.clipsToBounds = true
+                        $0.layer.cornerRadius = 8
+                        $0.backgroundColor = ColorSystem.gray15
+                    }
+                    flex.addItem(imageView)
+                        .size(60)
+                        .marginRight(index < images.count - 1 ? 8 : 0)
+                }
             }
-            thumbnailStackView.addArrangedSubview(imageView)
-        }
     }
 
     private func bindActions() {
@@ -189,5 +191,7 @@ final class PhotoPreviewBottomSheet: UIViewController {
             .top(15)
             .left(8)
             .sizeToFit()
+
+        thumbnailStackView.flex.layout()
     }
 }

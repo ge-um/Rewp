@@ -139,7 +139,7 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
         }
 
         if hasImages {
-            let imageSize: CGFloat = 120
+            let imageSize: CGFloat = 80
             let imageCount = imageStackView.arrangedSubviews.count
             let totalImageWidth = CGFloat(imageCount) * imageSize + CGFloat(imageCount - 1) * 4
 
@@ -229,7 +229,7 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
         }
 
         if hasImages {
-            let imageSize: CGFloat = 120
+            let imageSize: CGFloat = 80
             if hasText {
                 contentHeight += 8 + imageSize
             } else {
