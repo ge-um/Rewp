@@ -8,6 +8,7 @@
 import UIKit
 import OSLog
 import PinLayout
+import FlexLayout
 import Then
 import Kingfisher
 
@@ -53,10 +54,8 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
         $0.tintColor = .systemRed
     }
 
-    private let imageStackView = UIStackView().then {
-        $0.axis = .horizontal
-        $0.spacing = 4
-        $0.distribution = .fillEqually
+    private let imageContainerView = UIView().then {
+        $0.backgroundColor = .clear
         $0.isHidden = true
     }
 
@@ -85,7 +84,7 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
         contentView.addSubview(containerView)
         containerView.addSubview(bubbleView)
         bubbleView.addSubview(messageLabel)
-        bubbleView.addSubview(imageStackView)
+        bubbleView.addSubview(imageContainerView)
         containerView.addSubview(timeLabel)
         containerView.addSubview(sendingIndicator)
         containerView.addSubview(failedContainer)
@@ -113,7 +112,7 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
 
         containerView.pin.all()
 
-        let hasImages = !imageStackView.isHidden && imageStackView.arrangedSubviews.count > 0
+        let hasImages = !imageContainerView.isHidden && !(cachedFiles?.isEmpty ?? true)
         let hasText = !(cachedContent?.isEmpty ?? true)
 
         if cachedTextSize == nil || cachedMaxWidth != maxBubbleWidth {
@@ -140,31 +139,33 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
 
         if hasImages {
             let imageSize: CGFloat = 80
-            let imageCount = imageStackView.arrangedSubviews.count
-            let totalImageWidth = CGFloat(imageCount) * imageSize + CGFloat(imageCount - 1) * 4
+            let imageCount = cachedFiles?.count ?? 0
+            let rowCount = (imageCount + 1) / 2
+            let colCount = min(imageCount, 2)
+
+            let totalImageWidth = CGFloat(colCount) * imageSize + CGFloat(colCount - 1) * 4
+            let totalImageHeight = CGFloat(rowCount) * imageSize + CGFloat(max(0, rowCount - 1)) * 4
 
             bubbleWidth = max(bubbleWidth, totalImageWidth + padding * 2)
 
             if hasText {
-                imageStackView.pin
+                imageContainerView.pin
                     .below(of: messageLabel)
                     .marginTop(8)
                     .left(padding)
                     .width(totalImageWidth)
-                    .height(imageSize)
-                contentHeight += 8 + imageSize
+                    .height(totalImageHeight)
+                contentHeight += 8 + totalImageHeight
             } else {
-                imageStackView.pin
+                imageContainerView.pin
                     .top(padding)
                     .left(padding)
                     .width(totalImageWidth)
-                    .height(imageSize)
-                contentHeight = imageSize
+                    .height(totalImageHeight)
+                contentHeight = totalImageHeight
             }
 
-            for imageView in imageStackView.arrangedSubviews {
-                imageView.pin.width(imageSize).height(imageSize)
-            }
+            imageContainerView.flex.layout()
         }
 
         let bubbleHeight = contentHeight + padding * 2
@@ -210,7 +211,7 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
         let maxBubbleWidth = size.width * 0.65
         let padding: CGFloat = 12
 
-        let hasImages = !imageStackView.isHidden && imageStackView.arrangedSubviews.count > 0
+        let hasImages = !imageContainerView.isHidden && !(cachedFiles?.isEmpty ?? true)
         let hasText = !(cachedContent?.isEmpty ?? true)
 
         if cachedTextSize == nil || cachedMaxWidth != maxBubbleWidth {
@@ -230,10 +231,14 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
 
         if hasImages {
             let imageSize: CGFloat = 80
+            let imageCount = cachedFiles?.count ?? 0
+            let rowCount = (imageCount + 1) / 2
+            let totalImageHeight = CGFloat(rowCount) * imageSize + CGFloat(max(0, rowCount - 1)) * 4
+
             if hasText {
-                contentHeight += 8 + imageSize
+                contentHeight += 8 + totalImageHeight
             } else {
-                contentHeight = imageSize
+                contentHeight = totalImageHeight
             }
         }
 
@@ -249,8 +254,8 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
         cachedFiles = nil
         sendingIndicator.isHidden = true
         failedContainer.isHidden = true
-        imageStackView.isHidden = true
-        imageStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        imageContainerView.isHidden = true
+        imageContainerView.subviews.forEach { $0.removeFromSuperview() }
         onRetryTapped = nil
         onDeleteTapped = nil
     }
@@ -265,10 +270,15 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
         messageLabel.typography(FontSystem.Pretendard.body2, text: message.content)
         timeLabel.typography(FontSystem.Pretendard.caption2, text: formatTime(message.createdAt))
 
-        imageStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        imageContainerView.subviews.forEach { $0.removeFromSuperview() }
 
         if let files = message.files, !files.isEmpty {
-            imageStackView.isHidden = false
+            imageContainerView.isHidden = false
+
+            let imageSize: CGFloat = 80
+
+            var imageViews: [UIImageView] = []
+
             for filePath in files {
                 let imageView = UIImageView().then {
                     $0.contentMode = .scaleAspectFill
@@ -281,11 +291,33 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
                 let fullURLString = baseURL + filePath
 
                 imageView.setImage(from: fullURLString)
-
-                imageStackView.addArrangedSubview(imageView)
+                imageViews.append(imageView)
             }
+
+            imageContainerView.flex
+                .direction(.column)
+                .define { flex in
+                    var currentRow: Flex?
+
+                    for (index, imageView) in imageViews.enumerated() {
+                        if index % 2 == 0 {
+                            currentRow = flex.addItem()
+                                .direction(.row)
+
+                            if index > 0 {
+                                currentRow?.marginTop(4)
+                            }
+                        }
+
+                        if index % 2 == 0 {
+                            currentRow?.addItem(imageView).width(imageSize).height(imageSize)
+                        } else {
+                            currentRow?.addItem(imageView).width(imageSize).height(imageSize).marginLeft(4)
+                        }
+                    }
+                }
         } else {
-            imageStackView.isHidden = true
+            imageContainerView.isHidden = true
         }
 
         switch message.sendStatus {
