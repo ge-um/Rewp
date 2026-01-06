@@ -62,6 +62,10 @@ final class AppContainer {
         UnreadCountSyncService(chatRepository: chatRepository, authService: authService)
     }()
 
+    lazy var videoRepository: VideoRepository = {
+        VideoRepositoryImpl(authService: authService)
+    }()
+
     // MARK: - Factory Methods
 
     func makeLoginViewController() -> LoginViewController {
