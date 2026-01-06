@@ -13,6 +13,7 @@ enum ChatRouter {
     case createChatRoom(opponentId: String)
     case sendMessage(roomId: String, content: String, files: [String]?)
     case getChatHistory(roomId: String, next: String?)
+    case uploadFiles(roomId: String, images: [Data])
 }
 
 extension ChatRouter: APIRouter {
@@ -28,6 +29,8 @@ extension ChatRouter: APIRouter {
             return "/chats/\(roomId)"
         case .getChatHistory(let roomId, _):
             return "/chats/\(roomId)"
+        case .uploadFiles(let roomId, _):
+            return "/chats/\(roomId)/files"
         }
     }
 
@@ -35,21 +38,29 @@ extension ChatRouter: APIRouter {
         switch self {
         case .getChatRooms, .getChatHistory:
             return .get
-        case .createChatRoom, .sendMessage:
+        case .createChatRoom, .sendMessage, .uploadFiles:
             return .post
         }
     }
 
     var headers: HTTPHeaders? {
-        return [
-            "Content-Type": "application/json",
-            "SesacKey": NetworkConfig.rewpKey
-        ]
+        switch self {
+        case .uploadFiles:
+            return [
+                "Content-Type": "multipart/form-data",
+                "SesacKey": NetworkConfig.rewpKey
+            ]
+        default:
+            return [
+                "Content-Type": "application/json",
+                "SesacKey": NetworkConfig.rewpKey
+            ]
+        }
     }
 
     var body: Encodable? {
         switch self {
-        case .getChatRooms, .getChatHistory:
+        case .getChatRooms, .getChatHistory, .uploadFiles:
             return nil
         case .createChatRoom(let opponentId):
             return CreateChatRoomRequest(opponent_id: opponentId)

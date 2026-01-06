@@ -114,7 +114,8 @@ extension ChatMessageDTO {
             createdAt: date,
             isFromMe: sender.user_id == currentUserId,
             sendStatus: .sent,
-            tempId: nil
+            tempId: nil,
+            files: files
         )
     }
 }
@@ -135,7 +136,12 @@ extension SendMessageResponse {
             createdAt: date,
             isFromMe: sender.user_id == currentUserId,
             sendStatus: .sent,
-            tempId: nil
+            tempId: nil,
+            files: files
         )
     }
+}
+
+struct UploadFilesResponse: Decodable {
+    let files: [String]
 }

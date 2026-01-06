@@ -24,6 +24,7 @@ struct ChatMessage {
     let isFromMe: Bool
     let sendStatus: SendStatus
     let tempId: String?
+    let files: [String]?
 
     init(
         chatId: String,
@@ -35,7 +36,8 @@ struct ChatMessage {
         createdAt: Date,
         isFromMe: Bool,
         sendStatus: SendStatus = .sent,
-        tempId: String? = nil
+        tempId: String? = nil,
+        files: [String]? = nil
     ) {
         self.chatId = chatId
         self.roomId = roomId
@@ -47,6 +49,7 @@ struct ChatMessage {
         self.isFromMe = isFromMe
         self.sendStatus = sendStatus
         self.tempId = tempId
+        self.files = files
     }
 }
 
