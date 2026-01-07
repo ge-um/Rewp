@@ -18,6 +18,8 @@ final class VideoPlayerService {
     private var pendingSeekTime: CMTime?
     private var currentSubtitleTrack: SubtitleTrack?
     private let subtitleService: SubtitleService
+    private var availableSubtitles: [SubtitleInfo] = []
+    private var selectedSubtitleInfo: SubtitleInfo?
 
     private(set) lazy var playerLayer: AVPlayerLayer = {
         let layer = AVPlayerLayer(player: player)
@@ -29,6 +31,7 @@ final class VideoPlayerService {
     let currentTime = BehaviorRelay<TimeInterval>(value: 0)
     let duration = BehaviorRelay<TimeInterval>(value: 0)
     let currentSubtitle = BehaviorRelay<String?>(value: nil)
+    let selectedSubtitleLanguage = BehaviorRelay<String?>(value: nil)
 
     enum PlaybackState {
         case idle
@@ -59,26 +62,36 @@ final class VideoPlayerService {
         NotificationCenter.default.removeObserver(self)
     }
 
-    func loadVideo(url: String, subtitleUrl: String? = nil, autoPlay: Bool = false) {
-        Logger.video.notice("Loading video - autoPlay: \(autoPlay), hasSubtitle: \(subtitleUrl != nil)")
+    func loadVideo(url: String, subtitles: [SubtitleInfo], autoPlay: Bool = false) {
+        self.availableSubtitles = subtitles
+        Logger.video.notice("Loading video - autoPlay: \(autoPlay), availableSubtitles: \(subtitles.count)")
         playbackState.accept(.loading)
 
-        if let subtitleUrl = subtitleUrl {
-            subtitleService.downloadSubtitle(url: subtitleUrl)
+        let defaultSubtitle = subtitles.first(where: { $0.isDefault }) ?? subtitles.first
+        selectedSubtitleInfo = defaultSubtitle
+
+        if let subtitle = defaultSubtitle {
+            selectedSubtitleLanguage.accept(subtitle.language)
+            Logger.video.notice("Default subtitle selected - \(subtitle.displayName)")
+
+            subtitleService.downloadSubtitle(url: subtitle.url)
                 .observe(on: MainScheduler.instance)
+                .asObservable()
+                .withUnretained(self)
                 .subscribe(
-                    onSuccess: { [weak self] track in
+                    onNext: { owner, track in
                         Logger.video.debug("Subtitle downloaded - \(track.subtitles.count) entries")
-                        self?.currentSubtitleTrack = track
-                        self?.createPlayerItem(videoUrl: url, autoPlay: autoPlay)
+                        owner.currentSubtitleTrack = track
+                        owner.createPlayerItem(videoUrl: url, autoPlay: autoPlay)
                     },
-                    onFailure: { [weak self] error in
+                    onError: { [weak self] error in
                         Logger.video.error("Subtitle download failed - \(error.localizedDescription)")
                         self?.createPlayerItem(videoUrl: url, autoPlay: autoPlay)
                     }
                 )
                 .disposed(by: disposeBag)
         } else {
+            selectedSubtitleLanguage.accept(nil)
             currentSubtitleTrack = nil
             createPlayerItem(videoUrl: url, autoPlay: autoPlay)
         }
@@ -152,14 +165,54 @@ final class VideoPlayerService {
         player.seek(to: CMTime(seconds: time, preferredTimescale: 600))
     }
 
-    func switchQuality(url: String, subtitleUrl: String? = nil) {
+    func switchSubtitle(to subtitleInfo: SubtitleInfo?) {
+        let currentTime = player.currentTime()
+        let wasPlaying = playbackState.value.isPlaying
+
+        if let subtitleInfo = subtitleInfo {
+            selectedSubtitleInfo = subtitleInfo
+            selectedSubtitleLanguage.accept(subtitleInfo.language)
+            Logger.video.notice("Switching subtitle to \(subtitleInfo.displayName)")
+
+            subtitleService.downloadSubtitle(url: subtitleInfo.url)
+                .observe(on: MainScheduler.instance)
+                .asObservable()
+                .withUnretained(self)
+                .subscribe(
+                    onNext: { owner, track in
+                        Logger.video.debug("Subtitle switched - \(track.subtitles.count) entries")
+                        owner.currentSubtitleTrack = track
+                        owner.player.seek(to: currentTime)
+                        if wasPlaying {
+                            owner.play()
+                        }
+                    },
+                    onError: { error in
+                        Logger.video.error("Subtitle switch failed - \(error.localizedDescription)")
+                    }
+                )
+                .disposed(by: disposeBag)
+        } else {
+            Logger.video.notice("Turning off subtitles")
+            selectedSubtitleInfo = nil
+            selectedSubtitleLanguage.accept(nil)
+            currentSubtitleTrack = nil
+            currentSubtitle.accept(nil)
+        }
+    }
+
+    func getAvailableSubtitles() -> [SubtitleInfo] {
+        return availableSubtitles
+    }
+
+    func switchQuality(url: String) {
         let currentTime = player.currentTime()
         let wasPlaying = playbackState.value.isPlaying
 
         Logger.video.notice("Switching quality - wasPlaying: \(wasPlaying), currentTime: \(currentTime.seconds)")
         pendingSeekTime = currentTime
 
-        loadVideo(url: url, subtitleUrl: subtitleUrl, autoPlay: wasPlaying)
+        loadVideo(url: url, subtitles: availableSubtitles, autoPlay: wasPlaying)
     }
 
     func reset() {

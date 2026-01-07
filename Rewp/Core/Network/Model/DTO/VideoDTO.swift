@@ -94,7 +94,8 @@ extension GetVideoStreamResponse {
             SubtitleInfo(
                 language: dto.language,
                 displayName: dto.name,
-                url: dto.url
+                url: dto.url,
+                isDefault: dto.is_default
             )
         }
 

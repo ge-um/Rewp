@@ -16,12 +16,19 @@ final class VideoPlayerCell: UICollectionViewCell, IsIdentifiable {
     private let playerView = VideoPlayerView()
     private let infoOverlay = VideoInfoOverlay()
     private let subtitleView = SubtitleView()
+    private let subtitleButton = UIButton().then {
+        var config = UIButton.Configuration.plain()
+        config.image = UIImage(systemName: "captions.bubble")
+        config.baseForegroundColor = .white
+        $0.configuration = config
+    }
     private lazy var playerService: VideoPlayerService = {
         VideoPlayerService(subtitleService: Self.subtitleService)
     }()
 
     var onLikeTapped: (() -> Void)?
     private var disposeBag = DisposeBag()
+    private var bottomSheet: SubtitleSelectionBottomSheet?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -43,6 +50,7 @@ final class VideoPlayerCell: UICollectionViewCell, IsIdentifiable {
         contentView.addSubview(playerView)
         contentView.addSubview(subtitleView)
         contentView.addSubview(infoOverlay)
+        contentView.addSubview(subtitleButton)
     }
 
     private func setupPlayer() {
@@ -54,6 +62,34 @@ final class VideoPlayerCell: UICollectionViewCell, IsIdentifiable {
                 owner.subtitleView.setText(text)
             })
             .disposed(by: disposeBag)
+
+        subtitleButton.rx.tap
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                owner.showSubtitleSelection()
+            })
+            .disposed(by: disposeBag)
+    }
+
+    private func showSubtitleSelection() {
+        guard let window = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap({ $0.windows })
+            .first(where: { $0.isKeyWindow }) else { return }
+
+        let sheet = SubtitleSelectionBottomSheet()
+        bottomSheet = sheet
+
+        sheet.configure(
+            subtitles: playerService.getAvailableSubtitles(),
+            selectedLanguage: playerService.selectedSubtitleLanguage.value
+        )
+
+        sheet.onSubtitleSelected = { [weak self] subtitleInfo in
+            self?.playerService.switchSubtitle(to: subtitleInfo)
+        }
+
+        sheet.show(in: window)
     }
 
     func configure(video: Video) {
@@ -65,9 +101,10 @@ final class VideoPlayerCell: UICollectionViewCell, IsIdentifiable {
         }
     }
 
-    func loadVideo(url: String, subtitleUrl: String?) {
+    func loadVideo(url: String, subtitles: [SubtitleInfo]) {
         Logger.video.notice("Loading video: \(url, privacy: .public)")
-        playerService.loadVideo(url: url, subtitleUrl: subtitleUrl, autoPlay: false)
+        playerService.loadVideo(url: url, subtitles: subtitles, autoPlay: false)
+        subtitleButton.isHidden = subtitles.isEmpty
     }
 
     func play() {
@@ -86,6 +123,11 @@ final class VideoPlayerCell: UICollectionViewCell, IsIdentifiable {
         super.layoutSubviews()
 
         playerView.pin.all()
+
+        subtitleButton.pin
+            .top(contentView.pin.safeArea.top + 16)
+            .right(16)
+            .size(44)
 
         subtitleView.pin
             .horizontally(40)

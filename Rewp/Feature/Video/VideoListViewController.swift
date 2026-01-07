@@ -111,13 +111,12 @@ final class VideoListViewController: UIViewController {
         Logger.video.notice("Setting up player at index \(index)")
 
         let videoUrl = selectVideoUrl(from: streamInfo)
-        let subtitleUrl = streamInfo.subtitles.first?.url
 
         Logger.video.notice("Video URL: \(videoUrl, privacy: .public)")
-        Logger.video.notice("Subtitle URL: \(subtitleUrl ?? "nil", privacy: .public)")
+        Logger.video.notice("Available subtitles: \(streamInfo.subtitles.count)")
 
         if let cell = collectionView.cellForItem(at: IndexPath(item: index, section: 0)) as? VideoPlayerCell {
-            cell.loadVideo(url: videoUrl, subtitleUrl: subtitleUrl)
+            cell.loadVideo(url: videoUrl, subtitles: streamInfo.subtitles)
 
             if index == currentVideoIndex {
                 cell.play()

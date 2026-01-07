@@ -23,4 +23,5 @@ struct SubtitleInfo {
     let language: String
     let displayName: String
     let url: String
+    let isDefault: Bool
 }
