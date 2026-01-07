@@ -21,6 +21,7 @@ protocol AuthServiceProtocol {
     func isAuthenticated() -> Bool
     func authenticatedRequest<T: Decodable>(_ router: APIRouter) -> Single<T>
     func authenticatedRequestEmpty(_ router: APIRouter) -> Single<Void>
+    func authenticatedRequestText(_ router: APIRouter) -> Single<String>
     func uploadFiles(roomId: String, files: [Data]) -> Single<UploadFilesResponse>
 }
 
@@ -206,6 +207,48 @@ final class AuthService: AuthServiceProtocol {
                            let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
                             observer(.failure(NetworkError.serverError(message: errorResponse.message)))
                         } else {
+                            observer(.failure(NetworkError.serverError(message: "서버 오류가 발생했습니다.")))
+                        }
+                    }
+                }
+
+            return Disposables.create {
+                dataRequest.cancel()
+            }
+        }
+        .catch { [weak self] error in
+            if case AuthError.notAuthenticated = error {
+                self?.clearAuthState()
+            }
+            return .error(error)
+        }
+    }
+
+    func authenticatedRequestText(_ router: APIRouter) -> Single<String> {
+        guard currentCredential != nil else {
+            Logger.auth.error("No credential available")
+            return .error(AuthError.notAuthenticated)
+        }
+
+        Logger.network.notice("Making authenticated text request - \(router.path)")
+
+        return Single.create { observer in
+            let dataRequest = self.session.request(router)
+                .validate(statusCode: 200..<300)
+                .responseString { response in
+                    switch response.result {
+                    case .success(let text):
+                        Logger.network.notice("Text request succeeded - \(router.path)")
+                        observer(.success(text))
+                    case .failure:
+                        let statusCode = response.response?.statusCode ?? 0
+
+                        if let data = response.data,
+                           let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                            Logger.network.error("Text request failed [\(statusCode)] - \(errorResponse.message)")
+                            observer(.failure(NetworkError.serverError(message: errorResponse.message)))
+                        } else {
+                            Logger.network.error("Text request failed [\(statusCode)]")
                             observer(.failure(NetworkError.serverError(message: "서버 오류가 발생했습니다.")))
                         }
                     }
