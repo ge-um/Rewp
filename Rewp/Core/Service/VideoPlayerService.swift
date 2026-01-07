@@ -16,6 +16,7 @@ final class VideoPlayerService {
     private var timeObserver: Any?
     private let disposeBag = DisposeBag()
     private var pendingSeekTime: CMTime?
+    private var pendingAutoPlay: Bool = false
     private var currentSubtitleTrack: SubtitleTrack?
     private let subtitleService: SubtitleService
     private var availableSubtitles: [SubtitleInfo] = []
@@ -62,9 +63,9 @@ final class VideoPlayerService {
         NotificationCenter.default.removeObserver(self)
     }
 
-    func loadVideo(url: String, subtitles: [SubtitleInfo], autoPlay: Bool = false) {
+    func loadVideo(url: String, subtitles: [SubtitleInfo]) {
         self.availableSubtitles = subtitles
-        Logger.video.notice("Loading video - autoPlay: \(autoPlay), availableSubtitles: \(subtitles.count)")
+        Logger.video.notice("Loading video - availableSubtitles: \(subtitles.count)")
         playbackState.accept(.loading)
 
         let defaultSubtitle = subtitles.first(where: { $0.isDefault }) ?? subtitles.first
@@ -82,31 +83,57 @@ final class VideoPlayerService {
                     onNext: { owner, track in
                         Logger.video.debug("Subtitle downloaded - \(track.subtitles.count) entries")
                         owner.currentSubtitleTrack = track
-                        owner.createPlayerItem(videoUrl: url, autoPlay: autoPlay)
+                        owner.createPlayerItem(videoUrl: url)
                     },
                     onError: { [weak self] error in
                         Logger.video.error("Subtitle download failed - \(error.localizedDescription)")
-                        self?.createPlayerItem(videoUrl: url, autoPlay: autoPlay)
+                        self?.createPlayerItem(videoUrl: url)
                     }
                 )
                 .disposed(by: disposeBag)
         } else {
             selectedSubtitleLanguage.accept(nil)
             currentSubtitleTrack = nil
-            createPlayerItem(videoUrl: url, autoPlay: autoPlay)
+            createPlayerItem(videoUrl: url)
         }
     }
 
-    private func createPlayerItem(videoUrl: String, autoPlay: Bool) {
+    private func createPlayerItem(videoUrl: String) {
         guard let url = URL(string: videoUrl) else {
             playbackState.accept(.failed(NSError(domain: "Invalid URL", code: -1)))
             return
         }
 
-        let newItem = AVPlayerItem(url: url)
-        currentItem = newItem
-        player.replaceCurrentItem(with: newItem)
+        let asset = AVURLAsset(url: url)
+        let keys = ["playable", "duration", "tracks"]
 
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let isPlayable = try await asset.load(.isPlayable)
+                guard isPlayable else {
+                    let failure = NSError(domain: "Asset not playable", code: -1)
+                    await MainActor.run {
+                        self.playbackState.accept(.failed(failure))
+                    }
+                    return
+                }
+
+                let newItem = await AVPlayerItem(asset: asset, automaticallyLoadedAssetKeys: keys)
+                await MainActor.run {
+                    self.currentItem = newItem
+                    self.player.replaceCurrentItem(with: newItem)
+                    self.bindPlayerItem(newItem)
+                }
+            } catch {
+                await MainActor.run {
+                    self.playbackState.accept(.failed(error))
+                }
+            }
+        }
+    }
+
+    private func bindPlayerItem(_ newItem: AVPlayerItem) {
         observePlayerItemStatus(item: newItem)
             .withUnretained(self)
             .subscribe(onNext: { owner, status in
@@ -114,7 +141,7 @@ final class VideoPlayerService {
                 case .unknown:
                     Logger.video.debug("Player item status: unknown")
                 case .readyToPlay:
-                    Logger.video.notice("Player item ready to play - autoPlay: \(autoPlay)")
+                    Logger.video.notice("Player item ready to play")
 
                     if let seekTime = owner.pendingSeekTime {
                         owner.player.seek(to: seekTime)
@@ -122,12 +149,12 @@ final class VideoPlayerService {
                         Logger.video.debug("Seeked to pending time")
                     }
 
-                    if autoPlay {
+                    if owner.pendingAutoPlay {
                         owner.play()
-                        Logger.video.notice("Auto-play started")
+                        owner.pendingAutoPlay = false
+                        Logger.video.debug("Resumed playback after quality switch")
                     } else {
                         owner.playbackState.accept(.paused)
-                        Logger.video.debug("Ready but not auto-playing")
                     }
                 case .failed:
                     let error = newItem.error ?? NSError(domain: "Unknown error", code: -1)
@@ -211,8 +238,9 @@ final class VideoPlayerService {
 
         Logger.video.notice("Switching quality - wasPlaying: \(wasPlaying), currentTime: \(currentTime.seconds)")
         pendingSeekTime = currentTime
+        pendingAutoPlay = wasPlaying
 
-        loadVideo(url: url, subtitles: availableSubtitles, autoPlay: wasPlaying)
+        loadVideo(url: url, subtitles: availableSubtitles)
     }
 
     func reset() {

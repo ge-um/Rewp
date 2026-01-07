@@ -103,7 +103,7 @@ final class VideoPlayerCell: UICollectionViewCell, IsIdentifiable {
 
     func loadVideo(url: String, subtitles: [SubtitleInfo]) {
         Logger.video.notice("Loading video: \(url, privacy: .public)")
-        playerService.loadVideo(url: url, subtitles: subtitles, autoPlay: false)
+        playerService.loadVideo(url: url, subtitles: subtitles)
         subtitleButton.isHidden = subtitles.isEmpty
     }
 
