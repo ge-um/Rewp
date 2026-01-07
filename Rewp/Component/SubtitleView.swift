@@ -15,6 +15,7 @@ final class SubtitleView: UIView {
         $0.textAlignment = .center
         $0.numberOfLines = 0
         $0.layer.cornerRadius = 6
+        $0.backgroundColor = ColorSystem.gray100.withAlphaComponent(0.7)
         $0.clipsToBounds = true
     }
 

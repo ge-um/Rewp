@@ -85,7 +85,7 @@ final class VideoPlayerCell: UICollectionViewCell, IsIdentifiable {
 
         subtitleView.pin
             .horizontally(40)
-            .bottom(100)
+            .bottom(160)
             .height(100)
 
         infoOverlay.pin

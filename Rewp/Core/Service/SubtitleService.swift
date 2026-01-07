@@ -7,6 +7,7 @@
 
 import Foundation
 import RxSwift
+import OSLog
 
 final class SubtitleService {
     func downloadSubtitle(url: String) -> Single<SubtitleTrack> {
@@ -16,7 +17,14 @@ final class SubtitleService {
                 return Disposables.create()
             }
 
-            let task = URLSession.shared.dataTask(with: subtitleUrl) { data, response, error in
+            var request = URLRequest(url: subtitleUrl)
+            request.setValue(NetworkConfig.rewpKey, forHTTPHeaderField: "SesacKey")
+
+            if let accessToken = try? KeychainManager.shared.loadAccessToken() {
+                request.setValue(accessToken, forHTTPHeaderField: "Authorization")
+            }
+
+            let task = URLSession.shared.dataTask(with: request) { data, response, error in
                 if let error = error {
                     single(.failure(error))
                     return
@@ -28,7 +36,11 @@ final class SubtitleService {
                     return
                 }
 
+                Logger.video.debug("WebVTT content received - length: \(content.count)")
+                Logger.video.debug("First 500 chars: \(String(content.prefix(500)))")
+
                 let subtitles = self.parseWebVTT(content: content)
+                Logger.video.debug("Parsed \(subtitles.count) subtitle entries")
                 let track = SubtitleTrack(
                     language: "ko",
                     displayName: "한국어",
@@ -56,6 +68,8 @@ final class SubtitleService {
         var subtitles: [Subtitle] = []
         let lines = content.components(separatedBy: .newlines)
 
+        Logger.video.debug("Total lines: \(lines.count)")
+
         var i = 0
         while i < lines.count {
             let line = lines[i].trimmingCharacters(in: .whitespaces)
@@ -65,6 +79,7 @@ final class SubtitleService {
                 guard times.count == 2,
                       let startTime = parseTime(times[0].trimmingCharacters(in: .whitespaces)),
                       let endTime = parseTime(times[1].trimmingCharacters(in: .whitespaces)) else {
+                    Logger.video.debug("Failed to parse time from: \(line)")
                     i += 1
                     continue
                 }
@@ -92,14 +107,24 @@ final class SubtitleService {
 
     private func parseTime(_ timeString: String) -> TimeInterval? {
         let components = timeString.components(separatedBy: ":")
-        guard components.count == 3 else { return nil }
 
-        let hours = Double(components[0]) ?? 0
-        let minutes = Double(components[1]) ?? 0
-        let secondsAndMillis = components[2].components(separatedBy: ".")
-        let seconds = Double(secondsAndMillis[0]) ?? 0
-        let millis = secondsAndMillis.count > 1 ? (Double(secondsAndMillis[1]) ?? 0) / 1000.0 : 0
+        if components.count == 3 {
+            let hours = Double(components[0]) ?? 0
+            let minutes = Double(components[1]) ?? 0
+            let secondsAndMillis = components[2].components(separatedBy: ".")
+            let seconds = Double(secondsAndMillis[0]) ?? 0
+            let millis = secondsAndMillis.count > 1 ? (Double(secondsAndMillis[1]) ?? 0) / 1000.0 : 0
 
-        return hours * 3600 + minutes * 60 + seconds + millis
+            return hours * 3600 + minutes * 60 + seconds + millis
+        } else if components.count == 2 {
+            let minutes = Double(components[0]) ?? 0
+            let secondsAndMillis = components[1].components(separatedBy: ".")
+            let seconds = Double(secondsAndMillis[0]) ?? 0
+            let millis = secondsAndMillis.count > 1 ? (Double(secondsAndMillis[1]) ?? 0) / 1000.0 : 0
+
+            return minutes * 60 + seconds + millis
+        }
+
+        return nil
     }
 }
