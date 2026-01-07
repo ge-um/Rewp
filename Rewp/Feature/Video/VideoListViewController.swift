@@ -29,7 +29,6 @@ final class VideoListViewController: UIViewController {
     }()
 
     private var videos: [Video] = []
-    private var playerServices: [Int: VideoPlayerService] = [:]
     private var currentVideoIndex = 0
 
     private let viewDidLoadTrigger = PublishSubject<Void>()
@@ -110,8 +109,6 @@ final class VideoListViewController: UIViewController {
 
     private func setupPlayer(at index: Int, streamInfo: VideoStreamInfo) {
         Logger.video.notice("Setting up player at index \(index)")
-        let playerService = VideoPlayerService()
-        playerServices[index] = playerService
 
         let videoUrl = selectVideoUrl(from: streamInfo)
         let subtitleUrl = streamInfo.subtitles.first?.url
@@ -119,42 +116,37 @@ final class VideoListViewController: UIViewController {
         Logger.video.notice("Video URL: \(videoUrl, privacy: .public)")
         Logger.video.notice("Subtitle URL: \(subtitleUrl ?? "nil", privacy: .public)")
 
-        configureCell(at: index, playerService: playerService)
+        if let cell = collectionView.cellForItem(at: IndexPath(item: index, section: 0)) as? VideoPlayerCell {
+            cell.loadVideo(url: videoUrl, subtitleUrl: subtitleUrl)
 
-        let shouldAutoPlay = (index == currentVideoIndex)
-        playerService.loadVideo(
-            url: videoUrl,
-            subtitleUrl: subtitleUrl,
-            autoPlay: shouldAutoPlay
-        )
+            if index == currentVideoIndex {
+                cell.play()
+            }
+        }
     }
 
     private func selectVideoUrl(from streamInfo: VideoStreamInfo) -> String {
         return streamInfo.qualities.first?.url ?? streamInfo.masterPlaylistUrl
     }
 
-    private func configureCell(at index: Int, playerService: VideoPlayerService) {
-        if let cell = collectionView.cellForItem(at: IndexPath(item: index, section: 0)) as? VideoPlayerCell {
-            cell.configure(video: videos[index], playerService: playerService)
-        }
-    }
-
     private func playVideoAtIndex(_ index: Int) {
-        playerServices.forEach { key, service in
-            if key != index {
-                service.pause()
+        for i in 0..<videos.count {
+            if let cell = collectionView.cellForItem(at: IndexPath(item: i, section: 0)) as? VideoPlayerCell {
+                if i != index {
+                    cell.pause()
+                }
             }
         }
 
-        if let service = playerServices[index] {
-            if case .paused = service.playbackState.value {
-                service.play()
-            }
+        if let cell = collectionView.cellForItem(at: IndexPath(item: index, section: 0)) as? VideoPlayerCell {
+            cell.play()
         }
     }
 
     private func pauseCurrentVideo() {
-        playerServices[currentVideoIndex]?.pause()
+        if let cell = collectionView.cellForItem(at: IndexPath(item: currentVideoIndex, section: 0)) as? VideoPlayerCell {
+            cell.pause()
+        }
     }
 
     override func viewDidLayoutSubviews() {
@@ -177,9 +169,7 @@ extension VideoListViewController: UICollectionViewDataSource {
         }
 
         let video = videos[indexPath.item]
-        let playerService = playerServices[indexPath.item]
-
-        cell.configure(video: video, playerService: playerService)
+        cell.configure(video: video)
 
         cell.onLikeTapped = { [weak self] in
             self?.likeButtonTappedRelay.accept((index: indexPath.item, isLiked: video.isLiked))

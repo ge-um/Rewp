@@ -14,6 +14,7 @@ final class VideoPlayerCell: UICollectionViewCell, IsIdentifiable {
     private let playerView = VideoPlayerView()
     private let infoOverlay = VideoInfoOverlay()
     private let subtitleView = SubtitleView()
+    private let playerService = VideoPlayerService()
 
     var onLikeTapped: (() -> Void)?
     private var disposeBag = DisposeBag()
@@ -21,6 +22,7 @@ final class VideoPlayerCell: UICollectionViewCell, IsIdentifiable {
     override init(frame: CGRect) {
         super.init(frame: frame)
         setupUI()
+        setupPlayer()
     }
 
     required init?(coder: NSCoder) {
@@ -29,7 +31,8 @@ final class VideoPlayerCell: UICollectionViewCell, IsIdentifiable {
 
     override func prepareForReuse() {
         super.prepareForReuse()
-        disposeBag = DisposeBag()
+        playerService.pause()
+        playerService.reset()
     }
 
     private func setupUI() {
@@ -38,26 +41,37 @@ final class VideoPlayerCell: UICollectionViewCell, IsIdentifiable {
         contentView.addSubview(infoOverlay)
     }
 
-    func configure(video: Video, playerService: VideoPlayerService?) {
-        Logger.video.debug("Configuring cell for video: \(video.videoId) - playerService: \(playerService != nil ? "available" : "nil")")
+    private func setupPlayer() {
+        playerView.configure(with: playerService)
+
+        playerService.currentSubtitle
+            .withUnretained(self)
+            .subscribe(onNext: { owner, text in
+                owner.subtitleView.setText(text)
+            })
+            .disposed(by: disposeBag)
+    }
+
+    func configure(video: Video) {
+        Logger.video.debug("Configuring cell for video: \(video.videoId)")
         infoOverlay.configure(video: video)
 
         infoOverlay.onLikeTapped = { [weak self] in
             self?.onLikeTapped?()
         }
+    }
 
-        if let playerService = playerService {
-            playerView.configure(with: playerService)
+    func loadVideo(url: String, subtitleUrl: String?) {
+        Logger.video.notice("Loading video: \(url, privacy: .public)")
+        playerService.loadVideo(url: url, subtitleUrl: subtitleUrl, autoPlay: false)
+    }
 
-            playerService.currentSubtitle
-                .withUnretained(self)
-                .subscribe(onNext: { owner, text in
-                    owner.subtitleView.setText(text)
-                })
-                .disposed(by: disposeBag)
-        } else {
-            Logger.video.debug("No playerService available for cell")
-        }
+    func play() {
+        playerService.play()
+    }
+
+    func pause() {
+        playerService.pause()
     }
 
     func updateLike(count: Int, isLiked: Bool) {
