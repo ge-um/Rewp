@@ -46,7 +46,7 @@ final class VideoPlayerService {
         }
     }
 
-    init(subtitleService: SubtitleService = SubtitleService()) {
+    init(subtitleService: SubtitleService) {
         self.subtitleService = subtitleService
         setupTimeObserver()
         setupNotifications()

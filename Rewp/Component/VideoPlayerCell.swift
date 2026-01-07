@@ -11,10 +11,14 @@ import RxSwift
 import OSLog
 
 final class VideoPlayerCell: UICollectionViewCell, IsIdentifiable {
+    static var subtitleService: SubtitleService!
+
     private let playerView = VideoPlayerView()
     private let infoOverlay = VideoInfoOverlay()
     private let subtitleView = SubtitleView()
-    private let playerService = VideoPlayerService()
+    private lazy var playerService: VideoPlayerService = {
+        VideoPlayerService(subtitleService: Self.subtitleService)
+    }()
 
     var onLikeTapped: (() -> Void)?
     private var disposeBag = DisposeBag()
@@ -85,7 +89,7 @@ final class VideoPlayerCell: UICollectionViewCell, IsIdentifiable {
 
         subtitleView.pin
             .horizontally(40)
-            .bottom(160)
+            .bottom(180)
             .height(100)
 
         infoOverlay.pin

@@ -12,6 +12,7 @@ enum VideoRouter {
     case getVideos(next: String?, limit: Int)
     case getStream(videoId: String)
     case likeVideo(videoId: String, likeStatus: Bool)
+    case downloadSubtitle(subtitlePath: String)
 }
 
 extension VideoRouter: APIRouter {
@@ -27,12 +28,14 @@ extension VideoRouter: APIRouter {
             return "/videos/\(videoId)/stream"
         case .likeVideo(let videoId, _):
             return "/videos/\(videoId)/like"
+        case .downloadSubtitle(let subtitlePath):
+            return subtitlePath
         }
     }
 
     var method: HTTPMethod {
         switch self {
-        case .getVideos, .getStream:
+        case .getVideos, .getStream, .downloadSubtitle:
             return .get
         case .likeVideo:
             return .post
@@ -48,7 +51,7 @@ extension VideoRouter: APIRouter {
 
     var body: Encodable? {
         switch self {
-        case .getVideos, .getStream:
+        case .getVideos, .getStream, .downloadSubtitle:
             return nil
         case .likeVideo(_, let likeStatus):
             return LikeVideoRequest(like_status: likeStatus)
@@ -63,7 +66,7 @@ extension VideoRouter: APIRouter {
                 params["next"] = next
             }
             return params
-        case .getStream, .likeVideo:
+        case .getStream, .likeVideo, .downloadSubtitle:
             return nil
         }
     }

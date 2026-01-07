@@ -67,7 +67,7 @@ final class AppContainer {
     }()
 
     lazy var subtitleService: SubtitleService = {
-        SubtitleService()
+        SubtitleService(videoRepository: videoRepository)
     }()
 
     // MARK: - Factory Methods

@@ -12,6 +12,7 @@ protocol VideoRepository {
     func getVideos(next: String?, limit: Int) -> Single<(videos: [Video], nextCursor: String?)>
     func getStreamInfo(videoId: String) -> Single<VideoStreamInfo>
     func likeVideo(videoId: String, likeStatus: Bool) -> Single<LikeVideoResponse>
+    func downloadSubtitle(subtitlePath: String) -> Single<String>
 }
 
 final class VideoRepositoryImpl: VideoRepository {
@@ -38,5 +39,9 @@ final class VideoRepositoryImpl: VideoRepository {
 
     func likeVideo(videoId: String, likeStatus: Bool) -> Single<LikeVideoResponse> {
         return authService.authenticatedRequest(VideoRouter.likeVideo(videoId: videoId, likeStatus: likeStatus))
+    }
+
+    func downloadSubtitle(subtitlePath: String) -> Single<String> {
+        return authService.authenticatedRequestText(VideoRouter.downloadSubtitle(subtitlePath: subtitlePath))
     }
 }

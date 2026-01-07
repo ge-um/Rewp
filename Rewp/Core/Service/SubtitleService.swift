@@ -10,30 +10,17 @@ import RxSwift
 import OSLog
 
 final class SubtitleService {
+    private let videoRepository: VideoRepository
+
+    init(videoRepository: VideoRepository) {
+        self.videoRepository = videoRepository
+    }
+
     func downloadSubtitle(url: String) -> Single<SubtitleTrack> {
-        return Single.create { single in
-            guard let subtitleUrl = URL(string: url) else {
-                single(.failure(NSError(domain: "Invalid subtitle URL", code: -1)))
-                return Disposables.create()
-            }
-
-            var request = URLRequest(url: subtitleUrl)
-            request.setValue(NetworkConfig.rewpKey, forHTTPHeaderField: "SesacKey")
-
-            if let accessToken = try? KeychainManager.shared.loadAccessToken() {
-                request.setValue(accessToken, forHTTPHeaderField: "Authorization")
-            }
-
-            let task = URLSession.shared.dataTask(with: request) { data, response, error in
-                if let error = error {
-                    single(.failure(error))
-                    return
-                }
-
-                guard let data = data,
-                      let content = String(data: data, encoding: .utf8) else {
-                    single(.failure(NSError(domain: "Failed to decode subtitle", code: -1)))
-                    return
+        return videoRepository.downloadSubtitle(subtitlePath: url)
+            .map { [weak self] content in
+                guard let self = self else {
+                    throw NSError(domain: "SubtitleService deallocated", code: -1)
                 }
 
                 Logger.video.debug("WebVTT content received - length: \(content.count)")
@@ -41,21 +28,13 @@ final class SubtitleService {
 
                 let subtitles = self.parseWebVTT(content: content)
                 Logger.video.debug("Parsed \(subtitles.count) subtitle entries")
-                let track = SubtitleTrack(
+
+                return SubtitleTrack(
                     language: "ko",
                     displayName: "한국어",
                     subtitles: subtitles
                 )
-
-                single(.success(track))
             }
-
-            task.resume()
-
-            return Disposables.create {
-                task.cancel()
-            }
-        }
     }
 
     func getCurrentSubtitle(track: SubtitleTrack, currentTime: TimeInterval) -> String? {

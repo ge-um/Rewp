@@ -14,6 +14,8 @@ final class VideoListFactory {
 
         viewController.presenter = presenter
 
+        VideoPlayerCell.subtitleService = container.subtitleService
+
         return viewController
     }
 }
