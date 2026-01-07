@@ -37,11 +37,16 @@ extension VideoDTO {
             }
         }
 
+        let baseURL = NetworkConfig.baseURL.replacingOccurrences(of: "/v1", with: "")
+        let absoluteThumbnailUrl = thumbnail_url.hasPrefix("http")
+            ? thumbnail_url
+            : baseURL + thumbnail_url
+
         return Video(
             videoId: video_id,
             title: title,
             description: description,
-            thumbnailUrl: thumbnail_url,
+            thumbnailUrl: absoluteThumbnailUrl,
             availableQualities: qualities,
             viewCount: view_count,
             likeCount: like_count,
@@ -71,22 +76,31 @@ struct SubtitleInfoDTO: Decodable {
 
 extension GetVideoStreamResponse {
     func toDomain() -> VideoStreamInfo {
+        let baseURL = NetworkConfig.baseURL
+
+        func toAbsoluteURL(_ path: String) -> String {
+            if path.hasPrefix("http://") || path.hasPrefix("https://") {
+                return path
+            }
+            return baseURL + path
+        }
+
         let qualityStreams = qualities.compactMap { dto -> VideoStreamInfo.QualityStream? in
             guard let quality = VideoQuality(rawValue: dto.quality) else { return nil }
-            return VideoStreamInfo.QualityStream(quality: quality, url: dto.url)
+            return VideoStreamInfo.QualityStream(quality: quality, url: toAbsoluteURL(dto.url))
         }
 
         let subtitleInfos = subtitles.map { dto in
             SubtitleInfo(
                 language: dto.language,
                 displayName: dto.name,
-                url: dto.url
+                url: toAbsoluteURL(dto.url)
             )
         }
 
         return VideoStreamInfo(
             videoId: video_id,
-            masterPlaylistUrl: stream_url,
+            masterPlaylistUrl: toAbsoluteURL(stream_url),
             qualities: qualityStreams,
             subtitles: subtitleInfos
         )

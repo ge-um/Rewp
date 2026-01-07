@@ -66,6 +66,10 @@ final class AppContainer {
         VideoRepositoryImpl(authService: authService)
     }()
 
+    lazy var subtitleService: SubtitleService = {
+        SubtitleService()
+    }()
+
     // MARK: - Factory Methods
 
     func makeLoginViewController() -> LoginViewController {
@@ -98,5 +102,9 @@ final class AppContainer {
 
     func makeChatListViewController() -> ChatListViewController {
         return ChatListFactory.create(container: self)
+    }
+
+    func makeVideoListViewController() -> VideoListViewController {
+        return VideoListFactory.create(container: self)
     }
 }

@@ -8,6 +8,7 @@
 import AVFoundation
 import RxSwift
 import RxCocoa
+import OSLog
 
 final class VideoPlayerService {
     private let player = AVPlayer()
@@ -15,15 +16,19 @@ final class VideoPlayerService {
     private var timeObserver: Any?
     private let disposeBag = DisposeBag()
     private var pendingSeekTime: CMTime?
-    private var shouldAutoPlay = false
+    private var currentSubtitleTrack: SubtitleTrack?
+    private let subtitleService: SubtitleService
 
-    var playerLayer: AVPlayerLayer {
-        return AVPlayerLayer(player: player)
-    }
+    private(set) lazy var playerLayer: AVPlayerLayer = {
+        let layer = AVPlayerLayer(player: player)
+        layer.videoGravity = .resizeAspectFill
+        return layer
+    }()
 
     let playbackState = BehaviorRelay<PlaybackState>(value: .idle)
     let currentTime = BehaviorRelay<TimeInterval>(value: 0)
     let duration = BehaviorRelay<TimeInterval>(value: 0)
+    let currentSubtitle = BehaviorRelay<String?>(value: nil)
 
     enum PlaybackState {
         case idle
@@ -41,7 +46,8 @@ final class VideoPlayerService {
         }
     }
 
-    init() {
+    init(subtitleService: SubtitleService = SubtitleService()) {
+        self.subtitleService = subtitleService
         setupTimeObserver()
         setupNotifications()
     }
@@ -53,15 +59,38 @@ final class VideoPlayerService {
         NotificationCenter.default.removeObserver(self)
     }
 
-    func loadVideo(url: String) {
-        guard let videoUrl = URL(string: url) else {
+    func loadVideo(url: String, subtitleUrl: String? = nil, autoPlay: Bool = false) {
+        Logger.video.notice("Loading video - autoPlay: \(autoPlay), hasSubtitle: \(subtitleUrl != nil)")
+        playbackState.accept(.loading)
+
+        if let subtitleUrl = subtitleUrl {
+            subtitleService.downloadSubtitle(url: subtitleUrl)
+                .observe(on: MainScheduler.instance)
+                .subscribe(
+                    onSuccess: { [weak self] track in
+                        Logger.video.debug("Subtitle downloaded - \(track.subtitles.count) entries")
+                        self?.currentSubtitleTrack = track
+                        self?.createPlayerItem(videoUrl: url, autoPlay: autoPlay)
+                    },
+                    onFailure: { [weak self] error in
+                        Logger.video.error("Subtitle download failed - \(error.localizedDescription)")
+                        self?.createPlayerItem(videoUrl: url, autoPlay: autoPlay)
+                    }
+                )
+                .disposed(by: disposeBag)
+        } else {
+            currentSubtitleTrack = nil
+            createPlayerItem(videoUrl: url, autoPlay: autoPlay)
+        }
+    }
+
+    private func createPlayerItem(videoUrl: String, autoPlay: Bool) {
+        guard let url = URL(string: videoUrl) else {
             playbackState.accept(.failed(NSError(domain: "Invalid URL", code: -1)))
             return
         }
 
-        playbackState.accept(.loading)
-
-        let newItem = AVPlayerItem(url: videoUrl)
+        let newItem = AVPlayerItem(url: url)
         currentItem = newItem
         player.replaceCurrentItem(with: newItem)
 
@@ -69,22 +98,30 @@ final class VideoPlayerService {
             .withUnretained(self)
             .subscribe(onNext: { owner, status in
                 switch status {
+                case .unknown:
+                    Logger.video.debug("Player item status: unknown")
                 case .readyToPlay:
+                    Logger.video.notice("Player item ready to play - autoPlay: \(autoPlay)")
+
                     if let seekTime = owner.pendingSeekTime {
                         owner.player.seek(to: seekTime)
                         owner.pendingSeekTime = nil
+                        Logger.video.debug("Seeked to pending time")
                     }
 
-                    if owner.shouldAutoPlay {
+                    if autoPlay {
                         owner.play()
-                        owner.shouldAutoPlay = false
+                        Logger.video.notice("Auto-play started")
                     } else {
                         owner.playbackState.accept(.paused)
+                        Logger.video.debug("Ready but not auto-playing")
                     }
                 case .failed:
                     let error = newItem.error ?? NSError(domain: "Unknown error", code: -1)
+                    Logger.video.error("Player item failed - \(error.localizedDescription)")
                     owner.playbackState.accept(.failed(error))
-                default:
+                @unknown default:
+                    Logger.video.debug("Player item status: unknown default")
                     break
                 }
             })
@@ -115,14 +152,14 @@ final class VideoPlayerService {
         player.seek(to: CMTime(seconds: time, preferredTimescale: 600))
     }
 
-    func switchQuality(url: String) {
+    func switchQuality(url: String, subtitleUrl: String? = nil) {
         let currentTime = player.currentTime()
         let wasPlaying = playbackState.value.isPlaying
 
+        Logger.video.notice("Switching quality - wasPlaying: \(wasPlaying), currentTime: \(currentTime.seconds)")
         pendingSeekTime = currentTime
-        shouldAutoPlay = wasPlaying
 
-        loadVideo(url: url)
+        loadVideo(url: url, subtitleUrl: subtitleUrl, autoPlay: wasPlaying)
     }
 
     func reset() {
@@ -131,14 +168,25 @@ final class VideoPlayerService {
         playbackState.accept(.idle)
         currentTime.accept(0)
         duration.accept(0)
+        currentSubtitle.accept(nil)
     }
+
 
     private func setupTimeObserver() {
         timeObserver = player.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 0.5, preferredTimescale: 600),
+            forInterval: CMTime(seconds: 0.1, preferredTimescale: 600),
             queue: .main
         ) { [weak self] time in
-            self?.currentTime.accept(time.seconds)
+            let currentTime = time.seconds
+            self?.currentTime.accept(currentTime)
+
+            if let subtitle = self?.currentSubtitleTrack?.subtitles.first(where: {
+                currentTime >= $0.startTime && currentTime <= $0.endTime
+            }) {
+                self?.currentSubtitle.accept(subtitle.text)
+            } else {
+                self?.currentSubtitle.accept(nil)
+            }
         }
     }
 
@@ -157,7 +205,7 @@ final class VideoPlayerService {
 
     private func observePlayerItemStatus(item: AVPlayerItem) -> Observable<AVPlayerItem.Status> {
         return Observable.create { observer in
-            let observation = item.observe(\.status, options: [.new]) { item, _ in
+            let observation = item.observe(\.status, options: [.initial, .new]) { item, _ in
                 observer.onNext(item.status)
             }
             return Disposables.create {
@@ -168,7 +216,7 @@ final class VideoPlayerService {
 
     private func observeDuration(item: AVPlayerItem) -> Observable<CMTime> {
         return Observable.create { observer in
-            let observation = item.observe(\.duration, options: [.new]) { item, _ in
+            let observation = item.observe(\.duration, options: [.initial, .new]) { item, _ in
                 observer.onNext(item.duration)
             }
             return Disposables.create {

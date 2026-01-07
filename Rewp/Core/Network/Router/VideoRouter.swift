@@ -22,11 +22,11 @@ extension VideoRouter: APIRouter {
     var path: String {
         switch self {
         case .getVideos:
-            return "/v1/videos"
+            return "/videos"
         case .getStream(let videoId):
-            return "/v1/videos/\(videoId)/stream"
+            return "/videos/\(videoId)/stream"
         case .likeVideo(let videoId, _):
-            return "/v1/videos/\(videoId)/like"
+            return "/videos/\(videoId)/like"
         }
     }
 
