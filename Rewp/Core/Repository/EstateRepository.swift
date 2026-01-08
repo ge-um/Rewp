@@ -15,6 +15,7 @@ protocol EstateRepository {
     func fetchEstateDetail(estateId: String) -> Single<EstateDetailResponse>
     func fetchSimilarEstates() -> Single<[EstateDTO]>
     func likeEstate(estateId: String, likeStatus: Bool) -> Single<LikeEstateResponse>
+    func fetchEstatesByLocation(longitude: Double?, latitude: Double?, maxDistance: Double?, category: String?) -> Single<[EstateDTO]>
 }
 
 final class EstateRepositoryImpl: EstateRepository {
@@ -58,5 +59,12 @@ final class EstateRepositoryImpl: EstateRepository {
 
     func likeEstate(estateId: String, likeStatus: Bool) -> Single<LikeEstateResponse> {
         return authService.authenticatedRequest(EstateRouter.likeEstate(estateId: estateId, likeStatus: likeStatus))
+    }
+
+    func fetchEstatesByLocation(longitude: Double?, latitude: Double?, maxDistance: Double?, category: String?) -> Single<[EstateDTO]> {
+        return authService.authenticatedRequest(EstateRouter.geolocationEstates(longitude: longitude, latitude: latitude, maxDistance: maxDistance, category: category))
+            .map { (response: GeolocationEstatesResponse) in
+                return response.data
+            }
     }
 }

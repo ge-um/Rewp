@@ -15,6 +15,7 @@ enum EstateRouter {
     case estateDetail(estateId: String)
     case similarEstates
     case likeEstate(estateId: String, likeStatus: Bool)
+    case geolocationEstates(longitude: Double?, latitude: Double?, maxDistance: Double?, category: String?)
 }
 
 extension EstateRouter: APIRouter {
@@ -36,6 +37,8 @@ extension EstateRouter: APIRouter {
             return "/estates/similar-estates"
         case .likeEstate(let estateId, _):
             return "/estates/\(estateId)/like"
+        case .geolocationEstates:
+            return "/estates/geolocation"
         }
     }
 
@@ -59,6 +62,28 @@ extension EstateRouter: APIRouter {
         switch self {
         case .likeEstate(_, let likeStatus):
             return LikeEstateRequest(like_status: likeStatus)
+        default:
+            return nil
+        }
+    }
+
+    var queryParameters: [String: String]? {
+        switch self {
+        case .geolocationEstates(let longitude, let latitude, let maxDistance, let category):
+            var params: [String: String] = [:]
+            if let longitude = longitude {
+                params["longitude"] = String(longitude)
+            }
+            if let latitude = latitude {
+                params["latitude"] = String(latitude)
+            }
+            if let maxDistance = maxDistance {
+                params["maxDistance"] = String(maxDistance)
+            }
+            if let category = category {
+                params["category"] = category
+            }
+            return params.isEmpty ? nil : params
         default:
             return nil
         }
