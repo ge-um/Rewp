@@ -13,6 +13,7 @@ import RxCocoa
 final class MapSearchViewController: UIViewController {
     var presenter: MapSearchPresenter!
     var container: AppContainer!
+    private var navigationBar: CustomNavigationBar!
 
     private let mapView = MKMapView().then {
         $0.showsUserLocation = true
@@ -23,6 +24,7 @@ final class MapSearchViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        navigationController?.setNavigationBarHidden(true, animated: false)
         setupUI()
         setupMap()
         bind()
@@ -31,8 +33,10 @@ final class MapSearchViewController: UIViewController {
 
     private func setupUI() {
         view.backgroundColor = ColorSystem.gray0
-        title = "지도 검색"
+        navigationBar = addCustomNavigationBar(title: "지도 검색")
+        enableSwipeBackGesture()
 
+        view.addSubview(navigationBar)
         view.addSubview(mapView)
     }
 
@@ -88,7 +92,15 @@ final class MapSearchViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
 
-        mapView.pin.all()
+        navigationBar.pin
+            .top(view.pin.safeArea.top)
+            .horizontally()
+            .height(56)
+
+        mapView.pin
+            .below(of: navigationBar)
+            .horizontally()
+            .bottom()
     }
 }
 
