@@ -30,6 +30,10 @@ final class AppContainer {
         EstateRepositoryImpl(authService: authService)
     }()
 
+    lazy var bannerRepository: BannerRepository = {
+        BannerRepositoryImpl(authService: authService)
+    }()
+
     lazy var paymentRepository: PaymentRepository = {
         PaymentRepositoryImpl(authService: authService)
     }()
@@ -106,5 +110,9 @@ final class AppContainer {
 
     func makeVideoListViewController() -> VideoListViewController {
         return VideoListFactory.create(container: self)
+    }
+
+    func makeAttendanceWebViewController(urlPath: String) -> AttendanceWebViewController {
+        return AttendanceWebViewController(urlPath: urlPath, authService: authService)
     }
 }

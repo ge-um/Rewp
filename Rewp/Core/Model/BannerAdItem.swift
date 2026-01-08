@@ -13,3 +13,14 @@ struct BannerAdItem {
     let payloadType: String
     let payloadValue: String
 }
+
+extension BannerAdItem {
+    func toNewsAdItem() -> (title: String, description: String, payloadType: String, payloadValue: String) {
+        return (
+            title: "출석 이벤트",
+            description: "매일 출석하고 혜택 받기",
+            payloadType: self.payloadType,
+            payloadValue: self.payloadValue
+        )
+    }
+}

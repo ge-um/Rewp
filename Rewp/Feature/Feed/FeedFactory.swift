@@ -9,7 +9,10 @@ import UIKit
 
 class FeedFactory {
     static func create(container: AppContainer) -> FeedViewController {
-        let presenter = FeedPresenter(estateRepository: container.estateRepository)
+        let presenter = FeedPresenter(
+            estateRepository: container.estateRepository,
+            bannerRepository: container.bannerRepository
+        )
         let viewController = FeedViewController()
 
         viewController.presenter = presenter
