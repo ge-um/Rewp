@@ -173,6 +173,14 @@ final class MapBubbleButton: UIView {
     override var intrinsicContentSize: CGSize {
         return CGSize(width: 80, height: 104)
     }
+
+    func configure(count: Int, subNumbers: (deposit: Int, rent: Int), imageURL: URL?) {
+        self.count = count
+        self.subNumbers = subNumbers
+        if let url = imageURL {
+            propertyImageView.kf.setImage(with: url)
+        }
+    }
 }
 
 @available(iOS 17.0, *)
