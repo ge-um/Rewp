@@ -115,4 +115,8 @@ final class AppContainer {
     func makeAttendanceWebViewController(urlPath: String) -> AttendanceWebViewController {
         return AttendanceWebViewController(urlPath: urlPath, authService: authService)
     }
+
+    func makeMapSearchViewController() -> MapSearchViewController {
+        return MapSearchFactory.create(estateRepository: estateRepository)
+    }
 }

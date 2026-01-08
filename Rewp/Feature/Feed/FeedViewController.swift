@@ -106,6 +106,12 @@ class FeedViewController: UIViewController {
         contentView.addSubview(newsTitleLabel)
         contentView.addSubview(newsContainerView)
 
+        searchBar.onTap = { [weak self] in
+            guard let self = self else { return }
+            let mapSearchVC = self.container.makeMapSearchViewController()
+            self.navigationController?.pushViewController(mapSearchVC, animated: true)
+        }
+
         categoryScrollView.addSubview(categoryContainerView)
         categoryContainerView.flex
             .direction(.row)

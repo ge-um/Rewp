@@ -8,8 +8,12 @@
 import UIKit
 import PinLayout
 import Then
+import RxSwift
+import RxCocoa
 
 final class SearchBar: UIView {
+    var onTap: (() -> Void)?
+
     private let containerView = UIView().then {
         $0.backgroundColor = ColorSystem.gray0
         $0.layer.cornerRadius = 20
@@ -27,11 +31,13 @@ final class SearchBar: UIView {
         $0.typography(FontSystem.Pretendard.body2, placeholder: "검색어를 입력해주세요")
         $0.textColor = ColorSystem.gray90
         $0.clearButtonMode = .whileEditing
+        $0.isUserInteractionEnabled = false
     }
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         setupUI()
+        setupGesture()
     }
 
     required init?(coder: NSCoder) {
@@ -42,6 +48,15 @@ final class SearchBar: UIView {
         addSubview(containerView)
         containerView.addSubview(iconImageView)
         containerView.addSubview(textField)
+    }
+
+    private func setupGesture() {
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap))
+        addGestureRecognizer(tapGesture)
+    }
+
+    @objc private func handleTap() {
+        onTap?()
     }
 
     override func layoutSubviews() {
