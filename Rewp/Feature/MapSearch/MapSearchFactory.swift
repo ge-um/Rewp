@@ -8,11 +8,12 @@
 import Foundation
 
 final class MapSearchFactory {
-    static func create(estateRepository: EstateRepository) -> MapSearchViewController {
+    static func create(estateRepository: EstateRepository, container: AppContainer) -> MapSearchViewController {
         let presenter = MapSearchPresenter(estateRepository: estateRepository)
         let viewController = MapSearchViewController()
 
         viewController.presenter = presenter
+        viewController.container = container
 
         return viewController
     }

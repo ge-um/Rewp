@@ -12,6 +12,7 @@ import RxCocoa
 
 final class MapSearchViewController: UIViewController {
     var presenter: MapSearchPresenter!
+    var container: AppContainer!
 
     private let mapView = MKMapView().then {
         $0.showsUserLocation = true
@@ -105,5 +106,11 @@ extension MapSearchViewController: MKMapViewDelegate {
         annotationView?.configure(with: estateAnnotation.estate)
 
         return annotationView
+    }
+
+    func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+        guard let estateAnnotation = view.annotation as? EstateAnnotation else { return }
+        let detailVC = container.makeEstateDetailViewController(estateId: estateAnnotation.estate.estate_id)
+        navigationController?.pushViewController(detailVC, animated: true)
     }
 }

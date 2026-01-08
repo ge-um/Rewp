@@ -117,6 +117,6 @@ final class AppContainer {
     }
 
     func makeMapSearchViewController() -> MapSearchViewController {
-        return MapSearchFactory.create(estateRepository: estateRepository)
+        return MapSearchFactory.create(estateRepository: estateRepository, container: self)
     }
 }
