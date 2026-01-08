@@ -77,6 +77,8 @@ class FeedViewController: UIViewController {
     private let topicTapRelay = PublishRelay<TopicItem>()
     private let bannerTapRelay = PublishRelay<String>()
     private let hotEstateTapRelay = PublishRelay<String>()
+    private let newsAdTapRelay = PublishRelay<(String, String)>()
+    private var currentNewsAds: [BannerAdItem] = []
     private let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
@@ -161,7 +163,8 @@ class FeedViewController: UIViewController {
             viewDidLoad: viewDidLoadTrigger.asObservable(),
             topicTapped: topicTapRelay.asObservable(),
             bannerTapped: bannerTapRelay.asObservable(),
-            hotEstateTapped: hotEstateTapRelay.asObservable()
+            hotEstateTapped: hotEstateTapRelay.asObservable(),
+            newsAdTapped: newsAdTapRelay.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -203,9 +206,26 @@ class FeedViewController: UIViewController {
             }
             .disposed(by: disposeBag)
 
-        output.topics
-            .drive(with: self) { owner, topics in
-                owner.updateNewsItems(with: topics)
+        output.newsAds
+            .drive(with: self) { owner, newsAds in
+                owner.currentNewsAds = newsAds
+            }
+            .disposed(by: disposeBag)
+
+        Observable.combineLatest(
+            output.topics.asObservable(),
+            output.newsAds.asObservable()
+        )
+        .withUnretained(self)
+        .subscribe(onNext: { owner, data in
+            let (topics, newsAds) = data
+            owner.updateNewsItems(topics: topics, newsAds: newsAds)
+        })
+        .disposed(by: disposeBag)
+
+        output.openAttendanceWebView
+            .drive(with: self) { owner, urlPath in
+                owner.openAttendanceWebView(urlPath: urlPath)
             }
             .disposed(by: disposeBag)
 
@@ -318,10 +338,10 @@ class FeedViewController: UIViewController {
         scrollView.contentSize = contentView.frame.size
     }
 
-    private func updateNewsItems(with topics: [TopicItem]) {
+    private func updateNewsItems(topics: [TopicItem], newsAds: [BannerAdItem]) {
         newsContainerView.subviews.forEach { $0.removeFromSuperview() }
 
-        let mixedItems = mixTopicsWithAds(topics: topics)
+        let mixedItems = mixTopicsWithAds(topics: topics, newsAds: newsAds)
         newsItems = mixedItems
 
         newsContainerView.flex
@@ -334,7 +354,7 @@ class FeedViewController: UIViewController {
                             .width(100%)
                     } else if item is NewsAdItem {
                         flex.addItem(item)
-                            .height(66)
+                            .height(96)
                             .marginHorizontal(20)
                     } else {
                         flex.addItem(item)
@@ -346,11 +366,8 @@ class FeedViewController: UIViewController {
         view.setNeedsLayout()
     }
 
-    private func mixTopicsWithAds(topics: [TopicItem]) -> [UIView] {
-        let adConfigs: [(afterTopicIndex: Int, item: NewsAdItem)] = [
-            (1, NewsAdItem(title: "신혼집에는 새 설렘을!", description: "필요한 알뜰 가구 모아보기")),
-            (4, NewsAdItem(title: "내일 도착하는 감성소품!", description: "하우스 내 감성 가득 채우기"))
-        ]
+    private func mixTopicsWithAds(topics: [TopicItem], newsAds: [BannerAdItem]) -> [UIView] {
+        let adPositions = [1]
 
         var result: [UIView] = []
 
@@ -358,9 +375,24 @@ class FeedViewController: UIViewController {
             let hashtagItem = createTappableNewsItem(from: topic)
             result.append(hashtagItem)
 
-            if let adConfig = adConfigs.first(where: { $0.afterTopicIndex == index }) {
+            if let adIndex = adPositions.firstIndex(of: index),
+               adIndex < newsAds.count {
                 result.append(ItemDivider())
-                result.append(adConfig.item)
+
+                let bannerAd = newsAds[adIndex]
+                let adData = bannerAd.toNewsAdItem()
+                let newsAdItem = NewsAdItem(
+                    title: adData.title,
+                    description: adData.description,
+                    payloadType: adData.payloadType,
+                    payloadValue: adData.payloadValue
+                )
+
+                newsAdItem.onTap = { [weak self] in
+                    self?.newsAdTapRelay.accept((bannerAd.payloadType, bannerAd.payloadValue))
+                }
+
+                result.append(newsAdItem)
             }
 
             if index < topics.count - 1 {
@@ -389,6 +421,11 @@ class FeedViewController: UIViewController {
         guard let url = URL(string: urlString) else { return }
 
         let webVC = WebViewController(url: url)
+        navigationController?.pushViewController(webVC, animated: true)
+    }
+
+    private func openAttendanceWebView(urlPath: String) {
+        let webVC = container.makeAttendanceWebViewController(urlPath: urlPath)
         navigationController?.pushViewController(webVC, animated: true)
     }
 }

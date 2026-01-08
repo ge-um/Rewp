@@ -8,13 +8,16 @@
 import Foundation
 import RxSwift
 import RxCocoa
+import OSLog
 
 class FeedPresenter {
     private let estateRepository: EstateRepository
+    private let bannerRepository: BannerRepository
     private let disposeBag = DisposeBag()
 
-    init(estateRepository: EstateRepository) {
+    init(estateRepository: EstateRepository, bannerRepository: BannerRepository) {
         self.estateRepository = estateRepository
+        self.bannerRepository = bannerRepository
     }
 
     struct Input {
@@ -22,14 +25,17 @@ class FeedPresenter {
         let topicTapped: Observable<TopicItem>
         let bannerTapped: Observable<String>
         let hotEstateTapped: Observable<String>
+        let newsAdTapped: Observable<(String, String)>
     }
 
     struct Output {
         let banners: Driver<[BannerItem]>
         let hotEstates: Driver<[HotEstateItem]>
         let topics: Driver<[TopicItem]>
+        let newsAds: Driver<[BannerAdItem]>
         let openTopicLink: Driver<String>
         let navigateToDetail: Driver<String>
+        let openAttendanceWebView: Driver<String>
     }
 
     func transform(input: Input) -> Output {
@@ -54,6 +60,24 @@ class FeedPresenter {
             }
             .asDriver(onErrorJustReturn: [])
 
+        let newsAds = input.viewDidLoad
+            .withUnretained(self)
+            .flatMapLatest { owner, _ in
+                owner.bannerRepository.fetchMainBanners()
+                    .map { dtos in dtos.map { $0.toBannerAdItem() } }
+                    .asObservable()
+                    .catch { error in
+                        Logger.network.error("Failed to fetch banners")
+                        return .just([])
+                    }
+            }
+            .asDriver(onErrorJustReturn: [])
+
+        let openAttendanceWebView = input.newsAdTapped
+            .filter { $0.0 == "WEBVIEW" }
+            .map { $0.1 }
+            .asDriver(onErrorDriveWith: .empty())
+
         let openTopicLink = input.topicTapped
             .map { $0.link }
             .asDriver(onErrorDriveWith: .empty())
@@ -68,8 +92,10 @@ class FeedPresenter {
             banners: banners,
             hotEstates: hotEstates,
             topics: topics,
+            newsAds: newsAds,
             openTopicLink: openTopicLink,
-            navigateToDetail: navigateToDetail
+            navigateToDetail: navigateToDetail,
+            openAttendanceWebView: openAttendanceWebView
         )
     }
 
