@@ -82,4 +82,35 @@ final class GeocodeService {
             self?.cache[key] = address
         }
     }
+
+    func forwardGeocode(address: String) -> Single<CLLocationCoordinate2D> {
+        return Single.create { [weak self] observer in
+            guard let self = self else {
+                observer(.failure(NSError(domain: "GeocodeService", code: -1)))
+                return Disposables.create()
+            }
+
+            self.geocoder.geocodeAddressString(address) { placemarks, error in
+                if let error = error {
+                    observer(.failure(error))
+                    return
+                }
+
+                guard let location = placemarks?.first?.location else {
+                    observer(.failure(NSError(
+                        domain: "GeocodeService",
+                        code: -3,
+                        userInfo: [NSLocalizedDescriptionKey: "좌표를 찾을 수 없습니다"]
+                    )))
+                    return
+                }
+
+                observer(.success(location.coordinate))
+            }
+
+            return Disposables.create {
+                self.geocoder.cancelGeocode()
+            }
+        }
+    }
 }
