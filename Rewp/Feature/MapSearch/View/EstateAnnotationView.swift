@@ -27,7 +27,7 @@ final class EstateAnnotationView: MKAnnotationView, IsIdentifiable {
         bubbleButton.frame = bounds
     }
 
-    func configure(with estate: EstateDTO) {
+    func configure(with estate: EstateDTO, count: Int = 1) {
         let depositInManWon = estate.deposit / 10000
         let rentInManWon = estate.monthly_rent / 10000
 
@@ -37,7 +37,7 @@ final class EstateAnnotationView: MKAnnotationView, IsIdentifiable {
         }()
 
         bubbleButton.configure(
-            count: 1,
+            count: count,
             subNumbers: (deposit: depositInManWon, rent: rentInManWon),
             imageURL: imageURL
         )

@@ -37,6 +37,8 @@ final class MapSearchViewController: UIViewController {
     private let currentLocationTappedTrigger = PublishSubject<Void>()
     private let disposeBag = DisposeBag()
 
+    private var currentZoom: Int = 16
+
     override func viewDidLoad() {
         super.viewDidLoad()
         navigationController?.setNavigationBarHidden(true, animated: false)
@@ -219,13 +221,25 @@ extension MapSearchViewController: MKMapViewDelegate {
         }
 
         if let clusterAnnotation = annotation as? EstateClusterAnnotation {
-            let annotationView = mapView.dequeueReusableAnnotationView(
-                withIdentifier: EstateClusterAnnotationView.identifier,
-                for: annotation
-            ) as? EstateClusterAnnotationView
+            if currentZoom >= 16 {
+                let annotationView = mapView.dequeueReusableAnnotationView(
+                    withIdentifier: EstateAnnotationView.identifier,
+                    for: annotation
+                ) as? EstateAnnotationView
 
-            annotationView?.configure(with: clusterAnnotation)
-            return annotationView
+                if let estate = clusterAnnotation.cluster.points.first {
+                    annotationView?.configure(with: estate, count: clusterAnnotation.count)
+                }
+                return annotationView
+            } else {
+                let annotationView = mapView.dequeueReusableAnnotationView(
+                    withIdentifier: EstateClusterAnnotationView.identifier,
+                    for: annotation
+                ) as? EstateClusterAnnotationView
+
+                annotationView?.configure(with: clusterAnnotation)
+                return annotationView
+            }
         }
 
         if let estateAnnotation = annotation as? EstateAnnotation {
@@ -242,27 +256,35 @@ extension MapSearchViewController: MKMapViewDelegate {
     }
 
     func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
-        if let estateAnnotation = view.annotation as? EstateAnnotation {
+        if let clusterAnnotation = view.annotation as? EstateClusterAnnotation {
+            if currentZoom >= 16 && clusterAnnotation.count == 1 {
+                if let estate = clusterAnnotation.cluster.points.first {
+                    let detailVC = container.makeEstateDetailViewController(estateId: estate.estate_id)
+                    navigationController?.pushViewController(detailVC, animated: true)
+                }
+            } else {
+                if let expansionZoom = clusterAnnotation.cluster.expansionZoom {
+                    let newSpan = MKCoordinateSpan(
+                        latitudeDelta: 360.0 / pow(2.0, Double(expansionZoom)),
+                        longitudeDelta: 360.0 / pow(2.0, Double(expansionZoom))
+                    )
+                    let newRegion = MKCoordinateRegion(
+                        center: clusterAnnotation.coordinate,
+                        span: newSpan
+                    )
+                    mapView.setRegion(newRegion, animated: true)
+                }
+            }
+        } else if let estateAnnotation = view.annotation as? EstateAnnotation {
             let detailVC = container.makeEstateDetailViewController(estateId: estateAnnotation.estate.estate_id)
             navigationController?.pushViewController(detailVC, animated: true)
-        } else if let clusterAnnotation = view.annotation as? EstateClusterAnnotation {
-            if let expansionZoom = clusterAnnotation.cluster.expansionZoom {
-                let newSpan = MKCoordinateSpan(
-                    latitudeDelta: 360.0 / pow(2.0, Double(expansionZoom)),
-                    longitudeDelta: 360.0 / pow(2.0, Double(expansionZoom))
-                )
-                let newRegion = MKCoordinateRegion(
-                    center: clusterAnnotation.coordinate,
-                    span: newSpan
-                )
-                mapView.setRegion(newRegion, animated: true)
-            }
         }
     }
 
     func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
         let region = mapView.region
         let zoom = calculateZoomLevel(for: region)
+        currentZoom = zoom
         mapRegionChangedTrigger.onNext((region, zoom))
     }
 }

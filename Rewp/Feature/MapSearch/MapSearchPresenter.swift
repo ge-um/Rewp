@@ -105,19 +105,15 @@ final class MapSearchPresenter {
                 let annotations: [MKAnnotation] = clusterResults.map { result in
                     switch result {
                     case .single(let estate):
-                        if zoom < 16 {
-                            let cluster = Cluster(
-                                id: "single_\(estate.estate_id)",
-                                latitude: estate.latitude,
-                                longitude: estate.longitude,
-                                points: [estate],
-                                expansionZoom: nil,
-                                actualCount: 1
-                            )
-                            return EstateClusterAnnotation(cluster: cluster)
-                        } else {
-                            return EstateAnnotation(estate: estate)
-                        }
+                        let cluster = Cluster(
+                            id: "single_\(estate.estate_id)",
+                            latitude: estate.latitude,
+                            longitude: estate.longitude,
+                            points: [estate],
+                            expansionZoom: nil,
+                            actualCount: 1
+                        )
+                        return EstateClusterAnnotation(cluster: cluster)
                     case .cluster(let cluster):
                         return EstateClusterAnnotation(cluster: cluster)
                     }
