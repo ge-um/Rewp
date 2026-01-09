@@ -28,17 +28,3 @@ struct Cluster<T: ClusterPoint> {
         self.actualCount = actualCount ?? points.count
     }
 }
-
-enum ClusterResult<T: ClusterPoint> {
-    case single(T)
-    case cluster(Cluster<T>)
-
-    var coordinate: (latitude: Double, longitude: Double) {
-        switch self {
-        case .single(let point):
-            return (point.latitude, point.longitude)
-        case .cluster(let cluster):
-            return (cluster.latitude, cluster.longitude)
-        }
-    }
-}

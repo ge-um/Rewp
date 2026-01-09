@@ -100,23 +100,10 @@ final class MapSearchPresenter {
 
                 Logger.map.debug("Map region changed - zoom: \(zoom, privacy: .public), center: (\(region.center.latitude, privacy: .public), \(region.center.longitude, privacy: .public)), bbox: (\(bbox.minLon, privacy: .public), \(bbox.minLat, privacy: .public), \(bbox.maxLon, privacy: .public), \(bbox.maxLat, privacy: .public))")
 
-                let clusterResults = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+                let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
 
-                let annotations: [MKAnnotation] = clusterResults.map { result in
-                    switch result {
-                    case .single(let estate):
-                        let cluster = Cluster(
-                            id: "single_\(estate.estate_id)",
-                            latitude: estate.latitude,
-                            longitude: estate.longitude,
-                            points: [estate],
-                            expansionZoom: nil,
-                            actualCount: 1
-                        )
-                        return EstateClusterAnnotation(cluster: cluster)
-                    case .cluster(let cluster):
-                        return EstateClusterAnnotation(cluster: cluster)
-                    }
+                let annotations: [MKAnnotation] = clusters.map { cluster in
+                    EstateClusterAnnotation(cluster: cluster)
                 }
 
                 annotationsRelay.accept(annotations)

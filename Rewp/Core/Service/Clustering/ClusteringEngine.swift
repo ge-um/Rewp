@@ -72,7 +72,7 @@ final class ClusteringEngine<T: ClusterPoint> {
         Logger.map.notice("=== Clustering COMPLETE: \(self.trees.count) zoom levels ===")
     }
 
-    func getClusters(bbox: (minLon: Double, minLat: Double, maxLon: Double, maxLat: Double), zoom: Int) -> [ClusterResult<T>] {
+    func getClusters(bbox: (minLon: Double, minLat: Double, maxLon: Double, maxLat: Double), zoom: Int) -> [Cluster<T>] {
         Logger.map.notice("=== getClusters: zoom \(zoom) ===")
         let adjustedZoom = min(max(zoom, minZoom), maxZoom)
         if adjustedZoom != zoom {
@@ -94,36 +94,25 @@ final class ClusteringEngine<T: ClusterPoint> {
         let ids = tree.range(minX: minX, minY: minY, maxX: maxX, maxY: maxY)
         Logger.map.debug("Tree range search found \(ids.count) candidate points")
 
-        var results: [ClusterResult<T>] = []
-        var clusterCount = 0
-        var singleCount = 0
+        var results: [Cluster<T>] = []
 
         for id in ids {
             let c = tree.points[id]
+            let childPoints = collectLeafPoints(from: c)
 
-            if c.isCluster {
-                let childPoints = collectLeafPoints(from: c)
-                let cluster = Cluster(
-                    id: "cluster_\(c.zoom)_\(id)",
-                    latitude: c.latitude,
-                    longitude: c.longitude,
-                    points: childPoints,
-                    expansionZoom: calculateExpansionZoomLevel(for: id, at: adjustedZoom),
-                    actualCount: c.numPoints
-                )
-                results.append(.cluster(cluster))
-                clusterCount += 1
-                Logger.map.debug("  [getClusters] Point[\(id)] → cluster with \(c.numPoints) points (childPoints: \(childPoints.count))")
-            } else {
-                if let originalIndex = c.originalIndex {
-                    results.append(.single(points[originalIndex]))
-                    singleCount += 1
-                    Logger.map.debug("  [getClusters] Point[\(id)] → single point (originalIndex: \(originalIndex))")
-                }
-            }
+            let cluster = Cluster(
+                id: c.isCluster ? "cluster_\(c.zoom)_\(id)" : "single_\(c.zoom)_\(id)",
+                latitude: c.latitude,
+                longitude: c.longitude,
+                points: childPoints,
+                expansionZoom: c.isCluster ? calculateExpansionZoomLevel(for: id, at: adjustedZoom) : nil,
+                actualCount: c.numPoints
+            )
+            results.append(cluster)
+            Logger.map.debug("  [getClusters] Point[\(id)] → cluster with \(c.numPoints) points (childPoints: \(childPoints.count))")
         }
 
-        Logger.map.notice("Result: \(clusterCount) clusters + \(singleCount) single points = \(results.count) total")
+        Logger.map.notice("Result: \(results.count) total clusters")
         return results
     }
 
