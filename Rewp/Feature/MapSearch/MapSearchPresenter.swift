@@ -14,30 +14,44 @@ import OSLog
 final class MapSearchPresenter {
     private let estateRepository: EstateRepository
     private let clusteringEngine: ClusteringEngine<EstateDTO>
+    private let geocodeService: GeocodeService
+    private let locationManager: LocationManager
     private let disposeBag = DisposeBag()
-    
-    init(estateRepository: EstateRepository, clusteringEngine: ClusteringEngine<EstateDTO>) {
+
+    init(estateRepository: EstateRepository, clusteringEngine: ClusteringEngine<EstateDTO>, geocodeService: GeocodeService = .shared, locationManager: LocationManager = .shared) {
         self.estateRepository = estateRepository
         self.clusteringEngine = clusteringEngine
+        self.geocodeService = geocodeService
+        self.locationManager = locationManager
     }
     
     struct Input {
         let viewDidLoad: Observable<Void>
         let mapRegionChanged: Observable<(region: MKCoordinateRegion, zoom: Int)>
+        let searchLocationSelected: Observable<CLLocationCoordinate2D>
     }
-    
+
     struct Output {
         let annotations: Driver<[MKAnnotation]>
         let error: Driver<String>
+        let moveToLocation: Driver<MKCoordinateRegion>
+        let locationTitle: Driver<String>
+        let initialRegion: Driver<MKCoordinateRegion>
     }
     
     func transform(input: Input) -> Output {
         let annotationsRelay = PublishRelay<[MKAnnotation]>()
         let errorRelay = PublishRelay<String>()
-        
+        let moveToLocationRelay = PublishRelay<MKCoordinateRegion>()
+        let locationTitleRelay = PublishRelay<String>()
+        let initialRegionRelay = PublishRelay<MKCoordinateRegion>()
+
         input.viewDidLoad
             .withUnretained(self)
-            .flatMapLatest { owner, estates in
+            .do(onNext: { owner, _ in
+                owner.locationManager.requestWhenInUseAuthorization()
+            })
+            .flatMapLatest { owner, _ in
                 owner.estateRepository.fetchEstatesByLocation(
                     longitude: nil,
                     latitude: nil,
@@ -54,6 +68,18 @@ final class MapSearchPresenter {
                     errorRelay.accept(error.localizedDescription)
                 }
             )
+            .disposed(by: disposeBag)
+
+        locationManager.currentLocation
+            .take(1)
+            .map { location in
+                Logger.location.notice("Moving to current location - latitude: \(location.coordinate.latitude, privacy: .public), longitude: \(location.coordinate.longitude, privacy: .public)")
+                return MKCoordinateRegion(
+                    center: location.coordinate,
+                    span: MKCoordinateSpan(latitudeDelta: 0.0055, longitudeDelta: 0.0055)
+                )
+            }
+            .bind(to: initialRegionRelay)
             .disposed(by: disposeBag)
         
         input.mapRegionChanged
@@ -95,12 +121,42 @@ final class MapSearchPresenter {
                 }
 
                 annotationsRelay.accept(annotations)
+
+                owner.geocodeService.reverseGeocodeForLocationTitle(
+                    latitude: region.center.latitude,
+                    longitude: region.center.longitude
+                )
+                .asObservable()
+                .observe(on: MainScheduler.instance)
+                .subscribe(
+                    onNext: { locationTitle in
+                        locationTitleRelay.accept(locationTitle)
+                    },
+                    onError: { _ in
+                        locationTitleRelay.accept("위치 확인 중...")
+                    }
+                )
+                .disposed(by: owner.disposeBag)
             })
             .disposed(by: disposeBag)
-        
+
+        input.searchLocationSelected
+            .map { coordinate in
+                Logger.map.notice("Moving map to searched location - center: (\(coordinate.latitude, privacy: .public), \(coordinate.longitude, privacy: .public))")
+                return MKCoordinateRegion(
+                    center: coordinate,
+                    span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                )
+            }
+            .bind(to: moveToLocationRelay)
+            .disposed(by: disposeBag)
+
         return Output(
             annotations: annotationsRelay.asDriver(onErrorDriveWith: .empty()),
-            error: errorRelay.asDriver(onErrorJustReturn: "")
+            error: errorRelay.asDriver(onErrorJustReturn: ""),
+            moveToLocation: moveToLocationRelay.asDriver(onErrorDriveWith: .empty()),
+            locationTitle: locationTitleRelay.asDriver(onErrorJustReturn: "위치 확인 중..."),
+            initialRegion: initialRegionRelay.asDriver(onErrorDriveWith: .empty())
         )
     }
 }

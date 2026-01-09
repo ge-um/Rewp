@@ -161,4 +161,57 @@ final class GeocodeService {
             }
         }
     }
+
+    func searchLocations(query: String) -> Single<[(address: String, coordinate: CLLocationCoordinate2D)]> {
+        return Single.create { [weak self] observer in
+            guard let self = self else {
+                observer(.failure(NSError(domain: "GeocodeService", code: -1)))
+                return Disposables.create()
+            }
+
+            self.geocoder.geocodeAddressString(query) { placemarks, error in
+                if let error = error {
+                    observer(.failure(error))
+                    return
+                }
+
+                guard let placemarks = placemarks, !placemarks.isEmpty else {
+                    observer(.failure(NSError(
+                        domain: "GeocodeService",
+                        code: -3,
+                        userInfo: [NSLocalizedDescriptionKey: "검색 결과가 없습니다"]
+                    )))
+                    return
+                }
+
+                let results = placemarks.compactMap { placemark -> (address: String, coordinate: CLLocationCoordinate2D)? in
+                    guard let location = placemark.location else { return nil }
+
+                    var addressComponents: [String] = []
+
+                    if let name = placemark.name {
+                        addressComponents.append(name)
+                    }
+
+                    if let locality = placemark.locality {
+                        addressComponents.append(locality)
+                    }
+
+                    if let subLocality = placemark.subLocality {
+                        addressComponents.append(subLocality)
+                    }
+
+                    let address = addressComponents.isEmpty ? "주소 정보 없음" : addressComponents.joined(separator: " ")
+
+                    return (address: address, coordinate: location.coordinate)
+                }
+
+                observer(.success(results))
+            }
+
+            return Disposables.create {
+                self.geocoder.cancelGeocode()
+            }
+        }
+    }
 }

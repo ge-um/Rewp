@@ -61,9 +61,9 @@ final class LocationManager: NSObject {
         isRequestingInitialLocation = true
         locationManager.startUpdatingLocation()
     }
-    
+
     private func updateAuthorizationStatus() {
-        authorizationStatusRelay.accept(CLLocationManager.authorizationStatus())
+        authorizationStatusRelay.accept(locationManager.authorizationStatus)
     }
 }
 

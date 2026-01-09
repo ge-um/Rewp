@@ -21,6 +21,8 @@ final class MapSearchViewController: UIViewController {
 
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let mapRegionChangedTrigger = PublishSubject<(region: MKCoordinateRegion, zoom: Int)>()
+    private let searchBarTappedTrigger = PublishSubject<Void>()
+    private let searchLocationSelectedTrigger = PublishSubject<CLLocationCoordinate2D>()
     private let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
@@ -32,20 +34,18 @@ final class MapSearchViewController: UIViewController {
         viewDidLoadTrigger.onNext(())
     }
 
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        let region = mapView.region
-        let zoom = calculateZoomLevel(for: region)
-        mapRegionChangedTrigger.onNext((region, zoom))
-    }
 
     private func setupUI() {
         view.backgroundColor = ColorSystem.gray0
-        navigationBar = addCustomNavigationBar(title: "지도 검색")
+        navigationBar = addCustomNavigationBar(title: "위치 확인 중...", showSearchBar: true, useLocationTitle: true)
         enableSwipeBackGesture()
 
-        view.addSubview(navigationBar)
         view.addSubview(mapView)
+        view.addSubview(navigationBar)
+
+        navigationBar.onSearchBarTap = { [weak self] in
+            self?.searchBarTappedTrigger.onNext(())
+        }
     }
 
     private func setupMap() {
@@ -61,17 +61,18 @@ final class MapSearchViewController: UIViewController {
             forAnnotationViewWithReuseIdentifier: EstateClusterAnnotationView.identifier
         )
 
-        let initialRegion = MKCoordinateRegion(
+        let defaultRegion = MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: 37.5176577, longitude: 126.8864088),
             span: MKCoordinateSpan(latitudeDelta: 0.0055, longitudeDelta: 0.0055)
         )
-        mapView.setRegion(initialRegion, animated: false)
+        mapView.setRegion(defaultRegion, animated: false)
     }
 
     private func bind() {
         let input = MapSearchPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
-            mapRegionChanged: mapRegionChangedTrigger.asObservable()
+            mapRegionChanged: mapRegionChangedTrigger.asObservable(),
+            searchLocationSelected: searchLocationSelectedTrigger.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -81,7 +82,7 @@ final class MapSearchViewController: UIViewController {
                 owner.updateAnnotations(annotations: annotations)
             }
             .disposed(by: disposeBag)
-        
+
         output.error
             .filter { !$0.isEmpty }
             .drive(with: self) { owner, message in
@@ -93,6 +94,43 @@ final class MapSearchViewController: UIViewController {
                 alert.addAction(UIAlertAction(title: "확인", style: .default))
                 owner.present(alert, animated: true)
             }
+            .disposed(by: disposeBag)
+
+        output.moveToLocation
+            .drive(with: self) { owner, region in
+                owner.mapView.setRegion(region, animated: true)
+            }
+            .disposed(by: disposeBag)
+
+        output.locationTitle
+            .drive(with: self) { owner, locationTitle in
+                owner.navigationBar.updateLocationTitle(locationTitle)
+            }
+            .disposed(by: disposeBag)
+
+        output.initialRegion
+            .drive(with: self) { owner, region in
+                owner.mapView.setRegion(region, animated: true)
+            }
+            .disposed(by: disposeBag)
+
+        searchBarTappedTrigger
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                let locationSearchVC = LocationSearchFactory.create()
+
+                locationSearchVC.onLocationSelected = { [weak self] coordinate in
+                    self?.searchLocationSelectedTrigger.onNext(coordinate)
+                }
+
+                locationSearchVC.modalPresentationStyle = .pageSheet
+                if let sheet = locationSearchVC.sheetPresentationController {
+                    sheet.detents = [.large()]
+                    sheet.prefersGrabberVisible = true
+                }
+
+                owner.present(locationSearchVC, animated: true)
+            })
             .disposed(by: disposeBag)
     }
 
@@ -111,10 +149,12 @@ final class MapSearchViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
 
+        let navigationBarHeight: CGFloat = 108
+
         navigationBar.pin
             .top(view.pin.safeArea.top)
             .horizontally()
-            .height(56)
+            .height(navigationBarHeight)
 
         mapView.pin
             .below(of: navigationBar)
