@@ -29,6 +29,7 @@ final class MapSearchPresenter {
         let viewDidLoad: Observable<Void>
         let mapRegionChanged: Observable<(region: MKCoordinateRegion, zoom: Int)>
         let searchLocationSelected: Observable<CLLocationCoordinate2D>
+        let currentLocationTapped: Observable<Void>
     }
 
     struct Output {
@@ -37,6 +38,7 @@ final class MapSearchPresenter {
         let moveToLocation: Driver<MKCoordinateRegion>
         let locationTitle: Driver<String>
         let initialRegion: Driver<MKCoordinateRegion>
+        let showLocationPermissionDeniedAlert: Driver<Void>
     }
     
     func transform(input: Input) -> Output {
@@ -45,6 +47,7 @@ final class MapSearchPresenter {
         let moveToLocationRelay = PublishRelay<MKCoordinateRegion>()
         let locationTitleRelay = PublishRelay<String>()
         let initialRegionRelay = PublishRelay<MKCoordinateRegion>()
+        let showLocationPermissionDeniedAlertRelay = PublishRelay<Void>()
 
         input.viewDidLoad
             .withUnretained(self)
@@ -151,12 +154,42 @@ final class MapSearchPresenter {
             .bind(to: moveToLocationRelay)
             .disposed(by: disposeBag)
 
+        input.currentLocationTapped
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                if owner.locationManager.isAuthorized() {
+                    owner.locationManager.requestCurrentLocation()
+                    owner.locationManager.currentLocation
+                        .take(1)
+                        .map { location in
+                            Logger.map.notice("Moving to current location - center: (\(location.coordinate.latitude, privacy: .public), \(location.coordinate.longitude, privacy: .public))")
+                            return MKCoordinateRegion(
+                                center: location.coordinate,
+                                span: MKCoordinateSpan(latitudeDelta: 0.0055, longitudeDelta: 0.0055)
+                            )
+                        }
+                        .timeout(.seconds(5), scheduler: MainScheduler.instance)
+                        .catch { error in
+                            Logger.location.error("Failed to get current location - \(error.localizedDescription)")
+                            errorRelay.accept("현재 위치를 가져올 수 없습니다")
+                            return .empty()
+                        }
+                        .bind(to: moveToLocationRelay)
+                        .disposed(by: owner.disposeBag)
+                } else {
+                    Logger.location.notice("Location permission denied or not determined")
+                    showLocationPermissionDeniedAlertRelay.accept(())
+                }
+            })
+            .disposed(by: disposeBag)
+
         return Output(
             annotations: annotationsRelay.asDriver(onErrorDriveWith: .empty()),
             error: errorRelay.asDriver(onErrorJustReturn: ""),
             moveToLocation: moveToLocationRelay.asDriver(onErrorDriveWith: .empty()),
             locationTitle: locationTitleRelay.asDriver(onErrorJustReturn: "위치 확인 중..."),
-            initialRegion: initialRegionRelay.asDriver(onErrorDriveWith: .empty())
+            initialRegion: initialRegionRelay.asDriver(onErrorDriveWith: .empty()),
+            showLocationPermissionDeniedAlert: showLocationPermissionDeniedAlertRelay.asDriver(onErrorDriveWith: .empty())
         )
     }
 }

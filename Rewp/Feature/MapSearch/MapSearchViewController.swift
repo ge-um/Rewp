@@ -19,10 +19,22 @@ final class MapSearchViewController: UIViewController {
         $0.showsUserLocation = true
     }
 
+    private let currentLocationButton = UIButton(type: .system).then {
+        $0.setImage(UIImage(named: "Focus")?.withRenderingMode(.alwaysTemplate), for: .normal)
+        $0.tintColor = ColorSystem.gray90
+        $0.backgroundColor = ColorSystem.gray0
+        $0.layer.cornerRadius = 24
+        $0.layer.shadowColor = UIColor.black.cgColor
+        $0.layer.shadowOpacity = 0.1
+        $0.layer.shadowOffset = CGSize(width: 0, height: 2)
+        $0.layer.shadowRadius = 8
+    }
+
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let mapRegionChangedTrigger = PublishSubject<(region: MKCoordinateRegion, zoom: Int)>()
     private let searchBarTappedTrigger = PublishSubject<Void>()
     private let searchLocationSelectedTrigger = PublishSubject<CLLocationCoordinate2D>()
+    private let currentLocationTappedTrigger = PublishSubject<Void>()
     private let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
@@ -42,10 +54,17 @@ final class MapSearchViewController: UIViewController {
 
         view.addSubview(mapView)
         view.addSubview(navigationBar)
+        view.addSubview(currentLocationButton)
 
         navigationBar.onSearchBarTap = { [weak self] in
             self?.searchBarTappedTrigger.onNext(())
         }
+
+        currentLocationButton.addTarget(self, action: #selector(currentLocationButtonTapped), for: .touchUpInside)
+    }
+
+    @objc private func currentLocationButtonTapped() {
+        currentLocationTappedTrigger.onNext(())
     }
 
     private func setupMap() {
@@ -72,7 +91,8 @@ final class MapSearchViewController: UIViewController {
         let input = MapSearchPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
             mapRegionChanged: mapRegionChangedTrigger.asObservable(),
-            searchLocationSelected: searchLocationSelectedTrigger.asObservable()
+            searchLocationSelected: searchLocationSelectedTrigger.asObservable(),
+            currentLocationTapped: currentLocationTappedTrigger.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -114,6 +134,12 @@ final class MapSearchViewController: UIViewController {
             }
             .disposed(by: disposeBag)
 
+        output.showLocationPermissionDeniedAlert
+            .drive(with: self) { owner, _ in
+                owner.showLocationPermissionAlert()
+            }
+            .disposed(by: disposeBag)
+
         searchBarTappedTrigger
             .withUnretained(self)
             .subscribe(onNext: { owner, _ in
@@ -140,6 +166,24 @@ final class MapSearchViewController: UIViewController {
         mapView.addAnnotations(annotations)
     }
 
+    private func showLocationPermissionAlert() {
+        let alert = UIAlertController(
+            title: "위치 권한 필요",
+            message: "현재 위치를 사용하려면 설정에서 위치 권한을 허용해주세요.",
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "설정으로 이동", style: .default) { _ in
+            if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(settingsURL)
+            }
+        })
+
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+
+        present(alert, animated: true)
+    }
+
     private func calculateZoomLevel(for region: MKCoordinateRegion) -> Int {
         let longitudeDelta = region.span.longitudeDelta
         let zoom = Int(round(log2(360.0 / longitudeDelta)))
@@ -149,7 +193,7 @@ final class MapSearchViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
 
-        let navigationBarHeight: CGFloat = 108
+        let navigationBarHeight: CGFloat = 112
 
         navigationBar.pin
             .top(view.pin.safeArea.top)
@@ -160,6 +204,11 @@ final class MapSearchViewController: UIViewController {
             .below(of: navigationBar)
             .horizontally()
             .bottom()
+
+        currentLocationButton.pin
+            .right(20)
+            .bottom(view.pin.safeArea.bottom + 20)
+            .size(48)
     }
 }
 

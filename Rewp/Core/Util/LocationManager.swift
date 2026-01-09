@@ -49,12 +49,30 @@ final class LocationManager: NSObject {
         }
     }
 
+    func checkAuthorizationStatus() -> CLAuthorizationStatus {
+        if #available(iOS 14.0, *) {
+            return locationManager.authorizationStatus
+        } else {
+            return CLLocationManager.authorizationStatus()
+        }
+    }
+
+    func isAuthorized() -> Bool {
+        let status = checkAuthorizationStatus()
+        return status == .authorizedWhenInUse || status == .authorizedAlways
+    }
+
     func startUpdatingLocation() {
         locationManager.startUpdatingLocation()
     }
 
     func stopUpdatingLocation() {
         locationManager.stopUpdatingLocation()
+    }
+
+    func requestCurrentLocation() {
+        Logger.location.notice("Requesting current location")
+        startUpdatingLocationForInitial()
     }
 
     private func startUpdatingLocationForInitial() {
