@@ -194,18 +194,41 @@ final class ClusteringEngine<T: ClusterPoint> {
     }
 
     private func collectLeafPoints(from cluster: ClusterOrPoint) -> [T] {
-        var result: [T] = []
-
-        func collectPoints(_ c: ClusterOrPoint) {
-            if let originalIndex = c.originalIndex {
-                result.append(points[originalIndex])
-            } else if let parentId = c.parentId, let tree = trees[c.zoom + 1] {
-                let parent = tree.points[parentId]
-                collectPoints(parent)
-            }
+        if let originalIndex = cluster.originalIndex {
+            return [points[originalIndex]]
         }
 
-        collectPoints(cluster)
+        guard let parentId = cluster.parentId,
+              let parentTree = trees[cluster.zoom + 1] else {
+            Logger.map.error("[collectLeafPoints] Missing parent - parentId: \(cluster.parentId?.description ?? "nil"), zoom: \(cluster.zoom)")
+            return []
+        }
+
+        let parent = parentTree.points[parentId]
+        let r = Double(radius) / (Double(extent) * pow(2.0, Double(cluster.zoom)))
+        let x = longitudeToX(parent.longitude)
+        let y = latitudeToY(parent.latitude)
+        let neighborIds = parentTree.within(x: x, y: y, radius: r)
+
+        Logger.map.debug("[collectLeafPoints] Cluster at zoom \(cluster.zoom) with \(cluster.numPoints) points → found \(neighborIds.count) neighbors in parent tree")
+
+        var result: [T] = []
+
+        for neighborId in neighborIds {
+            let neighbor = parentTree.points[neighborId]
+
+            if neighbor.zoom <= cluster.zoom {
+                Logger.map.debug("[collectLeafPoints]   Skip neighbor[\(neighborId)]: zoom \(neighbor.zoom) <= \(cluster.zoom)")
+                continue
+            }
+
+            let leaves = collectLeafPoints(from: neighbor)
+            Logger.map.debug("[collectLeafPoints]   Neighbor[\(neighborId)] contributed \(leaves.count) leaf points")
+            result.append(contentsOf: leaves)
+        }
+
+        Logger.map.debug("[collectLeafPoints] Total collected: \(result.count) points (expected: \(cluster.numPoints))")
+
         return result
     }
 
@@ -231,8 +254,6 @@ final class ClusteringEngine<T: ClusterPoint> {
         return expansionZoom
     }
 }
-
-// MARK: - Coordinate Transformation Utilities
 
 private extension ClusteringEngine {
     /// 경도를 정규화된 X 좌표로 변환 (0.0 ~ 1.0)

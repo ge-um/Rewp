@@ -27,13 +27,11 @@ final class MapBubbleButton: UIView {
 
     private let countLabel = UILabel().then {
         $0.textColor = ColorSystem.gray75
-        $0.typography(FontSystem.Pretendard.body3)
         $0.textAlignment = .center
     }
 
     private let subNumberLabel = UILabel().then {
         $0.textColor = ColorSystem.gray60
-        $0.typography(FontSystem.Pretendard.caption2)
         $0.textAlignment = .left
     }
 
@@ -45,8 +43,7 @@ final class MapBubbleButton: UIView {
 
     var count: Int = 0 {
         didSet {
-            countLabel.text = "\(count)"
-            setNeedsLayout()
+            countLabel.typography(FontSystem.Pretendard.body3Bold, text: "\(count)")
         }
     }
 
@@ -56,8 +53,7 @@ final class MapBubbleButton: UIView {
             formatter.numberStyle = .decimal
             let depositStr = formatter.string(from: NSNumber(value: subNumbers.deposit)) ?? "\(subNumbers.deposit)"
             let rentStr = formatter.string(from: NSNumber(value: subNumbers.rent)) ?? "\(subNumbers.rent)"
-            subNumberLabel.typography(FontSystem.Pretendard.caption2, text: "\(depositStr)/\(rentStr)")
-            setNeedsLayout()
+            subNumberLabel.typography(FontSystem.Pretendard.caption2Semibold, text: "\(depositStr)/\(rentStr)")
         }
     }
 
@@ -83,14 +79,13 @@ final class MapBubbleButton: UIView {
         bubbleView.addSubview(subNumberLabel)
         countLabelContainer.addSubview(countLabel)
 
-        countLabel.font = FontSystem.Pretendard.body2.font
-        countLabel.text = "\(count)"
+        countLabel.typography(FontSystem.Pretendard.body3Bold, text: "\(count)")
 
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         let depositStr = formatter.string(from: NSNumber(value: subNumbers.deposit)) ?? "\(subNumbers.deposit)"
         let rentStr = formatter.string(from: NSNumber(value: subNumbers.rent)) ?? "\(subNumbers.rent)"
-        subNumberLabel.typography(FontSystem.Pretendard.caption2, text: "\(depositStr)/\(rentStr)")
+        subNumberLabel.typography(FontSystem.Pretendard.caption2Semibold, text: "\(depositStr)/\(rentStr)")
 
         propertyImageView.image = propertyImage
     }

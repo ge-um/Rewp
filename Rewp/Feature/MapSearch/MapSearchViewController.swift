@@ -30,11 +30,20 @@ final class MapSearchViewController: UIViewController {
         $0.layer.shadowRadius = 8
     }
 
+    private let estateCardScrollView = EstateCardScrollView().then {
+        $0.backgroundColor = .clear
+        $0.isHidden = true
+        $0.alpha = 0
+    }
+
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let mapRegionChangedTrigger = PublishSubject<(region: MKCoordinateRegion, zoom: Int)>()
     private let searchBarTappedTrigger = PublishSubject<Void>()
     private let searchLocationSelectedTrigger = PublishSubject<CLLocationCoordinate2D>()
     private let currentLocationTappedTrigger = PublishSubject<Void>()
+    private let annotationSelectedTrigger = PublishSubject<(annotation: MKAnnotation, zoom: Int)>()
+    private let estateCardTappedTrigger = PublishSubject<String>()
+    private let mapTappedTrigger = PublishSubject<Void>()
     private let disposeBag = DisposeBag()
 
     private var currentZoom: Int = 16
@@ -57,16 +66,28 @@ final class MapSearchViewController: UIViewController {
         view.addSubview(mapView)
         view.addSubview(navigationBar)
         view.addSubview(currentLocationButton)
+        view.addSubview(estateCardScrollView)
 
         navigationBar.onSearchBarTap = { [weak self] in
             self?.searchBarTappedTrigger.onNext(())
         }
 
         currentLocationButton.addTarget(self, action: #selector(currentLocationButtonTapped), for: .touchUpInside)
+        setupMapTapGesture()
     }
 
     @objc private func currentLocationButtonTapped() {
         currentLocationTappedTrigger.onNext(())
+    }
+
+    private func setupMapTapGesture() {
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(mapTapped))
+        tapGesture.delegate = self
+        mapView.addGestureRecognizer(tapGesture)
+    }
+
+    @objc private func mapTapped() {
+        mapTappedTrigger.onNext(())
     }
 
     private func setupMap() {
@@ -94,7 +115,10 @@ final class MapSearchViewController: UIViewController {
             viewDidLoad: viewDidLoadTrigger.asObservable(),
             mapRegionChanged: mapRegionChangedTrigger.asObservable(),
             searchLocationSelected: searchLocationSelectedTrigger.asObservable(),
-            currentLocationTapped: currentLocationTappedTrigger.asObservable()
+            currentLocationTapped: currentLocationTappedTrigger.asObservable(),
+            annotationSelected: annotationSelectedTrigger.asObservable(),
+            estateCardTapped: estateCardTappedTrigger.asObservable(),
+            mapTapped: mapTappedTrigger.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -142,6 +166,35 @@ final class MapSearchViewController: UIViewController {
             }
             .disposed(by: disposeBag)
 
+        output.showEstateCards
+            .drive(with: self) { owner, estates in
+                owner.estateCardScrollView.configure(estates: estates)
+                owner.estateCardScrollView.onCardTapped = { estateId in
+                    owner.estateCardTappedTrigger.onNext(estateId)
+                }
+                owner.showEstateCardScrollView()
+            }
+            .disposed(by: disposeBag)
+
+        output.navigateToDetail
+            .drive(with: self) { owner, estateId in
+                let detailVC = owner.container.makeEstateDetailViewController(estateId: estateId)
+                owner.navigationController?.pushViewController(detailVC, animated: true)
+            }
+            .disposed(by: disposeBag)
+
+        output.zoomToCluster
+            .drive(with: self) { owner, region in
+                owner.mapView.setRegion(region, animated: true)
+            }
+            .disposed(by: disposeBag)
+
+        output.hideEstateCards
+            .drive(with: self) { owner, _ in
+                owner.hideEstateCardScrollView()
+            }
+            .disposed(by: disposeBag)
+
         searchBarTappedTrigger
             .withUnretained(self)
             .subscribe(onNext: { owner, _ in
@@ -186,6 +239,22 @@ final class MapSearchViewController: UIViewController {
         present(alert, animated: true)
     }
 
+    private func showEstateCardScrollView() {
+        estateCardScrollView.isHidden = false
+
+        UIView.animate(withDuration: 0.3) {
+            self.estateCardScrollView.alpha = 1
+        }
+    }
+
+    private func hideEstateCardScrollView() {
+        UIView.animate(withDuration: 0.3) {
+            self.estateCardScrollView.alpha = 0
+        } completion: { _ in
+            self.estateCardScrollView.isHidden = true
+        }
+    }
+
     private func calculateZoomLevel(for region: MKCoordinateRegion) -> Int {
         let longitudeDelta = region.span.longitudeDelta
         let zoom = Int(round(log2(360.0 / longitudeDelta)))
@@ -211,6 +280,11 @@ final class MapSearchViewController: UIViewController {
             .right(20)
             .bottom(view.pin.safeArea.bottom + 20)
             .size(48)
+
+        estateCardScrollView.pin
+            .bottom(view.pin.safeArea.bottom + 20)
+            .horizontally()
+            .height(166)
     }
 }
 
@@ -256,29 +330,14 @@ extension MapSearchViewController: MKMapViewDelegate {
     }
 
     func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
-        if let clusterAnnotation = view.annotation as? EstateClusterAnnotation {
-            if currentZoom >= 16 && clusterAnnotation.count == 1 {
-                if let estate = clusterAnnotation.cluster.points.first {
-                    let detailVC = container.makeEstateDetailViewController(estateId: estate.estate_id)
-                    navigationController?.pushViewController(detailVC, animated: true)
-                }
-            } else {
-                if let expansionZoom = clusterAnnotation.cluster.expansionZoom {
-                    let newSpan = MKCoordinateSpan(
-                        latitudeDelta: 360.0 / pow(2.0, Double(expansionZoom)),
-                        longitudeDelta: 360.0 / pow(2.0, Double(expansionZoom))
-                    )
-                    let newRegion = MKCoordinateRegion(
-                        center: clusterAnnotation.coordinate,
-                        span: newSpan
-                    )
-                    mapView.setRegion(newRegion, animated: true)
-                }
-            }
-        } else if let estateAnnotation = view.annotation as? EstateAnnotation {
-            let detailVC = container.makeEstateDetailViewController(estateId: estateAnnotation.estate.estate_id)
-            navigationController?.pushViewController(detailVC, animated: true)
+        guard let annotation = view.annotation else { return }
+
+        if annotation is MKUserLocation {
+            return
         }
+
+        annotationSelectedTrigger.onNext((annotation: annotation, zoom: currentZoom))
+        mapView.deselectAnnotation(annotation, animated: false)
     }
 
     func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
@@ -286,5 +345,11 @@ extension MapSearchViewController: MKMapViewDelegate {
         let zoom = calculateZoomLevel(for: region)
         currentZoom = zoom
         mapRegionChangedTrigger.onNext((region, zoom))
+    }
+}
+
+extension MapSearchViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        return !(touch.view is MKAnnotationView)
     }
 }

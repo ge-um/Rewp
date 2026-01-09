@@ -30,6 +30,9 @@ final class MapSearchPresenter {
         let mapRegionChanged: Observable<(region: MKCoordinateRegion, zoom: Int)>
         let searchLocationSelected: Observable<CLLocationCoordinate2D>
         let currentLocationTapped: Observable<Void>
+        let annotationSelected: Observable<(annotation: MKAnnotation, zoom: Int)>
+        let estateCardTapped: Observable<String>
+        let mapTapped: Observable<Void>
     }
 
     struct Output {
@@ -39,6 +42,10 @@ final class MapSearchPresenter {
         let locationTitle: Driver<String>
         let initialRegion: Driver<MKCoordinateRegion>
         let showLocationPermissionDeniedAlert: Driver<Void>
+        let showEstateCards: Driver<[EstateDTO]>
+        let navigateToDetail: Driver<String>
+        let zoomToCluster: Driver<MKCoordinateRegion>
+        let hideEstateCards: Driver<Void>
     }
     
     func transform(input: Input) -> Output {
@@ -48,6 +55,10 @@ final class MapSearchPresenter {
         let locationTitleRelay = PublishRelay<String>()
         let initialRegionRelay = PublishRelay<MKCoordinateRegion>()
         let showLocationPermissionDeniedAlertRelay = PublishRelay<Void>()
+        let showEstateCardsRelay = PublishRelay<[EstateDTO]>()
+        let navigateToDetailRelay = PublishRelay<String>()
+        let zoomToClusterRelay = PublishRelay<MKCoordinateRegion>()
+        let hideEstateCardsRelay = PublishRelay<Void>()
 
         input.viewDidLoad
             .withUnretained(self)
@@ -166,13 +177,66 @@ final class MapSearchPresenter {
             })
             .disposed(by: disposeBag)
 
+        input.annotationSelected
+            .withUnretained(self)
+            .subscribe(onNext: { owner, data in
+                let annotation = data.annotation
+                let zoom = data.zoom
+
+                if let clusterAnnotation = annotation as? EstateClusterAnnotation {
+                    Logger.map.notice("Annotation selected - zoom: \(zoom, privacy: .public), count: \(clusterAnnotation.count, privacy: .public)")
+
+                    clusterAnnotation.cluster.points.enumerated().forEach { index, estate in
+                    }
+
+                    if zoom >= 16 {
+                        if clusterAnnotation.count > 1 {
+                            showEstateCardsRelay.accept(clusterAnnotation.cluster.points)
+                        } else if clusterAnnotation.count == 1 {
+                            if let estate = clusterAnnotation.cluster.points.first {
+                                navigateToDetailRelay.accept(estate.estate_id)
+                            }
+                        }
+                    } else {
+                        if let expansionZoom = clusterAnnotation.cluster.expansionZoom {
+                            let newSpan = MKCoordinateSpan(
+                                latitudeDelta: 360.0 / pow(2.0, Double(expansionZoom)),
+                                longitudeDelta: 360.0 / pow(2.0, Double(expansionZoom))
+                            )
+                            let newRegion = MKCoordinateRegion(
+                                center: clusterAnnotation.coordinate,
+                                span: newSpan
+                            )
+                            zoomToClusterRelay.accept(newRegion)
+                        }
+                    }
+                } else if let estateAnnotation = annotation as? EstateAnnotation {
+                    Logger.map.notice("Single estate annotation selected - id: \(estateAnnotation.estate.estate_id, privacy: .public)")
+                    navigateToDetailRelay.accept(estateAnnotation.estate.estate_id)
+                }
+            })
+            .disposed(by: disposeBag)
+
+        input.estateCardTapped
+            .bind(to: navigateToDetailRelay)
+            .disposed(by: disposeBag)
+
+        input.mapTapped
+            .map { _ in () }
+            .bind(to: hideEstateCardsRelay)
+            .disposed(by: disposeBag)
+
         return Output(
             annotations: annotationsRelay.asDriver(onErrorDriveWith: .empty()),
             error: errorRelay.asDriver(onErrorJustReturn: ""),
             moveToLocation: moveToLocationRelay.asDriver(onErrorDriveWith: .empty()),
             locationTitle: locationTitleRelay.asDriver(onErrorJustReturn: "위치 확인 중..."),
             initialRegion: initialRegionRelay.asDriver(onErrorDriveWith: .empty()),
-            showLocationPermissionDeniedAlert: showLocationPermissionDeniedAlertRelay.asDriver(onErrorDriveWith: .empty())
+            showLocationPermissionDeniedAlert: showLocationPermissionDeniedAlertRelay.asDriver(onErrorDriveWith: .empty()),
+            showEstateCards: showEstateCardsRelay.asDriver(onErrorDriveWith: .empty()),
+            navigateToDetail: navigateToDetailRelay.asDriver(onErrorDriveWith: .empty()),
+            zoomToCluster: zoomToClusterRelay.asDriver(onErrorDriveWith: .empty()),
+            hideEstateCards: hideEstateCardsRelay.asDriver(onErrorDriveWith: .empty())
         )
     }
 }

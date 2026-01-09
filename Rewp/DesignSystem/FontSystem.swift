@@ -19,6 +19,7 @@ struct Typography {
 
     init(fontName: String, size: CGFloat, lineHeight: CGFloat, kerning: CGFloat) {
         self.font = UIFont(name: fontName, size: size) ?? .systemFont(ofSize: size)
+
         self.size = size
         self.lineHeightPercentage = lineHeight
         self.kerning = kerning
@@ -74,6 +75,20 @@ enum FontSystem {
             lineHeight: 130,
             kerning: 0
         )
+        
+        static let body3Bold = Typography(
+            fontName: "Pretendard-Bold",
+            size: 13,
+            lineHeight: 100,
+            kerning: 0
+        )
+        
+        static let caption1Medium = Typography(
+            fontName: "Pretendard-Medium",
+            size: 12,
+            lineHeight: 130,
+            kerning: 0
+        )
 
         static let caption1Semibold = Typography(
             fontName: "Pretendard-Semibold",
@@ -95,11 +110,24 @@ enum FontSystem {
             lineHeight: 130,
             kerning: 0
         )
+        
+        static let caption2Semibold = Typography(
+            fontName: "Pretendard-Semibold",
+            size: 10,
+            lineHeight: 100,
+            kerning: 0
+        )
 
         static let caption3 = Typography(
             fontName: "Pretendard-Regular",
             size: 8,
             lineHeight: 130,
+            kerning: 0
+        )
+        static let caption3Semibold = Typography(
+            fontName: "Pretendard-Semibold",
+            size: 10,
+            lineHeight: 100,
             kerning: 0
         )
     }
@@ -128,6 +156,7 @@ extension UILabel {
             paragraphStyle.minimumLineHeight = typography.lineHeight
             paragraphStyle.maximumLineHeight = typography.lineHeight
             paragraphStyle.alignment = self.textAlignment
+            paragraphStyle.lineBreakMode = self.lineBreakMode
 
             self.attributedText = NSAttributedString(
                 string: text,
