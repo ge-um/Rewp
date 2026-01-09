@@ -55,12 +55,10 @@ final class ClusterPin: UIView {
         let diameter: CGFloat
 
         switch digitCount {
-        case 1:
-            diameter = 40
-        case 2:
-            diameter = 50
+        case 1, 2:
+            diameter = 52
         default:
-            diameter = 60
+            diameter = 80
         }
 
         return CGSize(width: diameter, height: diameter)
