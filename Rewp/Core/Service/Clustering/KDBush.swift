@@ -210,19 +210,25 @@ final class KDBush<T: ClusterPoint> {
         }
     }
 
-    private func longitudeToX(_ longitude: Double) -> Double {
-        return longitude / 360.0 + 0.5
-    }
-
-    private func latitudeToY(_ latitude: Double) -> Double {
-        let sin = sin(latitude * .pi / 180)
-        let y = 0.5 - 0.25 * log((1 + sin) / (1 - sin)) / .pi
-        return y < 0 ? 0 : y > 1 ? 1 : y
-    }
-
     private func squaredDistance(_ ax: Double, _ ay: Double, _ bx: Double, _ by: Double) -> Double {
         let dx = ax - bx
         let dy = ay - by
         return dx * dx + dy * dy
+    }
+}
+
+// MARK: - Coordinate Transformation Utilities
+
+private extension KDBush {
+    /// 경도를 정규화된 X 좌표로 변환 (0.0 ~ 1.0)
+    func longitudeToX(_ longitude: Double) -> Double {
+        return longitude / 360.0 + 0.5
+    }
+
+    /// 위도를 정규화된 Y 좌표로 변환 (Web Mercator 투영)
+    func latitudeToY(_ latitude: Double) -> Double {
+        let sin = sin(latitude * .pi / 180)
+        let y = 0.5 - 0.25 * log((1 + sin) / (1 - sin)) / .pi
+        return y < 0 ? 0 : y > 1 ? 1 : y
     }
 }

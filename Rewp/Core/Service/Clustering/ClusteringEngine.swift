@@ -62,7 +62,7 @@ final class ClusteringEngine<T: ClusterPoint> {
 
         for zoom in stride(from: maxZoom - 1, through: minZoom, by: -1) {
             let beforeCount = clusters.count
-            clusters = cluster(clusters: clusters, zoom: zoom)
+            clusters = buildClustersForZoomLevel(clusters: clusters, zoom: zoom)
             Logger.map.notice("Clustering zoom \(zoom): \(beforeCount) → \(clusters.count) clusters (reduced by \(beforeCount - clusters.count))")
 
             trees[zoom] = KDBush(points: clusters, nodeSize: nodeSize)
@@ -102,13 +102,13 @@ final class ClusteringEngine<T: ClusterPoint> {
             let c = tree.points[id]
 
             if c.isCluster {
-                let childPoints = getChildren(cluster: c)
+                let childPoints = collectLeafPoints(from: c)
                 let cluster = Cluster(
                     id: "cluster_\(c.zoom)_\(id)",
                     latitude: c.latitude,
                     longitude: c.longitude,
                     points: childPoints,
-                    expansionZoom: getExpansionZoom(clusterId: id, zoom: adjustedZoom),
+                    expansionZoom: calculateExpansionZoomLevel(for: id, at: adjustedZoom),
                     actualCount: c.numPoints
                 )
                 results.append(.cluster(cluster))
@@ -127,7 +127,7 @@ final class ClusteringEngine<T: ClusterPoint> {
         return results
     }
 
-    private func cluster(clusters: [ClusterOrPoint], zoom: Int) -> [ClusterOrPoint] {
+    private func buildClustersForZoomLevel(clusters: [ClusterOrPoint], zoom: Int) -> [ClusterOrPoint] {
         Logger.map.debug("  [cluster] Starting clustering at zoom \(zoom)")
         var nextClusters: [ClusterOrPoint] = []
         var visited = Array(repeating: false, count: clusters.count)
@@ -204,7 +204,7 @@ final class ClusteringEngine<T: ClusterPoint> {
         return nextClusters
     }
 
-    private func getChildren(cluster: ClusterOrPoint) -> [T] {
+    private func collectLeafPoints(from cluster: ClusterOrPoint) -> [T] {
         var result: [T] = []
 
         func collectPoints(_ c: ClusterOrPoint) {
@@ -220,7 +220,7 @@ final class ClusteringEngine<T: ClusterPoint> {
         return result
     }
 
-    private func getExpansionZoom(clusterId: Int, zoom: Int) -> Int? {
+    private func calculateExpansionZoomLevel(for clusterId: Int, at zoom: Int) -> Int? {
         var expansionZoom = zoom
         while expansionZoom < maxZoom {
             guard let tree = trees[expansionZoom] else { return nil }
@@ -241,12 +241,18 @@ final class ClusteringEngine<T: ClusterPoint> {
 
         return expansionZoom
     }
+}
 
-    private func longitudeToX(_ longitude: Double) -> Double {
+// MARK: - Coordinate Transformation Utilities
+
+private extension ClusteringEngine {
+    /// 경도를 정규화된 X 좌표로 변환 (0.0 ~ 1.0)
+    func longitudeToX(_ longitude: Double) -> Double {
         return longitude / 360.0 + 0.5
     }
 
-    private func latitudeToY(_ latitude: Double) -> Double {
+    /// 위도를 정규화된 Y 좌표로 변환 (Web Mercator 투영)
+    func latitudeToY(_ latitude: Double) -> Double {
         let sin = sin(latitude * .pi / 180)
         let y = 0.5 - 0.25 * log((1 + sin) / (1 - sin)) / .pi
         return y < 0 ? 0 : y > 1 ? 1 : y
