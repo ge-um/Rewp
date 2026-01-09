@@ -7,12 +7,20 @@
 
 import MapKit
 
-final class EstateClusterAnnotation: MKClusterAnnotation {
+final class EstateClusterAnnotation: NSObject, MKAnnotation {
+    let cluster: Cluster<EstateDTO>
+    var coordinate: CLLocationCoordinate2D
+
     var count: Int {
-        return memberAnnotations.count
+        return cluster.count
     }
 
-    var estates: [EstateDTO] {
-        return memberAnnotations.compactMap { ($0 as? EstateAnnotation)?.estate }
+    init(cluster: Cluster<EstateDTO>) {
+        self.cluster = cluster
+        self.coordinate = CLLocationCoordinate2D(
+            latitude: cluster.latitude,
+            longitude: cluster.longitude
+        )
+        super.init()
     }
 }

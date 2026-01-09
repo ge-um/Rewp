@@ -158,6 +158,16 @@ extension EstateDetailResponse {
     }
 }
 
+extension EstateDTO: ClusterPoint {
+    var latitude: Double {
+        return geolocation.latitude
+    }
+
+    var longitude: Double {
+        return geolocation.longitude
+    }
+}
+
 extension EstateDTO {
     func toSimilarEstateItem() -> SimilarEstateItem {
         let depositInManwon = deposit / 10000
