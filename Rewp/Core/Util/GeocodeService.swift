@@ -55,6 +55,36 @@ final class GeocodeService {
         }
     }
 
+    func reverseGeocodeForLocationTitle(latitude: Double, longitude: Double) -> Single<String> {
+        return Single.create { [weak self] observer in
+            guard let self = self else {
+                observer(.failure(NSError(domain: "GeocodeService", code: -1)))
+                return Disposables.create()
+            }
+
+            let location = CLLocation(latitude: latitude, longitude: longitude)
+
+            self.geocoder.reverseGeocodeLocation(location) { placemarks, error in
+                if let error = error {
+                    observer(.failure(error))
+                    return
+                }
+
+                guard let placemark = placemarks?.first else {
+                    observer(.failure(NSError(domain: "GeocodeService", code: -2, userInfo: [NSLocalizedDescriptionKey: "주소를 찾을 수 없습니다"])))
+                    return
+                }
+
+                let locationTitle = self.formatLocationTitle(from: placemark)
+                observer(.success(locationTitle))
+            }
+
+            return Disposables.create {
+                self.geocoder.cancelGeocode()
+            }
+        }
+    }
+
     private func formatAddress(from placemark: CLPlacemark) -> String {
         var components: [String] = []
 
@@ -69,6 +99,24 @@ final class GeocodeService {
         }
 
         return components.isEmpty ? "위치 정보 없음" : components.joined(separator: " ")
+    }
+
+    private func formatLocationTitle(from placemark: CLPlacemark) -> String {
+        var components: [String] = []
+
+        if let thoroughfare = placemark.thoroughfare {
+            components.append(thoroughfare)
+        } else if let subLocality = placemark.subLocality {
+            components.append(subLocality)
+        } else if let name = placemark.name {
+            components.append(name)
+        }
+
+        if let subLocality = placemark.subLocality, placemark.thoroughfare != nil {
+            components.append(subLocality)
+        }
+
+        return components.isEmpty ? "위치 확인 중..." : components.joined(separator: ", ")
     }
 
     private func getCachedAddress(for key: String) -> String? {
