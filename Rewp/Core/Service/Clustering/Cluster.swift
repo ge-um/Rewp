@@ -12,19 +12,17 @@ struct Cluster<T: ClusterPoint> {
     let latitude: Double
     let longitude: Double
     let points: [T]
-    let expansionZoom: Int?
     let actualCount: Int
 
     var count: Int {
         return actualCount
     }
 
-    init(id: String, latitude: Double, longitude: Double, points: [T], expansionZoom: Int? = nil, actualCount: Int? = nil) {
+    init(id: String, latitude: Double, longitude: Double, points: [T], actualCount: Int? = nil) {
         self.id = id
         self.latitude = latitude
         self.longitude = longitude
         self.points = points
-        self.expansionZoom = expansionZoom
         self.actualCount = actualCount ?? points.count
     }
 }

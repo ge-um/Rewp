@@ -234,17 +234,16 @@ final class MapSearchPresenter {
                             }
                         }
                     } else {
-                        if let expansionZoom = clusterAnnotation.cluster.expansionZoom {
-                            let newSpan = MKCoordinateSpan(
-                                latitudeDelta: 360.0 / pow(2.0, Double(expansionZoom)),
-                                longitudeDelta: 360.0 / pow(2.0, Double(expansionZoom))
-                            )
-                            let newRegion = MKCoordinateRegion(
-                                center: clusterAnnotation.coordinate,
-                                span: newSpan
-                            )
-                            zoomToClusterRelay.accept(newRegion)
-                        }
+                        let targetZoom = zoom + 1
+                        let newSpan = MKCoordinateSpan(
+                            latitudeDelta: 360.0 / pow(2.0, Double(targetZoom)),
+                            longitudeDelta: 360.0 / pow(2.0, Double(targetZoom))
+                        )
+                        let newRegion = MKCoordinateRegion(
+                            center: clusterAnnotation.coordinate,
+                            span: newSpan
+                        )
+                        zoomToClusterRelay.accept(newRegion)
                     }
                 } else if let estateAnnotation = annotation as? EstateAnnotation {
                     Logger.map.notice("Single estate annotation selected - id: \(estateAnnotation.estate.estate_id, privacy: .public)")

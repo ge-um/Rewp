@@ -113,7 +113,6 @@ final class ClusteringEngine<T: ClusterPoint> {
                 latitude: c.latitude,
                 longitude: c.longitude,
                 points: childPoints,
-                expansionZoom: c.isCluster ? calculateExpansionZoomLevel(for: id, at: adjustedZoom) : nil,
                 actualCount: c.numPoints
             )
             results.append(cluster)
@@ -240,28 +239,6 @@ final class ClusteringEngine<T: ClusterPoint> {
 
         Logger.map.debug("  [cluster] Result: \(mergedCount) merged clusters, \(singleCount) single points → \(nextClusters.count) total")
         return nextClusters
-    }
-
-    private func calculateExpansionZoomLevel(for clusterId: Int, at zoom: Int) -> Int? {
-        var expansionZoom = zoom
-        while expansionZoom < maxZoom {
-            guard let tree = trees[expansionZoom] else { return nil }
-            let cluster = tree.points[clusterId]
-
-            let r = Double(radius) / (Double(extent) * pow(2.0, Double(expansionZoom)))
-            let x = longitudeToX(cluster.longitude)
-            let y = latitudeToY(cluster.latitude)
-
-            let neighborIds = tree.within(x: x, y: y, radius: r)
-
-            if neighborIds.count <= 1 {
-                break
-            }
-
-            expansionZoom += 1
-        }
-
-        return expansionZoom
     }
 }
 
