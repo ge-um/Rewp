@@ -18,6 +18,9 @@ final class MapSearchPresenter {
     private let locationManager: LocationManager
     private let disposeBag = DisposeBag()
 
+    private var isEstatesLoaded = false
+    private var isLoadingInitialEstates = false
+
     init(estateRepository: EstateRepository, clusteringEngine: ClusteringEngine<EstateDTO>, geocodeService: GeocodeService = .shared, locationManager: LocationManager = .shared) {
         self.estateRepository = estateRepository
         self.clusteringEngine = clusteringEngine
@@ -46,6 +49,7 @@ final class MapSearchPresenter {
         let navigateToDetail: Driver<String>
         let zoomToCluster: Driver<MKCoordinateRegion>
         let hideEstateCards: Driver<Void>
+        let isLoadingInitialEstates: Driver<Bool>
     }
     
     func transform(input: Input) -> Output {
@@ -59,29 +63,55 @@ final class MapSearchPresenter {
         let navigateToDetailRelay = PublishRelay<String>()
         let zoomToClusterRelay = PublishRelay<MKCoordinateRegion>()
         let hideEstateCardsRelay = PublishRelay<Void>()
+        let isLoadingInitialEstatesRelay = PublishRelay<Bool>()
 
         input.viewDidLoad
             .withUnretained(self)
             .do(onNext: { owner, _ in
                 owner.locationManager.requestWhenInUseAuthorization()
+                Logger.map.notice("MapSearch initialized - loading nationwide estates")
             })
-            .flatMapLatest { owner, _ in
-                owner.estateRepository.fetchEstatesByLocation(
-                    longitude: nil,
-                    latitude: nil,
-                    maxDistance: nil,
-                    category: nil
-                )
-            }
-            .withUnretained(self)
-            .subscribe(
-                onNext: { owner, estates in
-                    owner.clusteringEngine.load(points: estates)
-                },
-                onError: { error in
-                    errorRelay.accept(error.localizedDescription)
+            .flatMapLatest { owner, _ -> Observable<[EstateDTO]> in
+                guard !owner.isEstatesLoaded && !owner.isLoadingInitialEstates else {
+                    Logger.map.debug("Estates already loaded or loading")
+                    return .empty()
                 }
-            )
+
+                owner.isLoadingInitialEstates = true
+                isLoadingInitialEstatesRelay.accept(true)
+
+                Logger.map.notice("Fetching nationwide estates - center: (36.5, 127.5), radius: 500000m")
+
+                return owner.estateRepository
+                    .fetchEstatesByLocation(
+                        longitude: 127.5,
+                        latitude: 36.5,
+                        maxDistance: 500000,
+                        category: nil
+                    )
+                    .asObservable()
+                    .do(
+                        onNext: { estates in
+                            owner.isLoadingInitialEstates = false
+                            owner.isEstatesLoaded = true
+                            isLoadingInitialEstatesRelay.accept(false)
+
+                            Logger.map.notice("Nationwide estates loaded - count: \(estates.count)")
+                            owner.clusteringEngine.load(points: estates)
+                            Logger.map.notice("Clustering tree built successfully")
+                        },
+                        onError: { error in
+                            owner.isLoadingInitialEstates = false
+                            isLoadingInitialEstatesRelay.accept(false)
+                            Logger.map.error("Failed to load nationwide estates - \(error.localizedDescription)")
+                        }
+                    )
+                    .catch { error in
+                        errorRelay.accept("전국 매물 정보를 불러올 수 없습니다")
+                        return .empty()
+                    }
+            }
+            .subscribe()
             .disposed(by: disposeBag)
 
         locationManager.currentLocation
@@ -100,6 +130,11 @@ final class MapSearchPresenter {
             .debounce(.milliseconds(300), scheduler: MainScheduler.instance)
             .withUnretained(self)
             .subscribe(onNext: { owner, regionData in
+                guard owner.isEstatesLoaded else {
+                    Logger.map.debug("Estates not loaded yet - skipping clustering")
+                    return
+                }
+
                 let region = regionData.region
                 let zoom = regionData.zoom
                 let bbox = (
@@ -109,7 +144,7 @@ final class MapSearchPresenter {
                     maxLat: region.center.latitude + region.span.latitudeDelta / 2
                 )
 
-                Logger.map.debug("Map region changed - zoom: \(zoom, privacy: .public), center: (\(region.center.latitude, privacy: .public), \(region.center.longitude, privacy: .public)), bbox: (\(bbox.minLon, privacy: .public), \(bbox.minLat, privacy: .public), \(bbox.maxLon, privacy: .public), \(bbox.maxLat, privacy: .public))")
+                Logger.map.debug("Fast clustering query - zoom: \(zoom, privacy: .public) (NO network, NO tree rebuild)")
 
                 let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
 
@@ -118,6 +153,7 @@ final class MapSearchPresenter {
                 }
 
                 annotationsRelay.accept(annotations)
+                Logger.map.debug("Clustering query complete - found \(annotations.count) annotations")
 
                 owner.geocodeService.reverseGeocodeForLocationTitle(
                     latitude: region.center.latitude,
@@ -236,7 +272,8 @@ final class MapSearchPresenter {
             showEstateCards: showEstateCardsRelay.asDriver(onErrorDriveWith: .empty()),
             navigateToDetail: navigateToDetailRelay.asDriver(onErrorDriveWith: .empty()),
             zoomToCluster: zoomToClusterRelay.asDriver(onErrorDriveWith: .empty()),
-            hideEstateCards: hideEstateCardsRelay.asDriver(onErrorDriveWith: .empty())
+            hideEstateCards: hideEstateCardsRelay.asDriver(onErrorDriveWith: .empty()),
+            isLoadingInitialEstates: isLoadingInitialEstatesRelay.asDriver(onErrorJustReturn: false)
         )
     }
 }

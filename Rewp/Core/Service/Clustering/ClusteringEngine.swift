@@ -17,6 +17,7 @@ final class ClusteringEngine<T: ClusterPoint> {
 
     private var trees: [Int: KDBush<ClusterOrPoint>] = [:]
     private var points: [T] = []
+    private var clusterPointsCache: [String: [Int]] = [:]
 
     struct ClusterOrPoint: ClusterPoint {
         let latitude: Double
@@ -31,7 +32,7 @@ final class ClusteringEngine<T: ClusterPoint> {
         }
     }
 
-    init(minZoom: Int = 0, maxZoom: Int = 16, radius: Int = 80, extent: Int = 256, nodeSize: Int = 64) {
+    init(minZoom: Int = 0, maxZoom: Int = 16, radius: Int = 120, extent: Int = 256, nodeSize: Int = 64) {
         self.minZoom = minZoom
         self.maxZoom = maxZoom
         self.radius = radius
@@ -60,6 +61,8 @@ final class ClusteringEngine<T: ClusterPoint> {
         trees[maxZoom] = KDBush(points: clusters, nodeSize: nodeSize)
         Logger.map.notice("--- Building tree for zoom \(self.maxZoom) with \(clusters.count) clusters (no clustering) ---")
 
+        buildClusterPointsCache(for: maxZoom, clusters: clusters)
+
         for zoom in stride(from: maxZoom - 1, through: minZoom, by: -1) {
             let beforeCount = clusters.count
             clusters = buildClustersForZoomLevel(clusters: clusters, zoom: zoom)
@@ -67,6 +70,8 @@ final class ClusteringEngine<T: ClusterPoint> {
 
             trees[zoom] = KDBush(points: clusters, nodeSize: nodeSize)
             Logger.map.debug("Tree created for zoom \(zoom)")
+
+            buildClusterPointsCache(for: zoom, clusters: clusters)
         }
 
         Logger.map.notice("=== Clustering COMPLETE: \(self.trees.count) zoom levels ===")
@@ -98,10 +103,13 @@ final class ClusteringEngine<T: ClusterPoint> {
 
         for id in ids {
             let c = tree.points[id]
-            let childPoints = collectLeafPoints(from: c)
+            let clusterId = c.isCluster ? "cluster_\(c.zoom)_\(id)" : "single_\(c.zoom)_\(id)"
+
+            let leafIndices = clusterPointsCache[clusterId] ?? (c.originalIndex.map { [$0] } ?? [])
+            let childPoints = leafIndices.map { points[$0] }
 
             let cluster = Cluster(
-                id: c.isCluster ? "cluster_\(c.zoom)_\(id)" : "single_\(c.zoom)_\(id)",
+                id: clusterId,
                 latitude: c.latitude,
                 longitude: c.longitude,
                 points: childPoints,
@@ -114,6 +122,47 @@ final class ClusteringEngine<T: ClusterPoint> {
 
         Logger.map.notice("Result: \(results.count) total clusters")
         return results
+    }
+
+    private func buildClusterPointsCache(for zoom: Int, clusters: [ClusterOrPoint]) {
+        Logger.map.debug("Building cache for zoom \(zoom) - \(clusters.count) clusters")
+
+        for (index, cluster) in clusters.enumerated() {
+            let clusterId = "cluster_\(zoom)_\(index)"
+
+            if let originalIndex = cluster.originalIndex {
+                clusterPointsCache[clusterId] = [originalIndex]
+            } else {
+                guard let parentId = cluster.parentId,
+                      let parentTree = trees[cluster.zoom + 1] else {
+                    clusterPointsCache[clusterId] = []
+                    continue
+                }
+
+                let parent = parentTree.points[parentId]
+                let r = Double(radius) / (Double(extent) * pow(2.0, Double(cluster.zoom)))
+                let x = longitudeToX(parent.longitude)
+                let y = latitudeToY(parent.latitude)
+                let neighborIds = parentTree.within(x: x, y: y, radius: r)
+
+                var leafIndices: [Int] = []
+                leafIndices.reserveCapacity(cluster.numPoints)
+
+                for neighborId in neighborIds {
+                    let neighbor = parentTree.points[neighborId]
+                    if neighbor.zoom <= cluster.zoom { continue }
+
+                    let neighborClusterId = "cluster_\(neighbor.zoom)_\(neighborId)"
+                    if let cachedIndices = clusterPointsCache[neighborClusterId] {
+                        leafIndices.append(contentsOf: cachedIndices)
+                    }
+                }
+
+                clusterPointsCache[clusterId] = leafIndices
+            }
+        }
+
+        Logger.map.debug("Cache built for zoom \(zoom) - \(self.clusterPointsCache.count) entries")
     }
 
     private func buildClustersForZoomLevel(clusters: [ClusterOrPoint], zoom: Int) -> [ClusterOrPoint] {
@@ -191,45 +240,6 @@ final class ClusteringEngine<T: ClusterPoint> {
 
         Logger.map.debug("  [cluster] Result: \(mergedCount) merged clusters, \(singleCount) single points → \(nextClusters.count) total")
         return nextClusters
-    }
-
-    private func collectLeafPoints(from cluster: ClusterOrPoint) -> [T] {
-        if let originalIndex = cluster.originalIndex {
-            return [points[originalIndex]]
-        }
-
-        guard let parentId = cluster.parentId,
-              let parentTree = trees[cluster.zoom + 1] else {
-            Logger.map.error("[collectLeafPoints] Missing parent - parentId: \(cluster.parentId?.description ?? "nil"), zoom: \(cluster.zoom)")
-            return []
-        }
-
-        let parent = parentTree.points[parentId]
-        let r = Double(radius) / (Double(extent) * pow(2.0, Double(cluster.zoom)))
-        let x = longitudeToX(parent.longitude)
-        let y = latitudeToY(parent.latitude)
-        let neighborIds = parentTree.within(x: x, y: y, radius: r)
-
-        Logger.map.debug("[collectLeafPoints] Cluster at zoom \(cluster.zoom) with \(cluster.numPoints) points → found \(neighborIds.count) neighbors in parent tree")
-
-        var result: [T] = []
-
-        for neighborId in neighborIds {
-            let neighbor = parentTree.points[neighborId]
-
-            if neighbor.zoom <= cluster.zoom {
-                Logger.map.debug("[collectLeafPoints]   Skip neighbor[\(neighborId)]: zoom \(neighbor.zoom) <= \(cluster.zoom)")
-                continue
-            }
-
-            let leaves = collectLeafPoints(from: neighbor)
-            Logger.map.debug("[collectLeafPoints]   Neighbor[\(neighborId)] contributed \(leaves.count) leaf points")
-            result.append(contentsOf: leaves)
-        }
-
-        Logger.map.debug("[collectLeafPoints] Total collected: \(result.count) points (expected: \(cluster.numPoints))")
-
-        return result
     }
 
     private func calculateExpansionZoomLevel(for clusterId: Int, at zoom: Int) -> Int? {
