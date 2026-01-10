@@ -20,6 +20,7 @@ final class MapSearchPresenter {
 
     private var isEstatesLoaded = false
     private var isLoadingInitialEstates = false
+    private var pendingRegionData: (region: MKCoordinateRegion, zoom: Int)?
 
     init(estateRepository: EstateRepository, clusteringEngine: ClusteringEngine<EstateDTO>, geocodeService: GeocodeService = .shared, locationManager: LocationManager = .shared) {
         self.estateRepository = estateRepository
@@ -99,6 +100,24 @@ final class MapSearchPresenter {
                             Logger.map.notice("Nationwide estates loaded - count: \(estates.count)")
                             owner.clusteringEngine.load(points: estates)
                             Logger.map.notice("Clustering tree built successfully")
+
+                            if let regionData = owner.pendingRegionData {
+                                let region = regionData.region
+                                let zoom = regionData.zoom
+                                let bbox = (
+                                    minLon: region.center.longitude - region.span.longitudeDelta / 2,
+                                    minLat: region.center.latitude - region.span.latitudeDelta / 2,
+                                    maxLon: region.center.longitude + region.span.longitudeDelta / 2,
+                                    maxLat: region.center.latitude + region.span.latitudeDelta / 2
+                                )
+
+                                let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+                                let annotations: [MKAnnotation] = clusters.map { cluster in
+                                    EstateClusterAnnotation(cluster: cluster)
+                                }
+                                annotationsRelay.accept(annotations)
+                                Logger.map.notice("Initial clustering complete - found \(annotations.count) annotations")
+                            }
                         },
                         onError: { error in
                             owner.isLoadingInitialEstates = false
@@ -130,6 +149,8 @@ final class MapSearchPresenter {
             .debounce(.milliseconds(300), scheduler: MainScheduler.instance)
             .withUnretained(self)
             .subscribe(onNext: { owner, regionData in
+                owner.pendingRegionData = regionData
+
                 guard owner.isEstatesLoaded else {
                     Logger.map.debug("Estates not loaded yet - skipping clustering")
                     return
