@@ -32,7 +32,7 @@ final class ClusteringEngine<T: ClusterPoint> {
         }
     }
 
-    init(minZoom: Int = 0, maxZoom: Int = 16, radius: Int = 120, extent: Int = 256, nodeSize: Int = 64) {
+    init(minZoom: Int = 0, maxZoom: Int = 17, radius: Int = 120, extent: Int = 256, nodeSize: Int = 64) {
         self.minZoom = minZoom
         self.maxZoom = maxZoom
         self.radius = radius

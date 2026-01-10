@@ -15,6 +15,10 @@ final class EstateClusterAnnotation: NSObject, MKAnnotation {
         return cluster.count
     }
 
+    var amenityInfo: AmenityInfo? {
+        return cluster.amenityInfo
+    }
+
     init(cluster: Cluster<EstateDTO>) {
         self.cluster = cluster
         self.coordinate = CLLocationCoordinate2D(

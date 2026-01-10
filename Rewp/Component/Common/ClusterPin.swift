@@ -15,17 +15,33 @@ final class ClusterPin: UIView {
         $0.textAlignment = .center
     }
 
+    private let amenityLabel = UILabel().then {
+        $0.textColor = ColorSystem.gray0
+        $0.textAlignment = .center
+        $0.isHidden = true
+    }
+
     var count: Int = 0 {
         didSet {
             countLabel.typography(FontSystem.Pretendard.body2, text: "\(count)")
-            setNeedsLayout()
-            invalidateIntrinsicContentSize()
         }
     }
 
-    init(count: Int) {
+    var amenityInfo: AmenityInfo? {
+        didSet {
+            if let amenityInfo = amenityInfo, !amenityInfo.isEmpty {
+                amenityLabel.typography(FontSystem.Pretendard.caption1Medium, text: amenityInfo.displayText())
+                amenityLabel.isHidden = false
+            } else {
+                amenityLabel.isHidden = true
+            }
+        }
+    }
+
+    init(count: Int, amenityInfo: AmenityInfo? = nil) {
         super.init(frame: .zero)
         self.count = count
+        self.amenityInfo = amenityInfo
         setupUI()
     }
 
@@ -36,7 +52,13 @@ final class ClusterPin: UIView {
     private func setupUI() {
         backgroundColor = ColorSystem.deepCream
         addSubview(countLabel)
+        addSubview(amenityLabel)
         countLabel.typography(FontSystem.Pretendard.title1Bold, text: "\(count)")
+
+        if let amenityInfo = amenityInfo, !amenityInfo.isEmpty {
+            amenityLabel.typography(FontSystem.Pretendard.caption1Medium, text: amenityInfo.displayText())
+            amenityLabel.isHidden = false
+        }
     }
 
     override func layoutSubviews() {
@@ -45,20 +67,37 @@ final class ClusterPin: UIView {
         let size = intrinsicContentSize
         layer.cornerRadius = size.width / 2
 
-        countLabel.pin
-            .center()
-            .sizeToFit()
+        if let amenityInfo = amenityInfo, !amenityInfo.isEmpty {
+            countLabel.pin
+                .hCenter()
+                .top(10)
+                .sizeToFit()
+
+            amenityLabel.pin
+                .below(of: countLabel)
+                .marginTop(2)
+                .hCenter()
+                .sizeToFit()
+        } else {
+            countLabel.pin
+                .center()
+                .sizeToFit()
+        }
     }
 
     override var intrinsicContentSize: CGSize {
         let digitCount = "\(count)".count
-        let diameter: CGFloat
+        var diameter: CGFloat
 
         switch digitCount {
         case 1, 2:
             diameter = 52
         default:
             diameter = 80
+        }
+
+        if let amenityInfo = amenityInfo, !amenityInfo.isEmpty {
+            diameter += 24
         }
 
         return CGSize(width: diameter, height: diameter)

@@ -26,7 +26,7 @@ final class EstateClusterAnnotationView: MKAnnotationView, IsIdentifiable {
     func configure(with cluster: EstateClusterAnnotation) {
         clusterPin?.removeFromSuperview()
 
-        let newPin = ClusterPin(count: cluster.count)
+        let newPin = ClusterPin(count: cluster.count, amenityInfo: cluster.amenityInfo)
         addSubview(newPin)
         clusterPin = newPin
 

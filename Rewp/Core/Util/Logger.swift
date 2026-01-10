@@ -15,6 +15,7 @@ extension Logger {
     static let token = Logger(subsystem: subsystem, category: "TokenManagement")
     static let map = Logger(subsystem: subsystem, category: "Map")
     static let location = Logger(subsystem: subsystem, category: "Location")
+    static let amenity = Logger(subsystem: subsystem, category: "Amenity")
 
     static let ui = Logger(subsystem: subsystem, category: "UI")
     static let chat = Logger(subsystem: subsystem, category: "Chat")

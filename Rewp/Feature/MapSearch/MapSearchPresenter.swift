@@ -16,17 +16,19 @@ final class MapSearchPresenter {
     private let clusteringEngine: ClusteringEngine<EstateDTO>
     private let geocodeService: GeocodeService
     private let locationManager: LocationManager
+    private let amenitySearchService: AmenitySearchService
     private let disposeBag = DisposeBag()
 
     private var isEstatesLoaded = false
     private var isLoadingInitialEstates = false
     private var pendingRegionData: (region: MKCoordinateRegion, zoom: Int)?
 
-    init(estateRepository: EstateRepository, clusteringEngine: ClusteringEngine<EstateDTO>, geocodeService: GeocodeService = .shared, locationManager: LocationManager = .shared) {
+    init(estateRepository: EstateRepository, clusteringEngine: ClusteringEngine<EstateDTO>, geocodeService: GeocodeService = .shared, locationManager: LocationManager = .shared, amenitySearchService: AmenitySearchService = .shared) {
         self.estateRepository = estateRepository
         self.clusteringEngine = clusteringEngine
         self.geocodeService = geocodeService
         self.locationManager = locationManager
+        self.amenitySearchService = amenitySearchService
     }
     
     struct Input {
@@ -167,14 +169,65 @@ final class MapSearchPresenter {
 
                 Logger.map.debug("Fast clustering query - zoom: \(zoom, privacy: .public) (NO network, NO tree rebuild)")
 
-                let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+                var clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
 
-                let annotations: [MKAnnotation] = clusters.map { cluster in
-                    EstateClusterAnnotation(cluster: cluster)
+                if zoom >= 13 && zoom < 16 {
+                    let mapCenter = region.center
+                    clusters = Array(clusters
+                        .sorted { cluster1, cluster2 in
+                            let dist1 = pow(cluster1.latitude - mapCenter.latitude, 2) + pow(cluster1.longitude - mapCenter.longitude, 2)
+                            let dist2 = pow(cluster2.latitude - mapCenter.latitude, 2) + pow(cluster2.longitude - mapCenter.longitude, 2)
+                            return dist1 < dist2
+                        }
+                        .prefix(20)
+                    )
+
+                    let amenitySearches: [Single<(clusterId: String, amenityInfo: AmenityInfo)>] = clusters.map { cluster in
+                        let radiusInMeters = Int(cluster.radiusInMeters(zoom: zoom, radius: 120, extent: 256))
+                        return owner.amenitySearchService
+                            .searchAmenities(latitude: cluster.latitude, longitude: cluster.longitude, radius: radiusInMeters)
+                            .map { amenityInfo in
+                                return (clusterId: cluster.id, amenityInfo: amenityInfo)
+                            }
+                    }
+
+                    if !amenitySearches.isEmpty {
+                        Single.zip(amenitySearches)
+                            .asObservable()
+                            .observe(on: MainScheduler.instance)
+                            .subscribe(
+                                onNext: { results in
+                                    for (index, result) in results.enumerated() {
+                                        if index < clusters.count {
+                                            clusters[index].amenityInfo = result.amenityInfo
+                                        }
+                                    }
+
+                                    let annotations: [MKAnnotation] = clusters.map { cluster in
+                                        EstateClusterAnnotation(cluster: cluster)
+                                    }
+                                    annotationsRelay.accept(annotations)
+                                },
+                                onError: { _ in
+                                    let annotations: [MKAnnotation] = clusters.map { cluster in
+                                        EstateClusterAnnotation(cluster: cluster)
+                                    }
+                                    annotationsRelay.accept(annotations)
+                                }
+                            )
+                            .disposed(by: owner.disposeBag)
+                    } else {
+                        let annotations: [MKAnnotation] = clusters.map { cluster in
+                            EstateClusterAnnotation(cluster: cluster)
+                        }
+                        annotationsRelay.accept(annotations)
+                    }
+                } else {
+                    let annotations: [MKAnnotation] = clusters.map { cluster in
+                        EstateClusterAnnotation(cluster: cluster)
+                    }
+                    annotationsRelay.accept(annotations)
                 }
-
-                annotationsRelay.accept(annotations)
-                Logger.map.debug("Clustering query complete - found \(annotations.count) annotations")
 
                 owner.geocodeService.reverseGeocodeForLocationTitle(
                     latitude: region.center.latitude,
