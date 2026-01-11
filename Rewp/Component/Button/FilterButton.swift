@@ -34,6 +34,7 @@ final class FilterButton: UIView {
 
         layer.cornerRadius = 16
         layer.borderWidth = 1
+        layer.borderColor = ColorSystem.gray45.cgColor
         backgroundColor = ColorSystem.gray0
 
         updateAppearance()

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OSLog
 
 struct EstateFilter {
     var areaRange: (min: Int, max: Int)?
@@ -18,14 +19,19 @@ struct EstateFilter {
 
     func matches(_ estate: EstateDTO) -> Bool {
         if let areaRange = areaRange {
-            let areaInPyeong = estate.area / 3.3058
-            if areaInPyeong < Double(areaRange.min) || areaInPyeong > Double(areaRange.max) {
+            let minAreaInM2 = Double(areaRange.min) * 3.3058
+            let maxAreaInM2 = Double(areaRange.max) * 3.3058
+            if estate.area < minAreaInM2 || estate.area > maxAreaInM2 {
                 return false
             }
         }
 
         if let depositRange = depositRange {
             let depositInManwon = estate.deposit / 10000
+            let passed = depositInManwon >= depositRange.min && depositInManwon <= depositRange.max
+            if !passed {
+                Logger.mapFilter.debug("보증금 필터 제외 - deposit: \(estate.deposit, privacy: .public) (\(depositInManwon, privacy: .public)만원), range: \(depositRange.min, privacy: .public)~\(depositRange.max, privacy: .public)")
+            }
             if depositInManwon < depositRange.min || depositInManwon > depositRange.max {
                 return false
             }

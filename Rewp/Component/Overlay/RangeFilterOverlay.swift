@@ -1,5 +1,5 @@
 //
-//  AreaFilterOverlay.swift
+//  RangeFilterOverlay.swift
 //  Rewp
 //
 //  Created by 금가경 on 01/10/26.
@@ -10,10 +10,10 @@ import PinLayout
 import Then
 import RxSwift
 
-final class AreaFilterOverlay: UIView {
+final class RangeFilterOverlay: UIView {
     var onDismiss: (() -> Void)?
 
-    private let containerView = UIView().then {
+    let containerView = UIView().then {
         $0.backgroundColor = ColorSystem.gray0
         $0.layer.cornerRadius = 12
         $0.layer.shadowColor = UIColor.black.cgColor
@@ -29,7 +29,6 @@ final class AreaFilterOverlay: UIView {
     private let bubbleShapeLayer = CAShapeLayer()
 
     private let rangeLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption2Semibold, text: "0평 ~ 100평", textColor: ColorSystem.gray60)
         $0.textAlignment = .center
     }
 
@@ -40,7 +39,6 @@ final class AreaFilterOverlay: UIView {
         $0.backgroundColor = ColorSystem.gray30
     }
     private let minLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption2, text: "최소", textColor: ColorSystem.gray60)
         $0.textAlignment = .center
     }
 
@@ -49,7 +47,6 @@ final class AreaFilterOverlay: UIView {
         $0.backgroundColor = ColorSystem.gray30
     }
     private let midLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption2, text: "50평", textColor: ColorSystem.gray60)
         $0.textAlignment = .center
     }
 
@@ -58,19 +55,39 @@ final class AreaFilterOverlay: UIView {
         $0.backgroundColor = ColorSystem.gray30
     }
     private let maxLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption2, text: "최대", textColor: ColorSystem.gray60)
         $0.textAlignment = .center
     }
 
-    private var currentMinArea: Int = 0
-    private var currentMaxArea: Int = 100
+    private var currentMinValue: Int = 0
+    private var currentMaxValue: Int = 100
     private let disposeBag = DisposeBag()
 
+    private var unit: String
+    private var minValue: Int
+    private var maxValue: Int
+    private var minLabelText: String
+    private var maxLabelText: String
+    private var midLabelText: String?
+
     func getCurrentRange() -> (min: Int, max: Int) {
-        return (min: currentMinArea, max: currentMaxArea)
+        return (min: currentMinValue, max: currentMaxValue)
     }
 
-    init() {
+    init(
+        unit: String,
+        minValue: Int,
+        maxValue: Int,
+        minLabelText: String = "최소",
+        maxLabelText: String = "최대",
+        midLabelText: String? = nil
+    ) {
+        self.unit = unit
+        self.minValue = minValue
+        self.maxValue = maxValue
+        self.minLabelText = minLabelText
+        self.maxLabelText = maxLabelText
+        self.midLabelText = midLabelText
+
         super.init(frame: .zero)
         setupUI()
         bind()
@@ -81,10 +98,47 @@ final class AreaFilterOverlay: UIView {
     }
 
     func configure(currentMin: Int, currentMax: Int) {
-        self.currentMinArea = currentMin
-        self.currentMaxArea = currentMax
-        slider.configure(min: 0, max: 100, currentMin: currentMin, currentMax: currentMax)
+        self.currentMinValue = currentMin
+        self.currentMaxValue = currentMax
+        slider.configure(min: minValue, max: maxValue, currentMin: currentMin, currentMax: currentMax)
         updateRangeLabel(min: currentMin, max: currentMax)
+    }
+
+    func reconfigure(
+        unit: String,
+        minValue: Int,
+        maxValue: Int,
+        minLabelText: String,
+        maxLabelText: String,
+        midLabelText: String?
+    ) {
+        self.unit = unit
+        self.minValue = minValue
+        self.maxValue = maxValue
+        self.minLabelText = minLabelText
+        self.maxLabelText = maxLabelText
+        self.midLabelText = midLabelText
+
+        minLabel.typography(FontSystem.Pretendard.caption2, text: minLabelText, textColor: ColorSystem.gray60)
+        maxLabel.typography(FontSystem.Pretendard.caption2, text: maxLabelText, textColor: ColorSystem.gray60)
+
+        if let midText = midLabelText {
+            if midTickContainer.superview == nil {
+                containerView.addSubview(midTickContainer)
+                midTickContainer.addSubview(midTickView)
+                midTickContainer.addSubview(midLabel)
+            }
+            midLabel.typography(FontSystem.Pretendard.caption2, text: midText, textColor: ColorSystem.gray60)
+            midTickContainer.isHidden = false
+        } else {
+            midTickContainer.isHidden = true
+        }
+
+        setNeedsLayout()
+    }
+
+    func isVisible() -> Bool {
+        return superview != nil && containerView.alpha > 0
     }
 
     func show(in parentView: UIView, below sourceView: UIView) {
@@ -95,22 +149,21 @@ final class AreaFilterOverlay: UIView {
 
         containerView.alpha = 0
         containerView.transform = CGAffineTransform(translationX: 0, y: -10)
-        
+
         let arrowSize: CGFloat = 8
-        let arrowX = sourceFrame.midX
-        let arrowY = sourceFrame.maxY + 4
-        
+        let arrowY = sourceFrame.maxY + 5
+
         let overlayWidth: CGFloat = 350
         let overlayHeight: CGFloat = 85
-        let overlayX = max(12, min(parentView.bounds.width - overlayWidth - 12, arrowX - overlayWidth / 2))
+        let overlayX = (parentView.bounds.width - overlayWidth) / 2
         let overlayY = arrowY + arrowSize
-        
+
         containerView.frame = CGRect(x: overlayX, y: overlayY, width: overlayWidth, height: overlayHeight)
-        
+
         self.containerView.alpha = 1
         self.containerView.transform = .identity
     }
-    
+
     func hide() {
         UIView.animate(withDuration: 0.2, animations: {
             self.containerView.alpha = 0
@@ -133,13 +186,21 @@ final class AreaFilterOverlay: UIView {
         minTickContainer.addSubview(minTickView)
         minTickContainer.addSubview(minLabel)
 
-        containerView.addSubview(midTickContainer)
-        midTickContainer.addSubview(midTickView)
-        midTickContainer.addSubview(midLabel)
+        if midLabelText != nil {
+            containerView.addSubview(midTickContainer)
+            midTickContainer.addSubview(midTickView)
+            midTickContainer.addSubview(midLabel)
+        }
 
         containerView.addSubview(maxTickContainer)
         maxTickContainer.addSubview(maxTickView)
         maxTickContainer.addSubview(maxLabel)
+
+        minLabel.typography(FontSystem.Pretendard.caption2, text: minLabelText, textColor: ColorSystem.gray60)
+        maxLabel.typography(FontSystem.Pretendard.caption2, text: maxLabelText, textColor: ColorSystem.gray60)
+        if let midText = midLabelText {
+            midLabel.typography(FontSystem.Pretendard.caption2, text: midText, textColor: ColorSystem.gray60)
+        }
 
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleBackgroundTap))
         addGestureRecognizer(tapGesture)
@@ -150,15 +211,26 @@ final class AreaFilterOverlay: UIView {
         output.rangeChanged
             .withUnretained(self)
             .subscribe(onNext: { owner, range in
-                owner.currentMinArea = range.min
-                owner.currentMaxArea = range.max
+                owner.currentMinValue = range.min
+                owner.currentMaxValue = range.max
                 owner.updateRangeLabel(min: range.min, max: range.max)
             })
             .disposed(by: disposeBag)
     }
 
     private func updateRangeLabel(min: Int, max: Int) {
-        rangeLabel.typography(FontSystem.Pretendard.caption1Medium, text: "\(min)평 ~ \(max)평", textColor: ColorSystem.gray60)
+        let minText: String
+        let maxText: String
+
+        if unit == "만원" {
+            minText = min.formatAsManwon()
+            maxText = max.formatAsManwon()
+        } else {
+            minText = "\(min)\(unit)"
+            maxText = "\(max)\(unit)"
+        }
+
+        rangeLabel.typography(FontSystem.Pretendard.caption1Medium, text: "\(minText) ~ \(maxText)", textColor: ColorSystem.gray60)
         setNeedsLayout()
     }
 
@@ -210,11 +282,17 @@ final class AreaFilterOverlay: UIView {
             .height(20)
 
         minLabel.sizeToFit()
-        midLabel.sizeToFit()
         maxLabel.sizeToFit()
 
         let tickHeight: CGFloat = 4
-        let tickContainerHeight = tickHeight + 2 + max(minLabel.frame.height, midLabel.frame.height, maxLabel.frame.height)
+        let tickContainerHeight: CGFloat
+
+        if midLabelText != nil {
+            midLabel.sizeToFit()
+            tickContainerHeight = tickHeight + 2 + max(minLabel.frame.height, midLabel.frame.height, maxLabel.frame.height)
+        } else {
+            tickContainerHeight = tickHeight + 2 + max(minLabel.frame.height, maxLabel.frame.height)
+        }
 
         minTickContainer.pin
             .below(of: slider)
@@ -252,23 +330,25 @@ final class AreaFilterOverlay: UIView {
             .marginTop(2)
             .left(maxTickView.frame.midX - maxLabel.frame.width / 2)
 
-        midTickContainer.pin
-            .below(of: slider)
-            .marginTop(4)
-            .hCenter()
-            .width(1)
-            .height(tickContainerHeight)
+        if midLabelText != nil {
+            midTickContainer.pin
+                .below(of: slider)
+                .marginTop(4)
+                .hCenter()
+                .width(1)
+                .height(tickContainerHeight)
 
-        midTickView.pin
-            .top()
-            .hCenter()
-            .width(1)
-            .height(tickHeight)
+            midTickView.pin
+                .top()
+                .hCenter()
+                .width(1)
+                .height(tickHeight)
 
-        midLabel.pin
-            .below(of: midTickView)
-            .marginTop(2)
-            .hCenter()
+            midLabel.pin
+                .below(of: midTickView)
+                .marginTop(2)
+                .hCenter()
+        }
     }
 
     private func drawBubble() {

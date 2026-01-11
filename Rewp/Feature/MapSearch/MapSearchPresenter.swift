@@ -43,6 +43,12 @@ final class MapSearchPresenter {
         let areaFilterTapped: Observable<Void>
         let areaFilterApplied: Observable<(min: Int, max: Int)>
         let areaFilterReset: Observable<Void>
+        let depositFilterTapped: Observable<Void>
+        let depositFilterApplied: Observable<(min: Int, max: Int)>
+        let depositFilterReset: Observable<Void>
+        let rentFilterTapped: Observable<Void>
+        let rentFilterApplied: Observable<(min: Int, max: Int)>
+        let rentFilterReset: Observable<Void>
     }
 
     struct Output {
@@ -58,6 +64,11 @@ final class MapSearchPresenter {
         let hideEstateCards: Driver<Void>
         let isLoadingInitialEstates: Driver<Bool>
         let showAreaFilter: Driver<(min: Int, max: Int)>
+        let showDepositFilter: Driver<(min: Int, max: Int)>
+        let showRentFilter: Driver<(min: Int, max: Int)>
+        let updateAreaFilterButton: Driver<Bool>
+        let updateDepositFilterButton: Driver<Bool>
+        let updateRentFilterButton: Driver<Bool>
     }
     
     func transform(input: Input) -> Output {
@@ -73,6 +84,11 @@ final class MapSearchPresenter {
         let hideEstateCardsRelay = PublishRelay<Void>()
         let isLoadingInitialEstatesRelay = PublishRelay<Bool>()
         let showAreaFilterRelay = PublishRelay<(min: Int, max: Int)>()
+        let showDepositFilterRelay = PublishRelay<(min: Int, max: Int)>()
+        let showRentFilterRelay = PublishRelay<(min: Int, max: Int)>()
+        let updateAreaFilterButtonRelay = PublishRelay<Bool>()
+        let updateDepositFilterButtonRelay = PublishRelay<Bool>()
+        let updateRentFilterButtonRelay = PublishRelay<Bool>()
 
         input.viewDidLoad
             .withUnretained(self)
@@ -173,11 +189,17 @@ final class MapSearchPresenter {
                     maxLat: region.center.latitude + region.span.latitudeDelta / 2
                 )
 
+                Logger.map.notice("맵 이동 - zoom: \(zoom, privacy: .public), center: (\(region.center.latitude, privacy: .public), \(region.center.longitude, privacy: .public))")
                 Logger.map.debug("Fast clustering query - zoom: \(zoom, privacy: .public) (NO network, NO tree rebuild)")
 
                 var clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+                Logger.map.notice("getClusters 결과 - 클러스터 개수: \(clusters.count, privacy: .public)")
 
                 if owner.currentFilter.isActive {
+                    let originalCount = clusters.count
+                    let originalTotalPoints = clusters.reduce(0) { $0 + $1.actualCount }
+                    Logger.mapFilter.notice("필터 활성화 - 필터 적용 전: 클러스터 \(originalCount, privacy: .public)개, 총 매물 \(originalTotalPoints, privacy: .public)개")
+
                     clusters = clusters.compactMap { cluster -> Cluster<EstateDTO>? in
                         let filteredPoints = cluster.points.filter { owner.currentFilter.matches($0) }
                         guard !filteredPoints.isEmpty else { return nil }
@@ -190,6 +212,10 @@ final class MapSearchPresenter {
                             amenityInfo: cluster.amenityInfo
                         )
                     }
+
+                    let filteredCount = clusters.count
+                    let filteredTotalPoints = clusters.reduce(0) { $0 + $1.actualCount }
+                    Logger.mapFilter.notice("필터 적용 후: 클러스터 \(filteredCount, privacy: .public)개, 총 매물 \(filteredTotalPoints, privacy: .public)개")
                 }
 
                 if zoom >= 13 && zoom < 16 {
@@ -365,7 +391,9 @@ final class MapSearchPresenter {
         input.areaFilterApplied
             .withUnretained(self)
             .subscribe(onNext: { owner, range in
-                owner.currentFilter.areaRange = range
+                let isDefault = (range.min == 0 && range.max == 100)
+                owner.currentFilter.areaRange = isDefault ? nil : range
+                updateAreaFilterButtonRelay.accept(!isDefault)
 
                 if let regionData = owner.pendingRegionData {
                     let region = regionData.region
@@ -403,7 +431,155 @@ final class MapSearchPresenter {
         input.areaFilterReset
             .withUnretained(self)
             .subscribe(onNext: { owner, _ in
+                Logger.mapFilter.notice("평수 필터 해제")
                 owner.currentFilter.areaRange = nil
+
+                if let regionData = owner.pendingRegionData {
+                    let region = regionData.region
+                    let zoom = regionData.zoom
+                    let bbox = (
+                        minLon: region.center.longitude - region.span.longitudeDelta / 2,
+                        minLat: region.center.latitude - region.span.latitudeDelta / 2,
+                        maxLon: region.center.longitude + region.span.longitudeDelta / 2,
+                        maxLat: region.center.latitude + region.span.latitudeDelta / 2
+                    )
+
+                    Logger.mapFilter.notice("필터 해제 - zoom: \(zoom, privacy: .public)")
+                    let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+                    let totalBeforeFilter = clusters.reduce(0) { $0 + $1.actualCount }
+                    Logger.mapFilter.notice("필터 해제 후 클러스터 개수: \(clusters.count, privacy: .public), 총 매물: \(totalBeforeFilter, privacy: .public)")
+
+                    let filteredClusters = clusters.compactMap { cluster -> Cluster<EstateDTO>? in
+                        let filteredPoints = cluster.points.filter { owner.currentFilter.matches($0) }
+                        guard !filteredPoints.isEmpty else { return nil }
+                        return Cluster(
+                            id: cluster.id,
+                            latitude: cluster.latitude,
+                            longitude: cluster.longitude,
+                            points: filteredPoints,
+                            actualCount: filteredPoints.count,
+                            amenityInfo: cluster.amenityInfo
+                        )
+                    }
+
+                    let totalAfterFilter = filteredClusters.reduce(0) { $0 + $1.actualCount }
+                    Logger.mapFilter.notice("다른 필터 적용 후: 클러스터 \(filteredClusters.count, privacy: .public)개, 총 매물 \(totalAfterFilter, privacy: .public)개")
+
+                    let annotations: [MKAnnotation] = filteredClusters.map { cluster in
+                        EstateClusterAnnotation(cluster: cluster)
+                    }
+                    annotationsRelay.accept(annotations)
+                }
+            })
+            .disposed(by: disposeBag)
+
+        input.depositFilterTapped
+            .withUnretained(self)
+            .map { owner, _ in owner.currentFilter.depositRange ?? (min: 0, max: 100000) }
+            .bind(to: showDepositFilterRelay)
+            .disposed(by: disposeBag)
+
+        input.depositFilterApplied
+            .withUnretained(self)
+            .subscribe(onNext: { owner, range in
+                Logger.mapFilter.notice("보증금 필터 적용 - min: \(range.min, privacy: .public)만원, max: \(range.max, privacy: .public)만원")
+                let isDefault = (range.min == 0 && range.max == 100000)
+                owner.currentFilter.depositRange = isDefault ? nil : range
+                updateDepositFilterButtonRelay.accept(!isDefault)
+
+                if let regionData = owner.pendingRegionData {
+                    let region = regionData.region
+                    let zoom = regionData.zoom
+                    let bbox = (
+                        minLon: region.center.longitude - region.span.longitudeDelta / 2,
+                        minLat: region.center.latitude - region.span.latitudeDelta / 2,
+                        maxLon: region.center.longitude + region.span.longitudeDelta / 2,
+                        maxLat: region.center.latitude + region.span.latitudeDelta / 2
+                    )
+
+                    let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+                    Logger.mapFilter.notice("필터 전 클러스터 개수: \(clusters.count, privacy: .public)")
+
+                    let filteredClusters = clusters.compactMap { cluster -> Cluster<EstateDTO>? in
+                        let filteredPoints = cluster.points.filter { owner.currentFilter.matches($0) }
+                        guard !filteredPoints.isEmpty else { return nil }
+                        return Cluster(
+                            id: cluster.id,
+                            latitude: cluster.latitude,
+                            longitude: cluster.longitude,
+                            points: filteredPoints,
+                            actualCount: filteredPoints.count,
+                            amenityInfo: cluster.amenityInfo
+                        )
+                    }
+
+                    Logger.mapFilter.notice("필터 후 클러스터 개수: \(filteredClusters.count, privacy: .public)")
+
+                    let annotations: [MKAnnotation] = filteredClusters.map { cluster in
+                        EstateClusterAnnotation(cluster: cluster)
+                    }
+                    annotationsRelay.accept(annotations)
+                }
+            })
+            .disposed(by: disposeBag)
+
+        input.depositFilterReset
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                Logger.mapFilter.notice("보증금 필터 해제")
+                owner.currentFilter.depositRange = nil
+
+                if let regionData = owner.pendingRegionData {
+                    let region = regionData.region
+                    let zoom = regionData.zoom
+                    let bbox = (
+                        minLon: region.center.longitude - region.span.longitudeDelta / 2,
+                        minLat: region.center.latitude - region.span.latitudeDelta / 2,
+                        maxLon: region.center.longitude + region.span.longitudeDelta / 2,
+                        maxLat: region.center.latitude + region.span.latitudeDelta / 2
+                    )
+
+                    Logger.mapFilter.notice("필터 해제 - zoom: \(zoom, privacy: .public)")
+                    let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+                    let totalBeforeFilter = clusters.reduce(0) { $0 + $1.actualCount }
+                    Logger.mapFilter.notice("필터 해제 후 클러스터 개수: \(clusters.count, privacy: .public), 총 매물: \(totalBeforeFilter, privacy: .public)")
+
+                    let filteredClusters = clusters.compactMap { cluster -> Cluster<EstateDTO>? in
+                        let filteredPoints = cluster.points.filter { owner.currentFilter.matches($0) }
+                        guard !filteredPoints.isEmpty else { return nil }
+                        return Cluster(
+                            id: cluster.id,
+                            latitude: cluster.latitude,
+                            longitude: cluster.longitude,
+                            points: filteredPoints,
+                            actualCount: filteredPoints.count,
+                            amenityInfo: cluster.amenityInfo
+                        )
+                    }
+
+                    let totalAfterFilter = filteredClusters.reduce(0) { $0 + $1.actualCount }
+                    Logger.mapFilter.notice("다른 필터 적용 후: 클러스터 \(filteredClusters.count, privacy: .public)개, 총 매물 \(totalAfterFilter, privacy: .public)개")
+
+                    let annotations: [MKAnnotation] = filteredClusters.map { cluster in
+                        EstateClusterAnnotation(cluster: cluster)
+                    }
+                    annotationsRelay.accept(annotations)
+                }
+            })
+            .disposed(by: disposeBag)
+
+        input.rentFilterTapped
+            .withUnretained(self)
+            .map { owner, _ in owner.currentFilter.rentRange ?? (min: 0, max: 10000) }
+            .bind(to: showRentFilterRelay)
+            .disposed(by: disposeBag)
+
+        input.rentFilterApplied
+            .withUnretained(self)
+            .subscribe(onNext: { owner, range in
+                let isDefault = (range.min == 0 && range.max == 10000)
+                owner.currentFilter.rentRange = isDefault ? nil : range
+                updateRentFilterButtonRelay.accept(!isDefault)
 
                 if let regionData = owner.pendingRegionData {
                     let region = regionData.region
@@ -438,6 +614,51 @@ final class MapSearchPresenter {
             })
             .disposed(by: disposeBag)
 
+        input.rentFilterReset
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                Logger.mapFilter.notice("월세 필터 해제")
+                owner.currentFilter.rentRange = nil
+
+                if let regionData = owner.pendingRegionData {
+                    let region = regionData.region
+                    let zoom = regionData.zoom
+                    let bbox = (
+                        minLon: region.center.longitude - region.span.longitudeDelta / 2,
+                        minLat: region.center.latitude - region.span.latitudeDelta / 2,
+                        maxLon: region.center.longitude + region.span.longitudeDelta / 2,
+                        maxLat: region.center.latitude + region.span.latitudeDelta / 2
+                    )
+
+                    Logger.mapFilter.notice("필터 해제 - zoom: \(zoom, privacy: .public)")
+                    let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+                    let totalBeforeFilter = clusters.reduce(0) { $0 + $1.actualCount }
+                    Logger.mapFilter.notice("필터 해제 후 클러스터 개수: \(clusters.count, privacy: .public), 총 매물: \(totalBeforeFilter, privacy: .public)")
+
+                    let filteredClusters = clusters.compactMap { cluster -> Cluster<EstateDTO>? in
+                        let filteredPoints = cluster.points.filter { owner.currentFilter.matches($0) }
+                        guard !filteredPoints.isEmpty else { return nil }
+                        return Cluster(
+                            id: cluster.id,
+                            latitude: cluster.latitude,
+                            longitude: cluster.longitude,
+                            points: filteredPoints,
+                            actualCount: filteredPoints.count,
+                            amenityInfo: cluster.amenityInfo
+                        )
+                    }
+
+                    let totalAfterFilter = filteredClusters.reduce(0) { $0 + $1.actualCount }
+                    Logger.mapFilter.notice("다른 필터 적용 후: 클러스터 \(filteredClusters.count, privacy: .public)개, 총 매물 \(totalAfterFilter, privacy: .public)개")
+
+                    let annotations: [MKAnnotation] = filteredClusters.map { cluster in
+                        EstateClusterAnnotation(cluster: cluster)
+                    }
+                    annotationsRelay.accept(annotations)
+                }
+            })
+            .disposed(by: disposeBag)
+
         return Output(
             annotations: annotationsRelay.asDriver(onErrorDriveWith: .empty()),
             error: errorRelay.asDriver(onErrorJustReturn: ""),
@@ -450,7 +671,12 @@ final class MapSearchPresenter {
             zoomToCluster: zoomToClusterRelay.asDriver(onErrorDriveWith: .empty()),
             hideEstateCards: hideEstateCardsRelay.asDriver(onErrorDriveWith: .empty()),
             isLoadingInitialEstates: isLoadingInitialEstatesRelay.asDriver(onErrorJustReturn: false),
-            showAreaFilter: showAreaFilterRelay.asDriver(onErrorJustReturn: (min: 0, max: 100))
+            showAreaFilter: showAreaFilterRelay.asDriver(onErrorJustReturn: (min: 0, max: 100)),
+            showDepositFilter: showDepositFilterRelay.asDriver(onErrorJustReturn: (min: 0, max: 100000)),
+            showRentFilter: showRentFilterRelay.asDriver(onErrorJustReturn: (min: 0, max: 10000)),
+            updateAreaFilterButton: updateAreaFilterButtonRelay.asDriver(onErrorJustReturn: false),
+            updateDepositFilterButton: updateDepositFilterButtonRelay.asDriver(onErrorJustReturn: false),
+            updateRentFilterButton: updateRentFilterButtonRelay.asDriver(onErrorJustReturn: false)
         )
     }
 }

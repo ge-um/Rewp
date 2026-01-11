@@ -41,6 +41,8 @@ final class MapSearchViewController: UIViewController {
     }
 
     private let areaFilterButton = FilterButton(title: "평수 선택")
+    private let depositFilterButton = FilterButton(title: "보증금 선택")
+    private let rentFilterButton = FilterButton(title: "월세 선택")
 
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let mapRegionChangedTrigger = PublishSubject<(region: MKCoordinateRegion, zoom: Int)>()
@@ -53,9 +55,25 @@ final class MapSearchViewController: UIViewController {
     private let areaFilterTappedTrigger = PublishSubject<Void>()
     private let areaFilterAppliedTrigger = PublishSubject<(min: Int, max: Int)>()
     private let areaFilterResetTrigger = PublishSubject<Void>()
+    private let depositFilterTappedTrigger = PublishSubject<Void>()
+    private let depositFilterAppliedTrigger = PublishSubject<(min: Int, max: Int)>()
+    private let depositFilterResetTrigger = PublishSubject<Void>()
+    private let rentFilterTappedTrigger = PublishSubject<Void>()
+    private let rentFilterAppliedTrigger = PublishSubject<(min: Int, max: Int)>()
+    private let rentFilterResetTrigger = PublishSubject<Void>()
+
+    private var currentFilterOverlay: RangeFilterOverlay?
+    private var currentFilterType: FilterType?
+
     private let disposeBag = DisposeBag()
 
     private var currentZoom: Int = 16
+
+    enum FilterType {
+        case area
+        case deposit
+        case rent
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -79,14 +97,23 @@ final class MapSearchViewController: UIViewController {
         view.addSubview(estateCardScrollView)
 
         filterButtonContainer.addSubview(areaFilterButton)
+        filterButtonContainer.addSubview(depositFilterButton)
+        filterButtonContainer.addSubview(rentFilterButton)
 
         navigationBar.onSearchBarTap = { [weak self] in
             self?.searchBarTappedTrigger.onNext(())
         }
 
         areaFilterButton.onTap = { [weak self] in
-            self?.areaFilterButton.setActive(true)
             self?.areaFilterTappedTrigger.onNext(())
+        }
+
+        depositFilterButton.onTap = { [weak self] in
+            self?.depositFilterTappedTrigger.onNext(())
+        }
+
+        rentFilterButton.onTap = { [weak self] in
+            self?.rentFilterTappedTrigger.onNext(())
         }
 
         currentLocationButton.addTarget(self, action: #selector(currentLocationButtonTapped), for: .touchUpInside)
@@ -128,6 +155,35 @@ final class MapSearchViewController: UIViewController {
         mapView.setRegion(defaultRegion, animated: false)
     }
 
+    private func getOrCreateFilterOverlay() -> RangeFilterOverlay {
+        if let existing = currentFilterOverlay {
+            return existing
+        }
+
+        let overlay = RangeFilterOverlay(
+            unit: "",
+            minValue: 0,
+            maxValue: 100,
+            minLabelText: "",
+            maxLabelText: ""
+        )
+        return overlay
+    }
+
+    private func hideCurrentFilterOverlay(applyFilter: Bool = false) {
+        guard let overlay = currentFilterOverlay, overlay.isVisible() else {
+            return
+        }
+
+        if applyFilter {
+            overlay.onDismiss?()
+        }
+
+        overlay.layer.removeAllAnimations()
+        overlay.containerView.layer.removeAllAnimations()
+        overlay.removeFromSuperview()
+    }
+
     private func bind() {
         let input = MapSearchPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
@@ -139,7 +195,13 @@ final class MapSearchViewController: UIViewController {
             mapTapped: mapTappedTrigger.asObservable(),
             areaFilterTapped: areaFilterTappedTrigger.asObservable(),
             areaFilterApplied: areaFilterAppliedTrigger.asObservable(),
-            areaFilterReset: areaFilterResetTrigger.asObservable()
+            areaFilterReset: areaFilterResetTrigger.asObservable(),
+            depositFilterTapped: depositFilterTappedTrigger.asObservable(),
+            depositFilterApplied: depositFilterAppliedTrigger.asObservable(),
+            depositFilterReset: depositFilterResetTrigger.asObservable(),
+            rentFilterTapped: rentFilterTappedTrigger.asObservable(),
+            rentFilterApplied: rentFilterAppliedTrigger.asObservable(),
+            rentFilterReset: rentFilterResetTrigger.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -218,15 +280,99 @@ final class MapSearchViewController: UIViewController {
 
         output.showAreaFilter
             .drive(with: self) { owner, range in
-                let overlay = AreaFilterOverlay()
+                owner.hideCurrentFilterOverlay(applyFilter: true)
+
+                let overlay = owner.getOrCreateFilterOverlay()
+                overlay.reconfigure(
+                    unit: "평",
+                    minValue: 0,
+                    maxValue: 100,
+                    minLabelText: "최소",
+                    maxLabelText: "최대",
+                    midLabelText: "50평"
+                )
                 overlay.configure(currentMin: range.min, currentMax: range.max)
                 overlay.onDismiss = { [weak self] in
                     let currentRange = overlay.getCurrentRange()
                     self?.areaFilterAppliedTrigger.onNext(currentRange)
-                    self?.areaFilterButton.setActive(false)
                 }
                 overlay.show(in: owner.view, below: owner.areaFilterButton)
+                owner.currentFilterOverlay = overlay
+                owner.currentFilterType = .area
             }
+            .disposed(by: disposeBag)
+
+        output.showDepositFilter
+            .drive(with: self) { owner, range in
+                owner.hideCurrentFilterOverlay(applyFilter: true)
+
+                let overlay = owner.getOrCreateFilterOverlay()
+                overlay.reconfigure(
+                    unit: "만원",
+                    minValue: 0,
+                    maxValue: 100000,
+                    minLabelText: "최소",
+                    maxLabelText: "최대",
+                    midLabelText: "5억"
+                )
+                overlay.configure(currentMin: range.min, currentMax: range.max)
+                overlay.onDismiss = { [weak self] in
+                    let currentRange = overlay.getCurrentRange()
+                    self?.depositFilterAppliedTrigger.onNext(currentRange)
+                }
+                overlay.show(in: owner.view, below: owner.depositFilterButton)
+                owner.currentFilterOverlay = overlay
+                owner.currentFilterType = .deposit
+            }
+            .disposed(by: disposeBag)
+
+        output.showRentFilter
+            .drive(with: self) { owner, range in
+                owner.hideCurrentFilterOverlay(applyFilter: true)
+
+                let overlay = owner.getOrCreateFilterOverlay()
+                overlay.reconfigure(
+                    unit: "만원",
+                    minValue: 0,
+                    maxValue: 10000,
+                    minLabelText: "최소",
+                    maxLabelText: "최대",
+                    midLabelText: "5천만원"
+                )
+                overlay.configure(currentMin: range.min, currentMax: range.max)
+                overlay.onDismiss = { [weak self] in
+                    let currentRange = overlay.getCurrentRange()
+                    self?.rentFilterAppliedTrigger.onNext(currentRange)
+                }
+                overlay.show(in: owner.view, below: owner.rentFilterButton)
+                owner.currentFilterOverlay = overlay
+                owner.currentFilterType = .rent
+            }
+            .disposed(by: disposeBag)
+
+        output.updateAreaFilterButton
+            .drive(with: self) { owner, isActive in
+                owner.areaFilterButton.setActive(isActive)
+            }
+            .disposed(by: disposeBag)
+
+        output.updateDepositFilterButton
+            .drive(with: self) { owner, isActive in
+                owner.depositFilterButton.setActive(isActive)
+            }
+            .disposed(by: disposeBag)
+
+        output.updateRentFilterButton
+            .drive(with: self) { owner, isActive in
+                owner.rentFilterButton.setActive(isActive)
+            }
+            .disposed(by: disposeBag)
+
+        mapTappedTrigger
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                owner.hideCurrentFilterOverlay(applyFilter: true)
+            })
             .disposed(by: disposeBag)
 
         searchBarTappedTrigger
@@ -318,6 +464,19 @@ final class MapSearchViewController: UIViewController {
             .sizeToFit(.height)
 
         areaFilterButton.pin
+            .left()
+            .width(78)
+            .height(32)
+
+        depositFilterButton.pin
+            .after(of: areaFilterButton)
+            .marginLeft(8)
+            .width(78)
+            .height(32)
+
+        rentFilterButton.pin
+            .after(of: depositFilterButton)
+            .marginLeft(8)
             .width(78)
             .height(32)
 
