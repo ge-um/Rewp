@@ -45,4 +45,27 @@ struct AmenityInfo {
         }
         return components.joined(separator: " ")
     }
+
+    var items: [(emoji: String, count: Int)] {
+        var result: [(String, Int)] = []
+        if parks > 0 {
+            result.append(("🌳", parks))
+        }
+        if mountains > 0 {
+            result.append(("⛰️", mountains))
+        }
+        if rivers > 0 {
+            result.append(("🌊", rivers))
+        }
+        if veterinary > 0 {
+            result.append(("🏥", veterinary))
+        }
+        if cafes > 0 {
+            result.append(("☕️", cafes))
+        }
+        if playgrounds > 0 {
+            result.append(("🏃", playgrounds))
+        }
+        return result
+    }
 }
