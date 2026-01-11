@@ -150,7 +150,7 @@ enum FontSystem {
 }
 
 extension UILabel {
-    func typography(_ typography: Typography, text: String? = nil) {
+    func typography(_ typography: Typography, text: String? = nil, textColor: UIColor? = nil) {
         if let text = text ?? self.text {
             let paragraphStyle = NSMutableParagraphStyle()
             paragraphStyle.minimumLineHeight = typography.lineHeight
@@ -158,13 +158,19 @@ extension UILabel {
             paragraphStyle.alignment = self.textAlignment
             paragraphStyle.lineBreakMode = self.lineBreakMode
 
+            var attributes: [NSAttributedString.Key: Any] = [
+                .font: typography.font,
+                .kern: typography.kerning,
+                .paragraphStyle: paragraphStyle
+            ]
+
+            if let textColor = textColor {
+                attributes[.foregroundColor] = textColor
+            }
+
             self.attributedText = NSAttributedString(
                 string: text,
-                attributes: [
-                    .font: typography.font,
-                    .kern: typography.kerning,
-                    .paragraphStyle: paragraphStyle
-                ]
+                attributes: attributes
             )
         }
     }
