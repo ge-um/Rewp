@@ -21,7 +21,7 @@ final class EstateAnnotationView: MKAnnotationView, IsIdentifiable {
     }
 
     private func setupUI() {
-        frame = CGRect(x: 0, y: 0, width: 80, height: 104)
+        frame = CGRect(x: 0, y: 0, width: 72, height: 100)
         backgroundColor = .clear
         addSubview(bubbleButton)
         bubbleButton.frame = bounds

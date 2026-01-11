@@ -95,8 +95,7 @@ final class MapBubbleButton: UIView {
 
         let bubbleHeight: CGFloat = 96
         let countCircleSize: CGFloat = 28
-        let imageSize: CGFloat = 64
-        let padding: CGFloat = 8
+        let padding: CGFloat = 4
 
         bubbleView.pin
             .top()
@@ -106,13 +105,14 @@ final class MapBubbleButton: UIView {
         propertyImageView.pin
             .top(padding)
             .hCenter()
-            .size(imageSize)
+            .size(64)
 
         subNumberLabel.pin
             .below(of: propertyImageView)
             .marginTop(4)
-            .left(to: propertyImageView.edge.left)
-            .sizeToFit()
+            .left(6)
+            .right()
+            .sizeToFit(.width)
 
         countLabelContainer.pin
             .top(-10)
@@ -129,7 +129,7 @@ final class MapBubbleButton: UIView {
     override func draw(_ rect: CGRect) {
         super.draw(rect)
 
-        let bubbleHeight: CGFloat = 96
+        let bubbleHeight: CGFloat = 87
         let tailHeight: CGFloat = 8
         let tailWidth: CGFloat = 12
         let cornerRadius: CGFloat = 8
@@ -166,7 +166,7 @@ final class MapBubbleButton: UIView {
     }
 
     override var intrinsicContentSize: CGSize {
-        return CGSize(width: 80, height: 104)
+        return CGSize(width: 72, height: 100)
     }
 
     func configure(count: Int, subNumbers: (deposit: Int, rent: Int), imageURL: URL?) {
