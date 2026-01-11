@@ -156,6 +156,32 @@ extension EstateDetailResponse {
             relativeTime: relativeTime
         )
     }
+
+    func toRecentlyViewedEstateItem() -> RecentlyViewedEstateItem {
+        let depositInManwon = deposit / 10000
+        let rentInManwon = monthly_rent / 10000
+        let priceType: String
+        let price: String
+
+        if monthly_rent > 0 {
+            priceType = "월세"
+            price = "\(depositInManwon.formatted())/\(rentInManwon.formatted())"
+        } else {
+            priceType = "전세"
+            price = "\(depositInManwon.formatted())만"
+        }
+
+        return RecentlyViewedEstateItem(
+            estateId: estate_id,
+            recommend: is_recommended ? "추천" : nil,
+            category: category,
+            priceType: priceType,
+            price: price,
+            area: "면적 \(area)m²",
+            imageURL: thumbnails.first.map { "\(NetworkConfig.baseURL)\($0)" },
+            viewedAt: Date()
+        )
+    }
 }
 
 extension EstateDTO: ClusterPoint {

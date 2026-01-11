@@ -15,13 +15,21 @@ final class EstateDetailPresenter {
     private let repository: EstateRepository
     private let paymentRepository: PaymentRepository
     private let chatRepository: ChatRepository
+    private let recentlyViewedRepository: RecentlyViewedEstateRepository
     private let disposeBag = DisposeBag()
 
-    init(estateId: String, repository: EstateRepository, paymentRepository: PaymentRepository, chatRepository: ChatRepository) {
+    init(
+        estateId: String,
+        repository: EstateRepository,
+        paymentRepository: PaymentRepository,
+        chatRepository: ChatRepository,
+        recentlyViewedRepository: RecentlyViewedEstateRepository
+    ) {
         self.estateId = estateId
         self.repository = repository
         self.paymentRepository = paymentRepository
         self.chatRepository = chatRepository
+        self.recentlyViewedRepository = recentlyViewedRepository
     }
 
     struct Input {
@@ -63,6 +71,20 @@ final class EstateDetailPresenter {
                     return .empty()
                 }
                 return self.repository.fetchEstateDetail(estateId: self.estateId)
+                    .do(onSuccess: { [weak self] response in
+                        guard let self = self else { return }
+                        let item = response.toRecentlyViewedEstateItem()
+                        self.recentlyViewedRepository.saveRecentlyViewedEstate(item)
+                            .subscribe(
+                                onCompleted: {
+                                    Logger.storage.notice("Recently viewed estate saved")
+                                },
+                                onError: { error in
+                                    Logger.storage.error("Save failed: \(error.localizedDescription)")
+                                }
+                            )
+                            .disposed(by: self.disposeBag)
+                    })
                     .map { response in
                         response.toEstateDetail()
                     }

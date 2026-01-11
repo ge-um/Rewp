@@ -11,7 +11,8 @@ class FeedFactory {
     static func create(container: AppContainer) -> FeedViewController {
         let presenter = FeedPresenter(
             estateRepository: container.estateRepository,
-            bannerRepository: container.bannerRepository
+            bannerRepository: container.bannerRepository,
+            recentlyViewedRepository: container.recentlyViewedEstateRepository
         )
         let viewController = FeedViewController()
 

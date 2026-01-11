@@ -13,19 +13,27 @@ import OSLog
 class FeedPresenter {
     private let estateRepository: EstateRepository
     private let bannerRepository: BannerRepository
+    private let recentlyViewedRepository: RecentlyViewedEstateRepository
     private let disposeBag = DisposeBag()
 
-    init(estateRepository: EstateRepository, bannerRepository: BannerRepository) {
+    init(
+        estateRepository: EstateRepository,
+        bannerRepository: BannerRepository,
+        recentlyViewedRepository: RecentlyViewedEstateRepository
+    ) {
         self.estateRepository = estateRepository
         self.bannerRepository = bannerRepository
+        self.recentlyViewedRepository = recentlyViewedRepository
     }
 
     struct Input {
         let viewDidLoad: Observable<Void>
+        let viewWillAppear: Observable<Void>
         let topicTapped: Observable<TopicItem>
         let bannerTapped: Observable<String>
         let hotEstateTapped: Observable<String>
         let newsAdTapped: Observable<(String, String)>
+        let recentlyViewedEstateTapped: Observable<String>
     }
 
     struct Output {
@@ -36,6 +44,7 @@ class FeedPresenter {
         let openTopicLink: Driver<String>
         let navigateToDetail: Driver<String>
         let openAttendanceWebView: Driver<String>
+        let recentlyViewedEstates: Driver<[RecentlyViewedEstateItem]>
     }
 
     func transform(input: Input) -> Output {
@@ -82,9 +91,21 @@ class FeedPresenter {
             .map { $0.link }
             .asDriver(onErrorDriveWith: .empty())
 
+        let recentlyViewedEstates = input.viewWillAppear
+            .withUnretained(self)
+            .flatMapLatest { owner, _ in
+                owner.recentlyViewedRepository.fetchRecentlyViewedEstates()
+                    .catch { error in
+                        Logger.storage.error("Failed to fetch recently viewed estates: \(error.localizedDescription)")
+                        return .just([])
+                    }
+            }
+            .asDriver(onErrorJustReturn: [])
+
         let navigateToDetail = Observable.merge(
             input.bannerTapped,
-            input.hotEstateTapped
+            input.hotEstateTapped,
+            input.recentlyViewedEstateTapped
         )
         .asDriver(onErrorDriveWith: .empty())
 
@@ -95,7 +116,8 @@ class FeedPresenter {
             newsAds: newsAds,
             openTopicLink: openTopicLink,
             navigateToDetail: navigateToDetail,
-            openAttendanceWebView: openAttendanceWebView
+            openAttendanceWebView: openAttendanceWebView,
+            recentlyViewedEstates: recentlyViewedEstates
         )
     }
 

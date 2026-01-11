@@ -46,6 +46,14 @@ final class AppContainer {
         ChatRepositoryImpl(authService: authService, localStorage: chatLocalStorage)
     }()
 
+    lazy var recentlyViewedEstateLocalStorage: RecentlyViewedEstateLocalStorage = {
+        RecentlyViewedEstateLocalStorage()
+    }()
+
+    lazy var recentlyViewedEstateRepository: RecentlyViewedEstateRepository = {
+        RecentlyViewedEstateRepositoryImpl(localStorage: recentlyViewedEstateLocalStorage)
+    }()
+
     lazy var socketService: SocketServiceProtocol = {
         SocketService()
     }()
