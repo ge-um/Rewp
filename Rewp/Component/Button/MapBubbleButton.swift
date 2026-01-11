@@ -19,15 +19,13 @@ final class MapBubbleButton: UIView {
         $0.layer.cornerRadius = 4
     }
 
-    private let countLabelContainer = UIView().then {
-        $0.backgroundColor = ColorSystem.gray0
-        $0.layer.borderColor = ColorSystem.gray30.withAlphaComponent(0.3).cgColor
-        $0.layer.borderWidth = 1
-    }
-
     private let countLabel = UILabel().then {
         $0.textColor = ColorSystem.gray75
         $0.textAlignment = .center
+        $0.backgroundColor = ColorSystem.gray0
+        $0.layer.borderColor = ColorSystem.gray30.withAlphaComponent(0.3).cgColor
+        $0.layer.borderWidth = 1
+        $0.clipsToBounds = true
     }
 
     private let subNumberLabel = UILabel().then {
@@ -73,11 +71,10 @@ final class MapBubbleButton: UIView {
         backgroundColor = .clear
 
         addSubview(bubbleView)
-        addSubview(countLabelContainer)
+        addSubview(countLabel)
 
         bubbleView.addSubview(propertyImageView)
         bubbleView.addSubview(subNumberLabel)
-        countLabelContainer.addSubview(countLabel)
 
         countLabel.typography(FontSystem.Pretendard.body3Bold, text: "\(count)")
 
@@ -114,16 +111,12 @@ final class MapBubbleButton: UIView {
             .right()
             .sizeToFit(.width)
 
-        countLabelContainer.pin
+        countLabel.pin
             .top(-10)
             .right(-10)
             .size(countCircleSize)
 
-        countLabelContainer.layer.cornerRadius = countCircleSize / 2
-
-        countLabel.pin
-            .center()
-            .sizeToFit()
+        countLabel.layer.cornerRadius = countCircleSize / 2
     }
 
     override func draw(_ rect: CGRect) {
