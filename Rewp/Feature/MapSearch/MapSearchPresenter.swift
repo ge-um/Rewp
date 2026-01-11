@@ -22,6 +22,7 @@ final class MapSearchPresenter {
     private var isEstatesLoaded = false
     private var isLoadingInitialEstates = false
     private var pendingRegionData: (region: MKCoordinateRegion, zoom: Int)?
+    private var currentFilter = EstateFilter()
 
     init(estateRepository: EstateRepository, clusteringEngine: ClusteringEngine<EstateDTO>, geocodeService: GeocodeService = .shared, locationManager: LocationManager = .shared, amenitySearchService: AmenitySearchService = .shared) {
         self.estateRepository = estateRepository
@@ -39,6 +40,9 @@ final class MapSearchPresenter {
         let annotationSelected: Observable<(annotation: MKAnnotation, zoom: Int)>
         let estateCardTapped: Observable<String>
         let mapTapped: Observable<Void>
+        let areaFilterTapped: Observable<Void>
+        let areaFilterApplied: Observable<(min: Int, max: Int)>
+        let areaFilterReset: Observable<Void>
     }
 
     struct Output {
@@ -53,6 +57,7 @@ final class MapSearchPresenter {
         let zoomToCluster: Driver<MKCoordinateRegion>
         let hideEstateCards: Driver<Void>
         let isLoadingInitialEstates: Driver<Bool>
+        let showAreaFilter: Driver<(min: Int, max: Int)>
     }
     
     func transform(input: Input) -> Output {
@@ -67,6 +72,7 @@ final class MapSearchPresenter {
         let zoomToClusterRelay = PublishRelay<MKCoordinateRegion>()
         let hideEstateCardsRelay = PublishRelay<Void>()
         let isLoadingInitialEstatesRelay = PublishRelay<Bool>()
+        let showAreaFilterRelay = PublishRelay<(min: Int, max: Int)>()
 
         input.viewDidLoad
             .withUnretained(self)
@@ -170,6 +176,21 @@ final class MapSearchPresenter {
                 Logger.map.debug("Fast clustering query - zoom: \(zoom, privacy: .public) (NO network, NO tree rebuild)")
 
                 var clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+
+                if owner.currentFilter.isActive {
+                    clusters = clusters.compactMap { cluster -> Cluster<EstateDTO>? in
+                        let filteredPoints = cluster.points.filter { owner.currentFilter.matches($0) }
+                        guard !filteredPoints.isEmpty else { return nil }
+                        return Cluster(
+                            id: cluster.id,
+                            latitude: cluster.latitude,
+                            longitude: cluster.longitude,
+                            points: filteredPoints,
+                            actualCount: filteredPoints.count,
+                            amenityInfo: cluster.amenityInfo
+                        )
+                    }
+                }
 
                 if zoom >= 13 && zoom < 16 {
                     let mapCenter = region.center
@@ -335,6 +356,88 @@ final class MapSearchPresenter {
             .bind(to: hideEstateCardsRelay)
             .disposed(by: disposeBag)
 
+        input.areaFilterTapped
+            .withUnretained(self)
+            .map { owner, _ in owner.currentFilter.areaRange ?? (min: 0, max: 100) }
+            .bind(to: showAreaFilterRelay)
+            .disposed(by: disposeBag)
+
+        input.areaFilterApplied
+            .withUnretained(self)
+            .subscribe(onNext: { owner, range in
+                owner.currentFilter.areaRange = range
+
+                if let regionData = owner.pendingRegionData {
+                    let region = regionData.region
+                    let zoom = regionData.zoom
+                    let bbox = (
+                        minLon: region.center.longitude - region.span.longitudeDelta / 2,
+                        minLat: region.center.latitude - region.span.latitudeDelta / 2,
+                        maxLon: region.center.longitude + region.span.longitudeDelta / 2,
+                        maxLat: region.center.latitude + region.span.latitudeDelta / 2
+                    )
+
+                    let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+
+                    let filteredClusters = clusters.compactMap { cluster -> Cluster<EstateDTO>? in
+                        let filteredPoints = cluster.points.filter { owner.currentFilter.matches($0) }
+                        guard !filteredPoints.isEmpty else { return nil }
+                        return Cluster(
+                            id: cluster.id,
+                            latitude: cluster.latitude,
+                            longitude: cluster.longitude,
+                            points: filteredPoints,
+                            actualCount: filteredPoints.count,
+                            amenityInfo: cluster.amenityInfo
+                        )
+                    }
+
+                    let annotations: [MKAnnotation] = filteredClusters.map { cluster in
+                        EstateClusterAnnotation(cluster: cluster)
+                    }
+                    annotationsRelay.accept(annotations)
+                }
+            })
+            .disposed(by: disposeBag)
+
+        input.areaFilterReset
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                owner.currentFilter.areaRange = nil
+
+                if let regionData = owner.pendingRegionData {
+                    let region = regionData.region
+                    let zoom = regionData.zoom
+                    let bbox = (
+                        minLon: region.center.longitude - region.span.longitudeDelta / 2,
+                        minLat: region.center.latitude - region.span.latitudeDelta / 2,
+                        maxLon: region.center.longitude + region.span.longitudeDelta / 2,
+                        maxLat: region.center.latitude + region.span.latitudeDelta / 2
+                    )
+
+                    let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+
+                    let filteredClusters = clusters.compactMap { cluster -> Cluster<EstateDTO>? in
+                        let filteredPoints = cluster.points.filter { owner.currentFilter.matches($0) }
+                        guard !filteredPoints.isEmpty else { return nil }
+                        return Cluster(
+                            id: cluster.id,
+                            latitude: cluster.latitude,
+                            longitude: cluster.longitude,
+                            points: filteredPoints,
+                            actualCount: filteredPoints.count,
+                            amenityInfo: cluster.amenityInfo
+                        )
+                    }
+
+                    let annotations: [MKAnnotation] = filteredClusters.map { cluster in
+                        EstateClusterAnnotation(cluster: cluster)
+                    }
+                    annotationsRelay.accept(annotations)
+                }
+            })
+            .disposed(by: disposeBag)
+
         return Output(
             annotations: annotationsRelay.asDriver(onErrorDriveWith: .empty()),
             error: errorRelay.asDriver(onErrorJustReturn: ""),
@@ -346,7 +449,8 @@ final class MapSearchPresenter {
             navigateToDetail: navigateToDetailRelay.asDriver(onErrorDriveWith: .empty()),
             zoomToCluster: zoomToClusterRelay.asDriver(onErrorDriveWith: .empty()),
             hideEstateCards: hideEstateCardsRelay.asDriver(onErrorDriveWith: .empty()),
-            isLoadingInitialEstates: isLoadingInitialEstatesRelay.asDriver(onErrorJustReturn: false)
+            isLoadingInitialEstates: isLoadingInitialEstatesRelay.asDriver(onErrorJustReturn: false),
+            showAreaFilter: showAreaFilterRelay.asDriver(onErrorJustReturn: (min: 0, max: 100))
         )
     }
 }

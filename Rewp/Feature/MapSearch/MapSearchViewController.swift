@@ -36,6 +36,12 @@ final class MapSearchViewController: UIViewController {
         $0.alpha = 0
     }
 
+    private let filterButtonContainer = UIView().then {
+        $0.backgroundColor = .clear
+    }
+
+    private let areaFilterButton = FilterButton(title: "평수 선택")
+
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let mapRegionChangedTrigger = PublishSubject<(region: MKCoordinateRegion, zoom: Int)>()
     private let searchBarTappedTrigger = PublishSubject<Void>()
@@ -44,6 +50,9 @@ final class MapSearchViewController: UIViewController {
     private let annotationSelectedTrigger = PublishSubject<(annotation: MKAnnotation, zoom: Int)>()
     private let estateCardTappedTrigger = PublishSubject<String>()
     private let mapTappedTrigger = PublishSubject<Void>()
+    private let areaFilterTappedTrigger = PublishSubject<Void>()
+    private let areaFilterAppliedTrigger = PublishSubject<(min: Int, max: Int)>()
+    private let areaFilterResetTrigger = PublishSubject<Void>()
     private let disposeBag = DisposeBag()
 
     private var currentZoom: Int = 16
@@ -65,16 +74,25 @@ final class MapSearchViewController: UIViewController {
 
         view.addSubview(mapView)
         view.addSubview(navigationBar)
+        view.addSubview(filterButtonContainer)
         view.addSubview(currentLocationButton)
         view.addSubview(estateCardScrollView)
+
+        filterButtonContainer.addSubview(areaFilterButton)
 
         navigationBar.onSearchBarTap = { [weak self] in
             self?.searchBarTappedTrigger.onNext(())
         }
 
+        areaFilterButton.onTap = { [weak self] in
+            self?.areaFilterButton.setActive(true)
+            self?.areaFilterTappedTrigger.onNext(())
+        }
+
         currentLocationButton.addTarget(self, action: #selector(currentLocationButtonTapped), for: .touchUpInside)
         setupMapTapGesture()
     }
+
 
     @objc private func currentLocationButtonTapped() {
         currentLocationTappedTrigger.onNext(())
@@ -118,7 +136,10 @@ final class MapSearchViewController: UIViewController {
             currentLocationTapped: currentLocationTappedTrigger.asObservable(),
             annotationSelected: annotationSelectedTrigger.asObservable(),
             estateCardTapped: estateCardTappedTrigger.asObservable(),
-            mapTapped: mapTappedTrigger.asObservable()
+            mapTapped: mapTappedTrigger.asObservable(),
+            areaFilterTapped: areaFilterTappedTrigger.asObservable(),
+            areaFilterApplied: areaFilterAppliedTrigger.asObservable(),
+            areaFilterReset: areaFilterResetTrigger.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -192,6 +213,19 @@ final class MapSearchViewController: UIViewController {
         output.hideEstateCards
             .drive(with: self) { owner, _ in
                 owner.hideEstateCardScrollView()
+            }
+            .disposed(by: disposeBag)
+
+        output.showAreaFilter
+            .drive(with: self) { owner, range in
+                let overlay = AreaFilterOverlay()
+                overlay.configure(currentMin: range.min, currentMax: range.max)
+                overlay.onDismiss = { [weak self] in
+                    let currentRange = overlay.getCurrentRange()
+                    self?.areaFilterAppliedTrigger.onNext(currentRange)
+                    self?.areaFilterButton.setActive(false)
+                }
+                overlay.show(in: owner.view, below: owner.areaFilterButton)
             }
             .disposed(by: disposeBag)
 
@@ -275,6 +309,20 @@ final class MapSearchViewController: UIViewController {
             .below(of: navigationBar)
             .horizontally()
             .bottom()
+
+        filterButtonContainer.pin
+            .below(of: navigationBar)
+            .marginTop(8)
+            .left(20)
+            .height(32)
+            .sizeToFit(.height)
+
+        areaFilterButton.pin
+            .width(78)
+            .height(32)
+
+        filterButtonContainer.pin
+            .wrapContent()
 
         currentLocationButton.pin
             .right(20)
