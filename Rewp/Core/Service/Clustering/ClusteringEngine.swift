@@ -116,7 +116,7 @@ final class ClusteringEngine<T: ClusterPoint> {
                 actualCount: c.numPoints
             )
             results.append(cluster)
-            Logger.map.debug("  [getClusters] Point[\(id)] → cluster with \(c.numPoints) points (childPoints: \(childPoints.count))")
+            Logger.map.debug("  [getClusters] Point[\(id)] → cluster with \(c.numPoints) points (childPoints: \(childPoints.count), cached: \(leafIndices.count))")
         }
 
         Logger.map.notice("Result: \(results.count) total clusters")
@@ -144,8 +144,8 @@ final class ClusteringEngine<T: ClusterPoint> {
                 let y = latitudeToY(parent.latitude)
                 let neighborIds = parentTree.within(x: x, y: y, radius: r)
 
-                var leafIndices: [Int] = []
-                leafIndices.reserveCapacity(cluster.numPoints)
+                var leafIndicesSet: Set<Int> = []
+                leafIndicesSet.reserveCapacity(cluster.numPoints)
 
                 for neighborId in neighborIds {
                     let neighbor = parentTree.points[neighborId]
@@ -153,11 +153,11 @@ final class ClusteringEngine<T: ClusterPoint> {
 
                     let neighborClusterId = "cluster_\(neighbor.zoom)_\(neighborId)"
                     if let cachedIndices = clusterPointsCache[neighborClusterId] {
-                        leafIndices.append(contentsOf: cachedIndices)
+                        leafIndicesSet.formUnion(cachedIndices)
                     }
                 }
 
-                clusterPointsCache[clusterId] = leafIndices
+                clusterPointsCache[clusterId] = Array(leafIndicesSet)
             }
         }
 
