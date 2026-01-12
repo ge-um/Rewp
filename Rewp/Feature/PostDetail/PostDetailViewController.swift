@@ -305,7 +305,8 @@ final class PostDetailViewController: UIViewController {
         likeCountLabel.pin
             .after(of: likeButton)
             .marginLeft(6)
-            .sizeToFit()
+            .right()
+            .height(20)
             .vCenter(to: likeButton.edge.vCenter)
 
         if !comments.isEmpty {
