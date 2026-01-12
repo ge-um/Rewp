@@ -19,21 +19,17 @@ final class MapBubbleButton: UIView {
         $0.layer.cornerRadius = 4
     }
 
-    private let countLabelContainer = UIView().then {
+    private let countLabel = UILabel().then {
+        $0.textColor = ColorSystem.gray75
+        $0.textAlignment = .center
         $0.backgroundColor = ColorSystem.gray0
         $0.layer.borderColor = ColorSystem.gray30.withAlphaComponent(0.3).cgColor
         $0.layer.borderWidth = 1
-    }
-
-    private let countLabel = UILabel().then {
-        $0.textColor = ColorSystem.gray75
-        $0.typography(FontSystem.Pretendard.body3)
-        $0.textAlignment = .center
+        $0.clipsToBounds = true
     }
 
     private let subNumberLabel = UILabel().then {
         $0.textColor = ColorSystem.gray60
-        $0.typography(FontSystem.Pretendard.caption2)
         $0.textAlignment = .left
     }
 
@@ -45,8 +41,7 @@ final class MapBubbleButton: UIView {
 
     var count: Int = 0 {
         didSet {
-            countLabel.text = "\(count)"
-            setNeedsLayout()
+            countLabel.typography(FontSystem.Pretendard.body3Bold, text: "\(count)")
         }
     }
 
@@ -56,8 +51,7 @@ final class MapBubbleButton: UIView {
             formatter.numberStyle = .decimal
             let depositStr = formatter.string(from: NSNumber(value: subNumbers.deposit)) ?? "\(subNumbers.deposit)"
             let rentStr = formatter.string(from: NSNumber(value: subNumbers.rent)) ?? "\(subNumbers.rent)"
-            subNumberLabel.typography(FontSystem.Pretendard.caption2, text: "\(depositStr)/\(rentStr)")
-            setNeedsLayout()
+            subNumberLabel.typography(FontSystem.Pretendard.caption2Semibold, text: "\(depositStr)/\(rentStr)")
         }
     }
 
@@ -77,20 +71,18 @@ final class MapBubbleButton: UIView {
         backgroundColor = .clear
 
         addSubview(bubbleView)
-        addSubview(countLabelContainer)
+        addSubview(countLabel)
 
         bubbleView.addSubview(propertyImageView)
         bubbleView.addSubview(subNumberLabel)
-        countLabelContainer.addSubview(countLabel)
 
-        countLabel.font = FontSystem.Pretendard.body2.font
-        countLabel.text = "\(count)"
+        countLabel.typography(FontSystem.Pretendard.body3Bold, text: "\(count)")
 
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         let depositStr = formatter.string(from: NSNumber(value: subNumbers.deposit)) ?? "\(subNumbers.deposit)"
         let rentStr = formatter.string(from: NSNumber(value: subNumbers.rent)) ?? "\(subNumbers.rent)"
-        subNumberLabel.typography(FontSystem.Pretendard.caption2, text: "\(depositStr)/\(rentStr)")
+        subNumberLabel.typography(FontSystem.Pretendard.caption2Semibold, text: "\(depositStr)/\(rentStr)")
 
         propertyImageView.image = propertyImage
     }
@@ -100,8 +92,7 @@ final class MapBubbleButton: UIView {
 
         let bubbleHeight: CGFloat = 96
         let countCircleSize: CGFloat = 28
-        let imageSize: CGFloat = 64
-        let padding: CGFloat = 8
+        let padding: CGFloat = 4
 
         bubbleView.pin
             .top()
@@ -111,30 +102,27 @@ final class MapBubbleButton: UIView {
         propertyImageView.pin
             .top(padding)
             .hCenter()
-            .size(imageSize)
+            .size(64)
 
         subNumberLabel.pin
             .below(of: propertyImageView)
             .marginTop(4)
-            .left(to: propertyImageView.edge.left)
-            .sizeToFit()
+            .left(6)
+            .right()
+            .sizeToFit(.width)
 
-        countLabelContainer.pin
+        countLabel.pin
             .top(-10)
             .right(-10)
             .size(countCircleSize)
 
-        countLabelContainer.layer.cornerRadius = countCircleSize / 2
-
-        countLabel.pin
-            .center()
-            .sizeToFit()
+        countLabel.layer.cornerRadius = countCircleSize / 2
     }
 
     override func draw(_ rect: CGRect) {
         super.draw(rect)
 
-        let bubbleHeight: CGFloat = 96
+        let bubbleHeight: CGFloat = 87
         let tailHeight: CGFloat = 8
         let tailWidth: CGFloat = 12
         let cornerRadius: CGFloat = 8
@@ -171,7 +159,15 @@ final class MapBubbleButton: UIView {
     }
 
     override var intrinsicContentSize: CGSize {
-        return CGSize(width: 80, height: 104)
+        return CGSize(width: 72, height: 100)
+    }
+
+    func configure(count: Int, subNumbers: (deposit: Int, rent: Int), imageURL: URL?) {
+        self.count = count
+        self.subNumbers = subNumbers
+        if let url = imageURL {
+            propertyImageView.kf.setImage(with: url)
+        }
     }
 }
 

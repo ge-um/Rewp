@@ -50,10 +50,7 @@ class FeedViewController: UIViewController {
 
     private let recentSearchContainerView = UIView()
 
-    private lazy var recentSearchItems: [RecentSearchItem] = [
-        RecentSearchItem(recommend: "추천", category: "원룸", price: "전세 3,000/20", area: "면적 112.4m²"),
-        RecentSearchItem(category: "원룸", price: "월세 3,000/50", area: "면적 49.5m²")
-    ]
+    private var recentSearchItems: [RecentSearchItem] = []
 
     private let hotTitleLabel = SectionTitleLabel(title: "Hot 매물")
 
@@ -74,10 +71,12 @@ class FeedViewController: UIViewController {
     private var newsItems: [UIView] = []
 
     private let viewDidLoadTrigger = PublishSubject<Void>()
+    private let viewWillAppearTrigger = PublishSubject<Void>()
     private let topicTapRelay = PublishRelay<TopicItem>()
     private let bannerTapRelay = PublishRelay<String>()
     private let hotEstateTapRelay = PublishRelay<String>()
     private let newsAdTapRelay = PublishRelay<(String, String)>()
+    private let recentlyViewedEstateTappedRelay = PublishRelay<String>()
     private var currentNewsAds: [BannerAdItem] = []
     private let disposeBag = DisposeBag()
 
@@ -89,6 +88,11 @@ class FeedViewController: UIViewController {
         setupUI()
         bind()
         viewDidLoadTrigger.onNext(())
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        viewWillAppearTrigger.onNext(())
     }
 
     private func setupUI() {
@@ -105,6 +109,12 @@ class FeedViewController: UIViewController {
         contentView.addSubview(hotScrollView)
         contentView.addSubview(newsTitleLabel)
         contentView.addSubview(newsContainerView)
+
+        searchBar.onTap = { [weak self] in
+            guard let self = self else { return }
+            let mapSearchVC = self.container.makeMapSearchViewController()
+            self.navigationController?.pushViewController(mapSearchVC, animated: true)
+        }
 
         categoryScrollView.addSubview(categoryContainerView)
         categoryContainerView.flex
@@ -123,14 +133,7 @@ class FeedViewController: UIViewController {
         recentSearchContainerView.flex
             .direction(.row)
             .alignItems(.center)
-            .define { flex in
-                recentSearchItems.forEach { item in
-                    flex.addItem(item)
-                        .width(190)
-                        .height(88)
-                        .marginRight(12)
-                }
-            }
+
         hotScrollView.addSubview(hotContainerView)
 
         newsContainerView.flex
@@ -161,10 +164,12 @@ class FeedViewController: UIViewController {
 
         let input = FeedPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
+            viewWillAppear: viewWillAppearTrigger.asObservable(),
             topicTapped: topicTapRelay.asObservable(),
             bannerTapped: bannerTapRelay.asObservable(),
             hotEstateTapped: hotEstateTapRelay.asObservable(),
-            newsAdTapped: newsAdTapRelay.asObservable()
+            newsAdTapped: newsAdTapRelay.asObservable(),
+            recentlyViewedEstateTapped: recentlyViewedEstateTappedRelay.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -232,6 +237,12 @@ class FeedViewController: UIViewController {
         output.openTopicLink
             .drive(with: self) { owner, urlString in
                 owner.openWebView(urlString: urlString)
+            }
+            .disposed(by: disposeBag)
+
+        output.recentlyViewedEstates
+            .drive(with: self) { owner, items in
+                owner.updateRecentlyViewedEstates(items: items)
             }
             .disposed(by: disposeBag)
 
@@ -415,6 +426,36 @@ class FeedViewController: UIViewController {
         }
 
         return item
+    }
+
+    private func updateRecentlyViewedEstates(items: [RecentlyViewedEstateItem]) {
+        recentSearchItems.forEach { $0.removeFromSuperview() }
+        recentSearchItems.removeAll()
+
+        recentSearchContainerView.flex.define { flex in
+            items.forEach { item in
+                let searchItem = RecentSearchItem(
+                    recommend: item.recommend,
+                    category: item.category,
+                    price: item.price,
+                    area: item.area
+                )
+                searchItem.setImage(from: item.imageURL)
+                searchItem.onTap = { [weak self] in
+                    self?.recentlyViewedEstateTappedRelay.accept(item.estateId)
+                }
+                recentSearchContainerView.addSubview(searchItem)
+                recentSearchItems.append(searchItem)
+
+                flex.addItem(searchItem)
+                    .width(190)
+                    .height(88)
+                    .marginRight(12)
+            }
+        }
+
+        recentSearchContainerView.flex.markDirty()
+        view.setNeedsLayout()
     }
 
     private func openWebView(urlString: String) {

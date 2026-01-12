@@ -46,6 +46,14 @@ final class AppContainer {
         ChatRepositoryImpl(authService: authService, localStorage: chatLocalStorage)
     }()
 
+    lazy var recentlyViewedEstateLocalStorage: RecentlyViewedEstateLocalStorage = {
+        RecentlyViewedEstateLocalStorage()
+    }()
+
+    lazy var recentlyViewedEstateRepository: RecentlyViewedEstateRepository = {
+        RecentlyViewedEstateRepositoryImpl(localStorage: recentlyViewedEstateLocalStorage)
+    }()
+
     lazy var socketService: SocketServiceProtocol = {
         SocketService()
     }()
@@ -114,5 +122,9 @@ final class AppContainer {
 
     func makeAttendanceWebViewController(urlPath: String) -> AttendanceWebViewController {
         return AttendanceWebViewController(urlPath: urlPath, authService: authService)
+    }
+
+    func makeMapSearchViewController() -> MapSearchViewController {
+        return MapSearchFactory.create(estateRepository: estateRepository, container: self)
     }
 }
