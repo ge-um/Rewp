@@ -134,3 +134,11 @@ extension LocationManager: CLLocationManagerDelegate {
         }
     }
 }
+
+extension LocationManager {
+    static let defaultCoordinate = CLLocationCoordinate2D(
+        latitude: 37.5176577,
+        longitude: 126.8864088
+    )
+    static let defaultAddress = "문래동"
+}

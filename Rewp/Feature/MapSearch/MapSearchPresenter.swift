@@ -157,6 +157,23 @@ final class MapSearchPresenter {
             .subscribe()
             .disposed(by: disposeBag)
 
+        input.viewDidLoad
+            .take(1)
+            .withUnretained(self)
+            .flatMap { owner, _ in
+                owner.geocodeService.reverseGeocodeForLocationTitle(
+                    latitude: LocationManager.defaultCoordinate.latitude,
+                    longitude: LocationManager.defaultCoordinate.longitude
+                )
+                .asObservable()
+                .catch { error in
+                    Logger.location.error("Initial geocode failed, using default address")
+                    return .just(LocationManager.defaultAddress)
+                }
+            }
+            .bind(to: locationTitleRelay)
+            .disposed(by: disposeBag)
+
         locationManager.currentLocation
             .take(1)
             .map { location in
@@ -168,7 +185,24 @@ final class MapSearchPresenter {
             }
             .bind(to: initialRegionRelay)
             .disposed(by: disposeBag)
-        
+
+        initialRegionRelay
+            .asObservable()
+            .withUnretained(self)
+            .flatMap { owner, region in
+                owner.geocodeService.reverseGeocodeForLocationTitle(
+                    latitude: region.center.latitude,
+                    longitude: region.center.longitude
+                )
+                .asObservable()
+                .catch { error in
+                    Logger.location.error("Initial geocode failed, using default address")
+                    return .just(LocationManager.defaultAddress)
+                }
+            }
+            .bind(to: locationTitleRelay)
+            .disposed(by: disposeBag)
+
         input.mapRegionChanged
             .debounce(.milliseconds(300), scheduler: MainScheduler.instance)
             .withUnretained(self)

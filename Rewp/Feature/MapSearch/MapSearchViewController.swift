@@ -87,7 +87,7 @@ final class MapSearchViewController: UIViewController {
 
     private func setupUI() {
         view.backgroundColor = ColorSystem.gray0
-        navigationBar = addCustomNavigationBar(title: "위치 확인 중...", showSearchBar: true, useLocationTitle: true)
+        navigationBar = addCustomNavigationBar(title: LocationManager.defaultAddress, showSearchBar: true, useLocationTitle: true)
         enableSwipeBackGesture()
 
         view.addSubview(mapView)
