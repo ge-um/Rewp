@@ -35,29 +35,30 @@ final class LocationSearchPresenter {
 
         let searchTrigger = Observable.merge(
             input.searchText
-                .debounce(.milliseconds(300), scheduler: MainScheduler.instance)
+                .debounce(.milliseconds(100), scheduler: MainScheduler.instance)
                 .distinctUntilChanged(),
             input.searchButtonTapped.withLatestFrom(input.searchText)
         )
         .map { $0.trimmingCharacters(in: .whitespaces) }
-        .filter { !$0.isEmpty }
 
         searchTrigger
             .do(onNext: { query in
-                Logger.map.notice("Location search started - query: \(query, privacy: .public)")
-                loadingRelay.accept(true)
+                if !query.isEmpty {
+                    loadingRelay.accept(true)
+                }
             })
             .flatMapLatest { query -> Observable<[SearchResult]> in
-                GeocodeService.shared.searchLocations(query: query)
+                guard !query.isEmpty else {
+                    return .just([])
+                }
+
+                return GeocodeService.shared.searchLocations(query: query)
                     .asObservable()
                     .map { locations in
-                        Logger.map.notice("Found \(locations.count) location(s)")
-                        return locations.map { SearchResult(address: $0.address, coordinate: $0.coordinate) }
+                        locations.map { SearchResult(address: $0.address, coordinate: $0.coordinate, type: $0.type) }
                     }
                     .catch { error in
-                        Logger.map.error("Location search failed - \(error.localizedDescription)")
                         loadingRelay.accept(false)
-                        errorRelay.accept("검색 결과가 없습니다")
                         return .just([])
                     }
             }

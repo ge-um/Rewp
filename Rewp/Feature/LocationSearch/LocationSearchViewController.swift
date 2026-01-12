@@ -23,6 +23,13 @@ final class LocationSearchViewController: UIViewController {
         $0.backgroundColor = ColorSystem.gray0
     }
 
+    private let backButton = UIButton(type: .system).then {
+        let image = UIImage(named: "chevron")
+        $0.setImage(image, for: .normal)
+        $0.tintColor = ColorSystem.gray75
+        $0.contentMode = .center
+    }
+
     private let searchTextField = UITextField().then {
         $0.typography(FontSystem.Pretendard.body2, placeholder: "동, 지하철역, 대학교, 매물번호 검색")
         $0.textColor = ColorSystem.gray90
@@ -34,11 +41,6 @@ final class LocationSearchViewController: UIViewController {
         $0.setImage(UIImage(systemName: "xmark.circle.fill"), for: .normal)
         $0.tintColor = ColorSystem.gray45
         $0.isHidden = true
-    }
-
-    private let searchButton = UIButton(type: .system).then {
-        $0.setImage(UIImage(systemName: "magnifyingglass"), for: .normal)
-        $0.tintColor = ColorSystem.gray90
     }
 
     private let tableView = UITableView().then {
@@ -60,11 +62,13 @@ final class LocationSearchViewController: UIViewController {
     private let emptyLabel1 = UILabel().then {
         $0.textColor = ColorSystem.gray60
         $0.textAlignment = .center
+        $0.numberOfLines = 0
     }
 
     private let emptyLabel2 = UILabel().then {
         $0.textColor = ColorSystem.gray60
         $0.textAlignment = .center
+        $0.numberOfLines = 0
     }
 
     override func viewDidLoad() {
@@ -81,19 +85,19 @@ final class LocationSearchViewController: UIViewController {
             .horizontally()
             .height(56)
 
-        searchTextField.pin
-            .left(20)
+        backButton.pin
+            .left(12)
             .vCenter()
-            .right(80)
+            .size(32)
+
+        searchTextField.pin
+            .after(of: backButton)
+            .marginLeft(8)
+            .vCenter()
+            .right(20)
             .height(40)
 
         clearButton.pin
-            .right(to: searchButton.edge.left)
-            .marginRight(8)
-            .vCenter()
-            .size(24)
-
-        searchButton.pin
             .right(20)
             .vCenter()
             .size(24)
@@ -115,9 +119,9 @@ final class LocationSearchViewController: UIViewController {
         view.backgroundColor = ColorSystem.gray0
 
         view.addSubview(searchContainer)
+        searchContainer.addSubview(backButton)
         searchContainer.addSubview(searchTextField)
         searchContainer.addSubview(clearButton)
-        searchContainer.addSubview(searchButton)
 
         view.addSubview(tableView)
         view.addSubview(emptyStateContainer)
@@ -128,26 +132,43 @@ final class LocationSearchViewController: UIViewController {
         emptyStateContainer.flex
             .justifyContent(.center)
             .alignItems(.center)
+            .paddingHorizontal(20)
             .define { flex in
                 flex.addItem(emptyIconView)
                     .size(80)
                     .marginBottom(20)
 
                 flex.addItem(emptyLabel1)
+                    .width(100%)
 
                 flex.addItem(emptyLabel2)
                     .marginTop(4)
+                    .width(100%)
             }
 
+        backButton.addTarget(self, action: #selector(backButtonTapped), for: .touchUpInside)
         clearButton.addTarget(self, action: #selector(clearButtonTapped), for: .touchUpInside)
 
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(viewTapped))
+        tapGesture.cancelsTouchesInView = false
+        view.addGestureRecognizer(tapGesture)
+
         searchTextField.delegate = self
+    }
+
+    @objc private func backButtonTapped() {
+        view.endEditing(true)
+        dismiss(animated: true)
     }
 
     @objc private func clearButtonTapped() {
         searchTextField.text = ""
         clearButton.isHidden = true
         searchTextField.becomeFirstResponder()
+    }
+
+    @objc private func viewTapped() {
+        view.endEditing(true)
     }
 
     private func bind() {
@@ -178,8 +199,22 @@ final class LocationSearchViewController: UIViewController {
         output.searchResults
             .drive(with: self) { owner, results in
                 let hasText = !(owner.searchTextField.text?.isEmpty ?? true)
-                owner.emptyStateContainer.isHidden = hasText
-                owner.tableView.isHidden = !hasText
+                let hasResults = !results.isEmpty
+
+                if hasText && !hasResults {
+                    owner.emptyLabel1.typography(FontSystem.Pretendard.body1, text: "검색 결과가 없습니다")
+                    owner.emptyLabel2.typography(FontSystem.Pretendard.body1, text: "다른 키워드로 검색해보세요")
+                    owner.emptyStateContainer.isHidden = false
+                    owner.tableView.isHidden = true
+                } else if !hasText {
+                    owner.emptyLabel1.typography(FontSystem.Pretendard.body1, text: "동, 지하철역, 대학교, 매물번호로")
+                    owner.emptyLabel2.typography(FontSystem.Pretendard.body1, text: "빠르게 검색해 보세요!")
+                    owner.emptyStateContainer.isHidden = false
+                    owner.tableView.isHidden = true
+                } else {
+                    owner.emptyStateContainer.isHidden = true
+                    owner.tableView.isHidden = false
+                }
             }
             .disposed(by: disposeBag)
 
@@ -191,27 +226,6 @@ final class LocationSearchViewController: UIViewController {
             .disposed(by: disposeBag)
 
         tableView.rx.setDelegate(self)
-            .disposed(by: disposeBag)
-
-        output.isLoading
-            .drive(with: self) { owner, isLoading in
-                if isLoading {
-                    owner.emptyStateContainer.isHidden = true
-                }
-            }
-            .disposed(by: disposeBag)
-
-        output.error
-            .filter { !$0.isEmpty }
-            .drive(with: self) { owner, message in
-                let alert = UIAlertController(
-                    title: "오류",
-                    message: message,
-                    preferredStyle: .alert
-                )
-                alert.addAction(UIAlertAction(title: "확인", style: .default))
-                owner.present(alert, animated: true)
-            }
             .disposed(by: disposeBag)
 
         output.dismissWithLocation

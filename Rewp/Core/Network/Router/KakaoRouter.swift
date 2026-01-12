@@ -9,7 +9,7 @@ import Foundation
 import Alamofire
 
 enum KakaoRouter {
-    case searchKeyword(query: String, x: String, y: String, radius: Int, size: Int)
+    case searchKeyword(query: String, x: String?, y: String?, radius: Int?, size: Int)
 }
 
 extension KakaoRouter: APIRouter {
@@ -41,13 +41,22 @@ extension KakaoRouter: APIRouter {
     var queryParameters: [String: String]? {
         switch self {
         case .searchKeyword(let query, let x, let y, let radius, let size):
-            return [
+            var params: [String: String] = [
                 "query": query,
-                "x": x,
-                "y": y,
-                "radius": String(radius),
                 "size": String(size)
             ]
+
+            if let x = x {
+                params["x"] = x
+            }
+            if let y = y {
+                params["y"] = y
+            }
+            if let radius = radius {
+                params["radius"] = String(radius)
+            }
+
+            return params
         }
     }
 }

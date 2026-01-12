@@ -14,8 +14,6 @@ final class LocationSearchResultCell: UITableViewCell, IsIdentifiable {
     private let containerView = UIView()
 
     private let iconView = UIImageView().then {
-        $0.image = UIImage(systemName: "building.2.fill")
-        $0.tintColor = ColorSystem.gray60
         $0.contentMode = .scaleAspectFit
     }
 
@@ -65,6 +63,18 @@ final class LocationSearchResultCell: UITableViewCell, IsIdentifiable {
 
     func configure(with result: SearchResult) {
         addressLabel.typography(FontSystem.Pretendard.body1, text: result.address)
+
+        switch result.type {
+        case .address:
+            iconView.image = UIImage(systemName: "mappin.circle.fill")
+            iconView.tintColor = ColorSystem.brightCream
+        case .subway:
+            iconView.image = UIImage(systemName: "train.side.front.car")
+            iconView.tintColor = ColorSystem.brightCoast
+        case .university:
+            iconView.image = UIImage(systemName: "building.columns.fill")
+            iconView.tintColor = ColorSystem.brightWood
+        }
     }
 
     override func sizeThatFits(_ size: CGSize) -> CGSize {

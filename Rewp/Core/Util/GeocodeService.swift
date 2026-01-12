@@ -7,6 +7,7 @@
 
 import Foundation
 import CoreLocation
+import MapKit
 import RxSwift
 
 final class GeocodeService {
@@ -15,6 +16,7 @@ final class GeocodeService {
     private let geocoder = CLGeocoder()
     private var cache: [String: String] = [:]
     private let cacheQueue = DispatchQueue(label: "com.rewp.geocode.cache")
+    private let networkManager = NetworkService()
 
     private init() {}
 
@@ -162,56 +164,79 @@ final class GeocodeService {
         }
     }
 
-    func searchLocations(query: String) -> Single<[(address: String, coordinate: CLLocationCoordinate2D)]> {
-        return Single.create { [weak self] observer in
-            guard let self = self else {
-                observer(.failure(NSError(domain: "GeocodeService", code: -1)))
-                return Disposables.create()
+    func searchLocations(query: String) -> Single<[(address: String, coordinate: CLLocationCoordinate2D, type: LocationType)]> {
+        return networkManager.request(
+            KakaoRouter.searchKeyword(
+                query: query,
+                x: nil,
+                y: nil,
+                radius: nil,
+                size: 15
+            )
+        )
+        .map { (response: KakaoSearchResponse) -> [(address: String, coordinate: CLLocationCoordinate2D, type: LocationType)] in
+            guard !response.documents.isEmpty else {
+                throw NSError(
+                    domain: "GeocodeService",
+                    code: -3,
+                    userInfo: [NSLocalizedDescriptionKey: "검색 결과가 없습니다"]
+                )
             }
 
-            self.geocoder.geocodeAddressString(query) { placemarks, error in
-                if let error = error {
-                    observer(.failure(error))
-                    return
+            let results = response.documents.compactMap { place -> (address: String, coordinate: CLLocationCoordinate2D, type: LocationType)? in
+                guard let latitude = Double(place.y),
+                      let longitude = Double(place.x) else {
+                    return nil
                 }
 
-                guard let placemarks = placemarks, !placemarks.isEmpty else {
-                    observer(.failure(NSError(
-                        domain: "GeocodeService",
-                        code: -3,
-                        userInfo: [NSLocalizedDescriptionKey: "검색 결과가 없습니다"]
-                    )))
-                    return
+                let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+                let formattedAddress = self.formatAddressWithoutBeonji(place.addressName)
+
+                let isSubway = place.categoryName.contains("지하철") || place.categoryName.contains("전철")
+                let isUniversity = place.categoryName.contains("대학교")
+
+                if isSubway {
+                    return (address: place.placeName, coordinate: coordinate, type: .subway)
+                } else if isUniversity {
+                    return (address: place.placeName, coordinate: coordinate, type: .university)
+                } else {
+                    return (address: formattedAddress, coordinate: coordinate, type: .address)
                 }
-
-                let results = placemarks.compactMap { placemark -> (address: String, coordinate: CLLocationCoordinate2D)? in
-                    guard let location = placemark.location else { return nil }
-
-                    var addressComponents: [String] = []
-
-                    if let name = placemark.name {
-                        addressComponents.append(name)
-                    }
-
-                    if let locality = placemark.locality {
-                        addressComponents.append(locality)
-                    }
-
-                    if let subLocality = placemark.subLocality {
-                        addressComponents.append(subLocality)
-                    }
-
-                    let address = addressComponents.isEmpty ? "주소 정보 없음" : addressComponents.joined(separator: " ")
-
-                    return (address: address, coordinate: location.coordinate)
-                }
-
-                observer(.success(results))
             }
 
-            return Disposables.create {
-                self.geocoder.cancelGeocode()
+            guard !results.isEmpty else {
+                throw NSError(
+                    domain: "GeocodeService",
+                    code: -3,
+                    userInfo: [NSLocalizedDescriptionKey: "검색 결과가 없습니다"]
+                )
             }
+
+            return results
         }
+    }
+
+    private func formatAddressWithoutBeonji(_ address: String) -> String {
+        let components = address.split(separator: " ").map(String.init)
+
+        guard !components.isEmpty else {
+            return address
+        }
+
+        var result: [String] = []
+
+        for component in components {
+            if component.first?.isNumber == true {
+                break
+            }
+
+            if component.contains(where: { $0.isNumber }) && (component.contains("-") || component.allSatisfy { $0.isNumber || $0 == "-" }) {
+                break
+            }
+
+            result.append(component)
+        }
+
+        return result.isEmpty ? address : result.joined(separator: " ")
     }
 }
