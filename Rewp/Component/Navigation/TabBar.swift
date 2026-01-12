@@ -13,6 +13,7 @@ import RxCocoa
 
 enum TabBarItem: Int, CaseIterable {
     case home
+    case community
     case favorites
     case chat
     case settings
@@ -20,6 +21,7 @@ enum TabBarItem: Int, CaseIterable {
     var title: String {
         switch self {
         case .home: return "홈"
+        case .community: return "커뮤니티"
         case .favorites: return "관심매물"
         case .chat: return "채팅"
         case .settings: return "설정"
@@ -29,6 +31,7 @@ enum TabBarItem: Int, CaseIterable {
     var emptyIcon: UIImage? {
         switch self {
         case .home: return UIImage(named: "Home_Empty")
+        case .community: return UIImage(systemName: "bubble.left.and.bubble.right")
         case .favorites: return UIImage(named: "Interest_Empty")
         case .chat: return UIImage(systemName: "bubble.left")
         case .settings: return UIImage(named: "Setting_Empty")
@@ -38,6 +41,7 @@ enum TabBarItem: Int, CaseIterable {
     var fillIcon: UIImage? {
         switch self {
         case .home: return UIImage(named: "Home_Fill")
+        case .community: return UIImage(systemName: "bubble.left.and.bubble.right.fill")
         case .favorites: return UIImage(named: "Interest_Fill")
         case .chat: return UIImage(systemName: "bubble.left.fill")
         case .settings: return UIImage(named: "Setting_Fill")

@@ -25,4 +25,5 @@ extension Logger {
     static let fcm = Logger(subsystem: subsystem, category: "FCM")
     static let storage = Logger(subsystem: subsystem, category: "Storage")
     static let video = Logger(subsystem: subsystem, category: "Video")
+    static let community = Logger(subsystem: subsystem, category: "Community")
 }

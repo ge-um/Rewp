@@ -82,6 +82,10 @@ final class AppContainer {
         SubtitleService(videoRepository: videoRepository)
     }()
 
+    lazy var postRepository: PostRepository = {
+        PostRepositoryImpl(authService: authService)
+    }()
+
     // MARK: - Factory Methods
 
     func makeLoginViewController() -> LoginViewController {
@@ -126,5 +130,13 @@ final class AppContainer {
 
     func makeMapSearchViewController() -> MapSearchViewController {
         return MapSearchFactory.create(estateRepository: estateRepository, container: self)
+    }
+
+    func makeCommunityViewController() -> CommunityViewController {
+        return CommunityFactory.create(postRepository: postRepository, container: self)
+    }
+
+    func makePostDetailViewController(postId: String) -> PostDetailViewController {
+        return PostDetailFactory.create(postRepository: postRepository, postId: postId)
     }
 }
