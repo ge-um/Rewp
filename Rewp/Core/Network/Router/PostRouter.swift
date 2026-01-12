@@ -11,6 +11,7 @@ import Alamofire
 enum PostRouter {
     case geolocationPosts(longitude: Double?, latitude: Double?, limit: String?, product_id: String?)
     case postDetail(postId: String)
+    case toggleLike(postId: String, likeStatus: Bool)
 }
 
 extension PostRouter: APIRouter {
@@ -24,11 +25,18 @@ extension PostRouter: APIRouter {
             return "/posts/geolocation"
         case .postDetail(let postId):
             return "/posts/\(postId)"
+        case .toggleLike(let postId, _):
+            return "/posts/\(postId)/like"
         }
     }
 
     var method: HTTPMethod {
-        return .get
+        switch self {
+        case .geolocationPosts, .postDetail:
+            return .get
+        case .toggleLike:
+            return .post
+        }
     }
 
     var headers: HTTPHeaders? {
@@ -39,7 +47,12 @@ extension PostRouter: APIRouter {
     }
 
     var body: Encodable? {
-        return nil
+        switch self {
+        case .geolocationPosts, .postDetail:
+            return nil
+        case .toggleLike(_, let likeStatus):
+            return ["like_status": likeStatus]
+        }
     }
 
     var queryParameters: [String: String]? {
@@ -59,7 +72,7 @@ extension PostRouter: APIRouter {
                 params["product_id"] = product_id
             }
             return params
-        case .postDetail:
+        case .postDetail, .toggleLike:
             return nil
         }
     }

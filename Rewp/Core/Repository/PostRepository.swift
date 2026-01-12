@@ -11,6 +11,7 @@ import RxSwift
 protocol PostRepository {
     func fetchPostsByLocation(longitude: Double?, latitude: Double?, limit: String?, productId: String?) -> Single<[PostDTO]>
     func fetchPostDetail(postId: String) -> Single<PostDTO>
+    func toggleLike(postId: String, likeStatus: Bool) -> Single<Bool>
 }
 
 final class PostRepositoryImpl: PostRepository {
@@ -36,5 +37,12 @@ final class PostRepositoryImpl: PostRepository {
 
     func fetchPostDetail(postId: String) -> Single<PostDTO> {
         return authService.authenticatedRequest(PostRouter.postDetail(postId: postId))
+    }
+
+    func toggleLike(postId: String, likeStatus: Bool) -> Single<Bool> {
+        return authService.authenticatedRequest(PostRouter.toggleLike(postId: postId, likeStatus: likeStatus))
+            .map { (response: LikeResponse) in
+                return response.like_status
+            }
     }
 }

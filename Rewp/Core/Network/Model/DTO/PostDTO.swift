@@ -12,6 +12,10 @@ struct PostsResponse: Codable {
     let next_cursor: String
 }
 
+struct LikeResponse: Codable {
+    let like_status: Bool
+}
+
 struct PostDTO: Codable {
     let post_id: String
     let category: String

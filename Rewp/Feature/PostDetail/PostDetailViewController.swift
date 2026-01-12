@@ -176,6 +176,12 @@ final class PostDetailViewController: UIViewController {
                 owner.likeButton.isSelected = isLiked
             }
             .disposed(by: disposeBag)
+
+        output.likeCount
+            .drive(with: self) { owner, count in
+                owner.likeCountLabel.typography(FontSystem.Pretendard.body2, text: "\(count)")
+            }
+            .disposed(by: disposeBag)
     }
 
     private func configurePost(_ post: Post) {
@@ -183,9 +189,6 @@ final class PostDetailViewController: UIViewController {
         timeLabel.typography(FontSystem.Pretendard.caption1Regular, text: post.relativeTime)
         titleLabel.typography(FontSystem.Pretendard.title1Bold, text: post.title)
         contentLabel.typography(FontSystem.Pretendard.body2, text: post.content)
-        likeCountLabel.typography(FontSystem.Pretendard.body2, text: "\(post.likesCount)")
-
-        likeButton.isSelected = post.isLiked
 
         comments = post.comments
         commentsSectionLabel.typography(FontSystem.Pretendard.body1, text: "댓글 \(post.commentsCount)")

@@ -29,12 +29,14 @@ final class PostDetailPresenter {
         let post: Driver<Post>
         let error: Driver<String>
         let isLiked: Driver<Bool>
+        let likeCount: Driver<Int>
     }
 
     func transform(input: Input) -> Output {
         let postRelay = PublishRelay<Post>()
         let errorRelay = PublishRelay<String>()
         let isLikedRelay = BehaviorRelay<Bool>(value: false)
+        let likeCountRelay = BehaviorRelay<Int>(value: 0)
 
         input.viewDidLoad
             .withUnretained(self)
@@ -55,21 +57,40 @@ final class PostDetailPresenter {
                 let post = postDTO.toDomain()
                 postRelay.accept(post)
                 isLikedRelay.accept(post.isLiked)
+                likeCountRelay.accept(post.likesCount)
             })
             .disposed(by: disposeBag)
 
         input.likeTapped
             .withUnretained(self)
             .subscribe(onNext: { owner, _ in
-                let newLikedState = !isLikedRelay.value
+                let currentState = isLikedRelay.value
+                let currentCount = likeCountRelay.value
+                let newLikedState = !currentState
+                let newCount = newLikedState ? currentCount + 1 : currentCount - 1
+
                 isLikedRelay.accept(newLikedState)
+                likeCountRelay.accept(newCount)
+
+                owner.postRepository
+                    .toggleLike(postId: owner.postId, likeStatus: newLikedState)
+                    .asObservable()
+                    .catch { error in
+                        Logger.community.error("Failed to toggle like - \(error.localizedDescription)")
+                        isLikedRelay.accept(currentState)
+                        likeCountRelay.accept(currentCount)
+                        return .empty()
+                    }
+                    .subscribe()
+                    .disposed(by: owner.disposeBag)
             })
             .disposed(by: disposeBag)
 
         return Output(
             post: postRelay.asDriver(onErrorDriveWith: .empty()),
             error: errorRelay.asDriver(onErrorJustReturn: ""),
-            isLiked: isLikedRelay.asDriver()
+            isLiked: isLikedRelay.asDriver(),
+            likeCount: likeCountRelay.asDriver()
         )
     }
 }
