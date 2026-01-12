@@ -22,6 +22,7 @@ final class CommunityPresenter {
 
     struct Input {
         let viewDidLoad: Observable<Void>
+        let viewWillAppear: Observable<Void>
         let refreshTriggered: Observable<Void>
         let postSelected: Observable<String>
     }
@@ -41,6 +42,7 @@ final class CommunityPresenter {
 
         let loadTrigger = Observable.merge(
             input.viewDidLoad,
+            input.viewWillAppear.skip(1),
             input.refreshTriggered
         )
 

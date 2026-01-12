@@ -66,6 +66,7 @@ final class CommunityViewController: UIViewController {
     private let refreshControl = UIRefreshControl()
 
     private let viewDidLoadTrigger = PublishSubject<Void>()
+    private let viewWillAppearTrigger = PublishSubject<Void>()
     private let refreshTriggered = PublishSubject<Void>()
     private let postSelectedTrigger = PublishSubject<String>()
 
@@ -78,6 +79,11 @@ final class CommunityViewController: UIViewController {
         setupUI()
         bind()
         viewDidLoadTrigger.onNext(())
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        viewWillAppearTrigger.onNext(())
     }
 
     private func setupUI() {
@@ -98,6 +104,7 @@ final class CommunityViewController: UIViewController {
     private func bind() {
         let input = CommunityPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
+            viewWillAppear: viewWillAppearTrigger.asObservable(),
             refreshTriggered: refreshControl.rx.controlEvent(.valueChanged).asObservable(),
             postSelected: postSelectedTrigger.asObservable()
         )
