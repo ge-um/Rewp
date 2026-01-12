@@ -9,7 +9,7 @@ import Foundation
 
 final class PostDetailFactory {
     static func create(postRepository: PostRepository, postId: String) -> PostDetailViewController {
-        let presenter = PostDetailPresenter(postRepository: postRepository)
+        let presenter = PostDetailPresenter(postRepository: postRepository, postId: postId)
         let viewController = PostDetailViewController()
 
         viewController.presenter = presenter

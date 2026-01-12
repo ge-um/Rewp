@@ -9,13 +9,356 @@ import UIKit
 import RxSwift
 import RxCocoa
 import PinLayout
+import FlexLayout
 import Kingfisher
+import OSLog
 
 final class PostDetailViewController: UIViewController {
     var presenter: PostDetailPresenter!
 
+    private var navigationBar: CustomNavigationBar!
+
+    private let scrollView = UIScrollView().then {
+        $0.showsVerticalScrollIndicator = false
+    }
+    private let contentContainer = UIView()
+
+    private let profileImageView = UIImageView().then {
+        $0.contentMode = .scaleAspectFill
+        $0.backgroundColor = ColorSystem.gray30
+        $0.layer.cornerRadius = 24
+        $0.clipsToBounds = true
+    }
+
+    private let profileInfoContainer = UIView()
+
+    private let nicknameLabel = UILabel().then {
+        $0.textColor = ColorSystem.gray90
+    }
+
+    private let timeLabel = UILabel().then {
+        $0.textColor = ColorSystem.gray45
+    }
+
+    private let titleLabel = UILabel().then {
+        $0.textColor = ColorSystem.gray90
+        $0.numberOfLines = 0
+    }
+
+    private let contentLabel = UILabel().then {
+        $0.textColor = ColorSystem.gray90
+        $0.numberOfLines = 0
+    }
+
+    private let imageStackContainer = UIView().then {
+        $0.isHidden = true
+    }
+
+    private var imageViews: [UIImageView] = []
+    private let maxImageCount = 5
+
+    private let likeButton = UIButton(type: .custom).then {
+        $0.setImage(UIImage(named: "Like_Empty")?.withTintColor(ColorSystem.gray75), for: .normal)
+        $0.setImage(UIImage(named: "Like_Fill")?.withTintColor(ColorSystem.brightCoast), for: .selected)
+    }
+
+    private let likeCountLabel = UILabel().then {
+        $0.textColor = ColorSystem.gray75
+    }
+
+    private let commentsSectionLabel = UILabel().then {
+        $0.textColor = ColorSystem.gray90
+    }
+
+    private let commentsTableView = UITableView().then {
+        $0.backgroundColor = .clear
+        $0.separatorStyle = .none
+        $0.isScrollEnabled = false
+        $0.register(CommentCell.self, forCellReuseIdentifier: CommentCell.identifier)
+    }
+
+    private var comments: [Comment] = []
+
+    private let viewDidLoadTrigger = PublishSubject<Void>()
+    private let likeTappedTrigger = PublishSubject<Void>()
+    private let disposeBag = DisposeBag()
+
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        navigationController?.setNavigationBarHidden(true, animated: false)
+        setupUI()
+        bind()
+        viewDidLoadTrigger.onNext(())
+    }
+
+    private func setupUI() {
+        view.backgroundColor = ColorSystem.gray0
+        navigationBar = addCustomNavigationBar()
+        enableSwipeBackGesture()
+
+        view.addSubview(scrollView)
+        view.addSubview(navigationBar)
+        scrollView.addSubview(contentContainer)
+
+        contentContainer.addSubview(profileImageView)
+        contentContainer.addSubview(profileInfoContainer)
+        contentContainer.addSubview(titleLabel)
+        contentContainer.addSubview(contentLabel)
+        contentContainer.addSubview(imageStackContainer)
+        contentContainer.addSubview(likeButton)
+        contentContainer.addSubview(likeCountLabel)
+
+        profileInfoContainer.flex
+            .direction(.column)
+            .define { flex in
+                flex.addItem(nicknameLabel)
+                flex.addItem(timeLabel)
+            }
+
+        contentContainer.addSubview(commentsSectionLabel)
+        contentContainer.addSubview(commentsTableView)
+
+        commentsTableView.dataSource = self
+        commentsTableView.delegate = self
+
+        createImageViews()
+    }
+
+    private func createImageViews() {
+        for _ in 0..<maxImageCount {
+            let imageView = UIImageView().then {
+                $0.contentMode = .scaleAspectFill
+                $0.clipsToBounds = true
+                $0.layer.cornerRadius = 8
+                $0.backgroundColor = ColorSystem.gray30
+                $0.isHidden = true
+            }
+            imageStackContainer.addSubview(imageView)
+            imageViews.append(imageView)
+        }
+    }
+
+    private func bind() {
+        likeButton.rx.tap
+            .bind(to: likeTappedTrigger)
+            .disposed(by: disposeBag)
+
+        let input = PostDetailPresenter.Input(
+            viewDidLoad: viewDidLoadTrigger.asObservable(),
+            likeTapped: likeTappedTrigger.asObservable()
+        )
+
+        let output = presenter.transform(input: input)
+
+        output.post
+            .drive(with: self) { owner, post in
+                owner.configurePost(post)
+            }
+            .disposed(by: disposeBag)
+
+        output.error
+            .filter { !$0.isEmpty }
+            .drive(with: self) { owner, message in
+                let alert = UIAlertController(
+                    title: "오류",
+                    message: message,
+                    preferredStyle: .alert
+                )
+                alert.addAction(UIAlertAction(title: "확인", style: .default) { _ in
+                    owner.navigationController?.popViewController(animated: true)
+                })
+                owner.present(alert, animated: true)
+            }
+            .disposed(by: disposeBag)
+
+        output.isLiked
+            .drive(with: self) { owner, isLiked in
+                owner.likeButton.isSelected = isLiked
+            }
+            .disposed(by: disposeBag)
+    }
+
+    private func configurePost(_ post: Post) {
+        nicknameLabel.typography(FontSystem.Pretendard.body2Bold, text: post.creatorNickname)
+        timeLabel.typography(FontSystem.Pretendard.caption1Regular, text: post.relativeTime)
+        titleLabel.typography(FontSystem.Pretendard.title1Bold, text: post.title)
+        contentLabel.typography(FontSystem.Pretendard.body2, text: post.content)
+        likeCountLabel.typography(FontSystem.Pretendard.body2, text: "\(post.likesCount)")
+
+        likeButton.isSelected = post.isLiked
+
+        comments = post.comments
+        commentsSectionLabel.typography(FontSystem.Pretendard.body1, text: "댓글 \(post.commentsCount)")
+        commentsTableView.reloadData()
+
+        profileImageView.setImage(from: post.creatorProfileImage)
+
+        if !post.imageURLs.isEmpty {
+            imageStackContainer.isHidden = false
+            configureImages(imageURLs: post.imageURLs)
+        } else {
+            imageStackContainer.isHidden = true
+        }
+
+        view.setNeedsLayout()
+    }
+
+    private func configureImages(imageURLs: [String]) {
+        for (index, imageView) in imageViews.enumerated() {
+            if index < imageURLs.count {
+                imageView.setImage(from: imageURLs[index])
+                imageView.isHidden = false
+            } else {
+                imageView.image = nil
+                imageView.isHidden = true
+            }
+        }
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+
+        navigationBar.pin
+            .top(view.pin.safeArea.top)
+            .horizontally()
+            .height(56)
+
+        scrollView.pin
+            .below(of: navigationBar)
+            .horizontally()
+            .bottom()
+
+        profileImageView.pin
+            .top()
+            .left(20)
+            .size(48)
+
+        profileInfoContainer.pin
+            .after(of: profileImageView)
+            .marginLeft(12)
+            .right(20)
+
+        profileInfoContainer.flex.layout(mode: .adjustHeight)
+
+        profileInfoContainer.pin
+            .vCenter(to: profileImageView.edge.vCenter)
+
+        titleLabel.pin
+            .below(of: profileImageView)
+            .marginTop(16)
+            .left(20)
+            .right(20)
+            .sizeToFit(.width)
+
+        contentLabel.pin
+            .below(of: titleLabel)
+            .marginTop(12)
+            .left(20)
+            .right(20)
+            .sizeToFit(.width)
+
+        if !imageStackContainer.isHidden {
+            var currentY: CGFloat = 0
+            let imageWidth = view.bounds.width - 40
+            let imageHeight: CGFloat = 300
+            let imageSpacing: CGFloat = 12
+
+            let visibleImages = imageViews.filter { !$0.isHidden }
+
+            for (index, imageView) in visibleImages.enumerated() {
+                imageView.pin
+                    .top(currentY)
+                    .left()
+                    .width(imageWidth)
+                    .height(imageHeight)
+
+                currentY += imageHeight
+                if index < visibleImages.count - 1 {
+                    currentY += imageSpacing
+                }
+            }
+
+            imageStackContainer.pin
+                .below(of: contentLabel)
+                .marginTop(12)
+                .horizontally(20)
+                .height(currentY)
+        }
+
+        if !imageStackContainer.isHidden {
+            likeButton.pin
+                .below(of: imageStackContainer)
+                .marginTop(12)
+                .left(20)
+                .size(28)
+        } else {
+            likeButton.pin
+                .below(of: contentLabel)
+                .marginTop(12)
+                .left(20)
+                .size(32)
+        }
+
+        likeCountLabel.pin
+            .after(of: likeButton)
+            .marginLeft(6)
+            .sizeToFit()
+            .vCenter(to: likeButton.edge.vCenter)
+
+        if !comments.isEmpty {
+            commentsSectionLabel.pin
+                .below(of: likeCountLabel)
+                .marginTop(20)
+                .left(20)
+                .sizeToFit()
+
+            let tableHeight = calculateCommentsTableHeight()
+            commentsTableView.pin
+                .below(of: commentsSectionLabel)
+                .marginTop(8)
+                .horizontally()
+                .height(tableHeight)
+
+            contentContainer.pin
+                .top()
+                .horizontally()
+                .height(commentsTableView.frame.maxY + 40)
+        } else {
+            contentContainer.pin
+                .top()
+                .horizontally()
+                .height(likeCountLabel.frame.maxY + 40)
+        }
+
+        scrollView.contentSize = contentContainer.frame.size
+    }
+
+    private func calculateCommentsTableHeight() -> CGFloat {
+        var totalHeight: CGFloat = 0
+        for (_, comment) in comments.enumerated() {
+            let cell = CommentCell()
+            cell.configure(with: comment)
+            let size = cell.sizeThatFits(CGSize(width: view.bounds.width, height: .greatestFiniteMagnitude))
+            totalHeight += size.height
+        }
+        return totalHeight
+    }
+}
+
+extension PostDetailViewController: UITableViewDataSource {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return comments.count
+    }
+
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: CommentCell.identifier, for: indexPath) as! CommentCell
+        cell.configure(with: comments[indexPath.row])
+        return cell
+    }
+}
+
+extension PostDetailViewController: UITableViewDelegate {
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        return UITableView.automaticDimension
     }
 }

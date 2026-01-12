@@ -33,7 +33,15 @@ extension UIImageView {
                 .cacheMemoryOnly,
                 .backgroundDecode,
                 .requestModifier(RewpImageRequestModifier(accessToken: accessToken))
-            ]
+            ],
+            completionHandler: { result in
+                switch result {
+                case .success(let value):
+                    Logger.network.info("Image loaded successfully - \(url.absoluteString)")
+                case .failure(let error):
+                    Logger.network.error("Image loading failed - \(url.absoluteString) - error: \(error.localizedDescription)")
+                }
+            }
         )
     }
 }

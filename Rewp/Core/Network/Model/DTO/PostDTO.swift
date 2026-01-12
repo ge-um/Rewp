@@ -72,6 +72,10 @@ extension PostDTO {
             return "\(NetworkConfig.baseURL)\(profileImage)"
         }()
 
+        let domainComments = (comments ?? []).map { commentDTO in
+            commentDTO.toDomain()
+        }
+
         return Post(
             postId: post_id,
             title: title,
@@ -82,6 +86,61 @@ extension PostDTO {
             imageURLs: imageURLs,
             likesCount: like_count,
             commentsCount: comments?.count ?? 0,
+            createdAt: createdDate,
+            isLiked: is_like,
+            comments: domainComments
+        )
+    }
+}
+
+extension PostCommentDTO {
+    func toDomain() -> Comment {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let createdDate = formatter.date(from: createdAt) ?? Date()
+
+        let profileImageURL: String? = {
+            guard let profileImage = creator.profileImage, !profileImage.isEmpty else {
+                return nil
+            }
+            return "\(NetworkConfig.baseURL)\(profileImage)"
+        }()
+
+        let domainReplies = (replies ?? []).map { replyDTO in
+            replyDTO.toDomain()
+        }
+
+        return Comment(
+            commentId: comment_id,
+            content: content,
+            creatorId: creator.user_id,
+            creatorNickname: creator.nick,
+            creatorProfileImage: profileImageURL,
+            createdAt: createdDate,
+            replies: domainReplies
+        )
+    }
+}
+
+extension PostReplyDTO {
+    func toDomain() -> Reply {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let createdDate = formatter.date(from: createdAt) ?? Date()
+
+        let profileImageURL: String? = {
+            guard let profileImage = creator.profileImage, !profileImage.isEmpty else {
+                return nil
+            }
+            return "\(NetworkConfig.baseURL)\(profileImage)"
+        }()
+
+        return Reply(
+            replyId: comment_id,
+            content: content,
+            creatorId: creator.user_id,
+            creatorNickname: creator.nick,
+            creatorProfileImage: profileImageURL,
             createdAt: createdDate
         )
     }

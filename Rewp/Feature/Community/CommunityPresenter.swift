@@ -48,7 +48,6 @@ final class CommunityPresenter {
             .withUnretained(self)
             .do(onNext: { owner, _ in
                 isLoadingRelay.accept(true)
-                Logger.community.notice("Fetching community posts")
             })
             .flatMapLatest { owner, _ -> Observable<[PostDTO]> in
                 return owner.locationManager.currentLocation
@@ -79,7 +78,6 @@ final class CommunityPresenter {
             .subscribe(onNext: { owner, postDTOs in
                 isLoadingRelay.accept(false)
                 let posts = postDTOs.map { $0.toDomain() }
-                Logger.community.notice("Fetched \(posts.count, privacy: .public) posts")
                 postsRelay.accept(posts)
             })
             .disposed(by: disposeBag)
