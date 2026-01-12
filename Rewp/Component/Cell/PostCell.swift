@@ -214,17 +214,14 @@ final class PostCell: UITableViewCell, IsIdentifiable {
         likeCountLabel.text = "\(post.likesCount)"
         commentCountLabel.text = "\(post.commentsCount)"
 
-        if let profileImageURL = post.creatorProfileImage, let url = URL(string: profileImageURL) {
-            profileImageView.kf.setImage(with: url)
-        } else {
-            profileImageView.image = nil
-        }
+        profileImageView.setImage(from: post.creatorProfileImage)
 
-        if let thumbnailURL = post.thumbnailURL, let url = URL(string: thumbnailURL) {
+        if let thumbnailURL = post.thumbnailURL {
             thumbnailImageView.isHidden = false
-            thumbnailImageView.kf.setImage(with: url)
+            thumbnailImageView.setImage(from: thumbnailURL)
         } else {
             thumbnailImageView.isHidden = true
+            thumbnailImageView.image = nil
         }
     }
 }

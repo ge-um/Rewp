@@ -36,7 +36,7 @@ extension UIImageView {
             ],
             completionHandler: { result in
                 switch result {
-                case .success(let value):
+                case .success:
                     Logger.network.info("Image loaded successfully - \(url.absoluteString)")
                 case .failure(let error):
                     Logger.network.error("Image loading failed - \(url.absoluteString) - error: \(error.localizedDescription)")
