@@ -186,12 +186,9 @@ final class CommunityViewController: UIViewController {
             .disposed(by: disposeBag)
 
         output.isLoading
-            .drive(with: self) { owner, isLoading in
-                if isLoading {
-                    owner.refreshControl.beginRefreshing()
-                } else {
-                    owner.refreshControl.endRefreshing()
-                }
+            .filter { !$0 }
+            .drive(with: self) { owner, _ in
+                owner.refreshControl.endRefreshing()
             }
             .disposed(by: disposeBag)
 

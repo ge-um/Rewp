@@ -61,8 +61,7 @@ final class CommunityPresenter {
         let allPosts = BehaviorRelay<[Post]>(value: [])
 
         let loadTrigger = Observable.merge(
-            input.viewDidLoad,
-            input.viewWillAppear.skip(1),
+            input.viewWillAppear,
             input.refreshTriggered
         )
 
