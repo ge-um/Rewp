@@ -6,19 +6,16 @@
 //
 
 import Foundation
-import CoreLocation
 import RxSwift
 import RxCocoa
 import OSLog
 
 final class CreatePostPresenter {
     private let postRepository: PostRepository
-    private let locationManager: LocationManager
     private let disposeBag = DisposeBag()
 
-    init(postRepository: PostRepository, locationManager: LocationManager = .shared) {
+    init(postRepository: PostRepository) {
         self.postRepository = postRepository
-        self.locationManager = locationManager
     }
 
     struct Input {
@@ -70,41 +67,30 @@ final class CreatePostPresenter {
             .flatMapLatest { [weak self] category, title, content -> Observable<Void> in
                 guard let self = self else { return .empty() }
 
-                return self.locationManager.currentLocation
-                    .take(1)
-                    .timeout(.seconds(2), scheduler: MainScheduler.instance)
-                    .catchAndReturn(CLLocation(
-                        latitude: LocationManager.defaultCoordinate.latitude,
-                        longitude: LocationManager.defaultCoordinate.longitude
-                    ))
-                    .flatMap { location -> Observable<Void> in
-                        let categoryString = category.rawValue
-                        let latitude = location.coordinate.latitude
-                        let longitude = location.coordinate.longitude
+                let categoryString = category.rawValue
 
-                        return self.postRepository
-                            .createPost(
-                                category: categoryString,
-                                title: title,
-                                content: content,
-                                latitude: latitude,
-                                longitude: longitude,
-                                files: []
-                            )
-                            .asObservable()
-                            .do(onNext: { _ in
-                                isLoadingRelay.accept(false)
-                                successRelay.accept(())
-                                dismissRelay.accept(())
-                                Logger.community.info("Post created successfully")
-                            }, onError: { error in
-                                isLoadingRelay.accept(false)
-                                errorRelay.accept("게시글 작성에 실패했습니다")
-                                Logger.community.error("Failed to create post - \(error.localizedDescription)")
-                            })
-                            .map { _ in }
-                            .catch { _ in .empty() }
-                    }
+                return self.postRepository
+                    .createPost(
+                        category: categoryString,
+                        title: title,
+                        content: content,
+                        latitude: 37.654215,
+                        longitude: 127.049914,
+                        files: []
+                    )
+                    .asObservable()
+                    .do(onNext: { _ in
+                        isLoadingRelay.accept(false)
+                        successRelay.accept(())
+                        dismissRelay.accept(())
+                        Logger.community.info("Post created successfully")
+                    }, onError: { error in
+                        isLoadingRelay.accept(false)
+                        errorRelay.accept("게시글 작성에 실패했습니다")
+                        Logger.community.error("Failed to create post - \(error.localizedDescription)")
+                    })
+                    .map { _ in }
+                    .catch { _ in .empty() }
             }
             .subscribe()
             .disposed(by: disposeBag)
