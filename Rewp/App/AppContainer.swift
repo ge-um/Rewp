@@ -139,4 +139,8 @@ final class AppContainer {
     func makePostDetailViewController(postId: String) -> PostDetailViewController {
         return PostDetailFactory.create(postRepository: postRepository, postId: postId)
     }
+
+    func makeCreatePostViewController() -> CreatePostViewController {
+        return CreatePostFactory.make(postRepository: postRepository)
+    }
 }

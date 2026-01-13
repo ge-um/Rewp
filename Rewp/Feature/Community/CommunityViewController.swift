@@ -64,6 +64,23 @@ final class CommunityViewController: UIViewController {
 
     private let refreshControl = UIRefreshControl()
 
+    private lazy var writeButton: UIButton = {
+        var config = UIButton.Configuration.filled()
+        config.image = UIImage(systemName: "plus")
+        config.baseBackgroundColor = ColorSystem.deepCoast
+        config.baseForegroundColor = ColorSystem.gray0
+        config.cornerStyle = .capsule
+        config.contentInsets = NSDirectionalEdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
+
+        let button = UIButton(configuration: config)
+        button.layer.shadowColor = UIColor.black.cgColor
+        button.layer.shadowOpacity = 0.1
+        button.layer.shadowOffset = CGSize(width: 0, height: 2)
+        button.layer.shadowRadius = 8
+
+        return button
+    }()
+
     private let loadingFooterView = UIView().then {
         $0.frame = CGRect(x: 0, y: 0, width: 0, height: 60)
         $0.backgroundColor = ColorSystem.gray15
@@ -113,6 +130,8 @@ final class CommunityViewController: UIViewController {
         tableView.refreshControl = refreshControl
         tableView.dataSource = self
         tableView.delegate = self
+
+        view.addSubview(writeButton)
     }
 
     private func bind() {
@@ -230,6 +249,13 @@ final class CommunityViewController: UIViewController {
                 owner.updateCategoryButtons(selectedCategory: category)
             }
             .disposed(by: disposeBag)
+
+        writeButton.rx.tap
+            .subscribe(with: self) { owner, _ in
+                let createPostVC = owner.container.makeCreatePostViewController()
+                owner.present(createPostVC, animated: true)
+            }
+            .disposed(by: disposeBag)
     }
 
     private func updateCategoryButtons(selectedCategory: PostCategory) {
@@ -282,6 +308,11 @@ final class CommunityViewController: UIViewController {
             .marginTop(8)
             .horizontally()
             .bottom()
+
+        writeButton.pin
+            .bottom(view.pin.safeArea.bottom + 24)
+            .right(24)
+            .size(56)
     }
 }
 

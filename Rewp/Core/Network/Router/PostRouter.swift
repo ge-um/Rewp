@@ -8,9 +8,19 @@
 import Foundation
 import Alamofire
 
+struct CreatePostRequest: Codable {
+    let category: String
+    let title: String
+    let content: String
+    let latitude: Double
+    let longitude: Double
+    let files: [String]
+}
+
 enum PostRouter {
     case geolocationPosts(longitude: Double?, latitude: Double?, limit: String?, product_id: String?, next_cursor: String?)
     case postDetail(postId: String)
+    case createPost(category: String, title: String, content: String, latitude: Double, longitude: Double, files: [String])
     case deletePost(postId: String)
     case toggleLike(postId: String, likeStatus: Bool)
     case createComment(postId: String, content: String, parentCommentId: String?)
@@ -29,6 +39,8 @@ extension PostRouter: APIRouter {
             return "/posts/geolocation"
         case .postDetail(let postId):
             return "/posts/\(postId)"
+        case .createPost:
+            return "/posts"
         case .deletePost(let postId):
             return "/posts/\(postId)"
         case .toggleLike(let postId, _):
@@ -46,7 +58,7 @@ extension PostRouter: APIRouter {
         switch self {
         case .geolocationPosts, .postDetail:
             return .get
-        case .toggleLike, .createComment:
+        case .createPost, .toggleLike, .createComment:
             return .post
         case .updateComment:
             return .put
@@ -66,6 +78,15 @@ extension PostRouter: APIRouter {
         switch self {
         case .geolocationPosts, .postDetail, .deletePost:
             return nil
+        case .createPost(let category, let title, let content, let latitude, let longitude, let files):
+            return CreatePostRequest(
+                category: category,
+                title: title,
+                content: content,
+                latitude: latitude,
+                longitude: longitude,
+                files: files
+            )
         case .toggleLike(_, let likeStatus):
             return ["like_status": likeStatus]
         case .createComment(_, let content, let parentCommentId):
@@ -101,7 +122,7 @@ extension PostRouter: APIRouter {
                 params["next_cursor"] = next_cursor
             }
             return params
-        case .postDetail, .deletePost, .toggleLike, .createComment, .updateComment, .deleteComment:
+        case .postDetail, .createPost, .deletePost, .toggleLike, .createComment, .updateComment, .deleteComment:
             return nil
         }
     }
