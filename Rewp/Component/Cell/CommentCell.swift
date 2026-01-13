@@ -44,6 +44,12 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
         fatalError("init(coder:) has not been implemented")
     }
 
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        profileImageView.kf.cancelDownloadTask()
+        profileImageView.image = nil
+    }
+
     private func setupUI() {
         selectionStyle = .none
         backgroundColor = .clear
@@ -96,11 +102,6 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
         timeLabel.text = comment.relativeTime
         contentLabel.typography(FontSystem.Pretendard.body2, text: comment.content)
 
-        if let profileImageURL = comment.creatorProfileImage, let url = URL(string: profileImageURL) {
-            profileImageView.kf.setImage(with: url)
-        } else {
-            profileImageView.image = nil
-        }
-        setNeedsLayout()
+        profileImageView.setImage(from: comment.creatorProfileImage, targetSize: CGSize(width: 32, height: 32))
     }
 }

@@ -11,6 +11,7 @@ import Firebase
 import FirebaseMessaging
 import UserNotifications
 import OSLog
+import Kingfisher
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {

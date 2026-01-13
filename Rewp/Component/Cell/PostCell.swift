@@ -96,6 +96,14 @@ final class PostCell: UITableViewCell, IsIdentifiable {
         fatalError("init(coder:) has not been implemented")
     }
 
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        profileImageView.kf.cancelDownloadTask()
+        thumbnailImageView.kf.cancelDownloadTask()
+        profileImageView.image = nil
+        thumbnailImageView.image = nil
+    }
+
     private func setupUI() {
         selectionStyle = .none
         backgroundColor = .clear

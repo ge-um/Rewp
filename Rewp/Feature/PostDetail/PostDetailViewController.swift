@@ -50,12 +50,22 @@ final class PostDetailViewController: UIViewController {
         $0.numberOfLines = 0
     }
 
-    private let imageStackContainer = UIView().then {
-        $0.isHidden = true
-    }
+    private lazy var imageCollectionView: UICollectionView = {
+        let layout = UICollectionViewFlowLayout()
+        layout.scrollDirection = .vertical
+        layout.minimumLineSpacing = 12
 
-    private var imageViews: [UIImageView] = []
-    private let maxImageCount = 5
+        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.backgroundColor = .clear
+        collectionView.isScrollEnabled = false
+        collectionView.register(PostImageCell.self, forCellWithReuseIdentifier: PostImageCell.identifier)
+        collectionView.dataSource = self
+        collectionView.delegate = self
+        collectionView.isHidden = true
+        return collectionView
+    }()
+
+    private var imageURLs: [String] = []
 
     private let likeButton = UIButton(type: .custom).then {
         $0.setImage(UIImage(named: "Like_Empty")?.withTintColor(ColorSystem.gray75), for: .normal)
@@ -104,7 +114,7 @@ final class PostDetailViewController: UIViewController {
         contentContainer.addSubview(profileInfoContainer)
         contentContainer.addSubview(titleLabel)
         contentContainer.addSubview(contentLabel)
-        contentContainer.addSubview(imageStackContainer)
+        contentContainer.addSubview(imageCollectionView)
         contentContainer.addSubview(likeButton)
         contentContainer.addSubview(likeCountLabel)
 
@@ -120,22 +130,6 @@ final class PostDetailViewController: UIViewController {
 
         commentsTableView.dataSource = self
         commentsTableView.delegate = self
-
-        createImageViews()
-    }
-
-    private func createImageViews() {
-        for _ in 0..<maxImageCount {
-            let imageView = UIImageView().then {
-                $0.contentMode = .scaleAspectFill
-                $0.clipsToBounds = true
-                $0.layer.cornerRadius = 8
-                $0.backgroundColor = ColorSystem.gray30
-                $0.isHidden = true
-            }
-            imageStackContainer.addSubview(imageView)
-            imageViews.append(imageView)
-        }
     }
 
     private func bind() {
@@ -194,28 +188,17 @@ final class PostDetailViewController: UIViewController {
         commentsSectionLabel.typography(FontSystem.Pretendard.body1, text: "댓글 \(post.commentsCount)")
         commentsTableView.reloadData()
 
-        profileImageView.setImage(from: post.creatorProfileImage)
+        profileImageView.setImage(from: post.creatorProfileImage, targetSize: CGSize(width: 48, height: 48))
 
-        if !post.imageURLs.isEmpty {
-            imageStackContainer.isHidden = false
-            configureImages(imageURLs: post.imageURLs)
+        imageURLs = post.imageURLs
+        if !imageURLs.isEmpty {
+            imageCollectionView.isHidden = false
+            imageCollectionView.reloadData()
         } else {
-            imageStackContainer.isHidden = true
+            imageCollectionView.isHidden = true
         }
 
         view.setNeedsLayout()
-    }
-
-    private func configureImages(imageURLs: [String]) {
-        for (index, imageView) in imageViews.enumerated() {
-            if index < imageURLs.count {
-                imageView.setImage(from: imageURLs[index])
-                imageView.isHidden = false
-            } else {
-                imageView.image = nil
-                imageView.isHidden = true
-            }
-        }
     }
 
     override func viewDidLayoutSubviews() {
@@ -260,37 +243,17 @@ final class PostDetailViewController: UIViewController {
             .right(20)
             .sizeToFit(.width)
 
-        if !imageStackContainer.isHidden {
-            var currentY: CGFloat = 0
-            let imageWidth = view.bounds.width - 40
-            let imageHeight: CGFloat = 300
-            let imageSpacing: CGFloat = 12
+        if !imageCollectionView.isHidden {
+            let collectionViewHeight = CGFloat(imageURLs.count) * 300 + CGFloat(max(0, imageURLs.count - 1)) * 12
 
-            let visibleImages = imageViews.filter { !$0.isHidden }
-
-            for (index, imageView) in visibleImages.enumerated() {
-                imageView.pin
-                    .top(currentY)
-                    .left()
-                    .width(imageWidth)
-                    .height(imageHeight)
-
-                currentY += imageHeight
-                if index < visibleImages.count - 1 {
-                    currentY += imageSpacing
-                }
-            }
-
-            imageStackContainer.pin
+            imageCollectionView.pin
                 .below(of: contentLabel)
                 .marginTop(12)
                 .horizontally(20)
-                .height(currentY)
-        }
+                .height(collectionViewHeight)
 
-        if !imageStackContainer.isHidden {
             likeButton.pin
-                .below(of: imageStackContainer)
+                .below(of: imageCollectionView)
                 .marginTop(12)
                 .left(20)
                 .size(28)
@@ -364,5 +327,31 @@ extension PostDetailViewController: UITableViewDataSource {
 extension PostDetailViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return UITableView.automaticDimension
+    }
+}
+
+extension PostDetailViewController: UICollectionViewDataSource {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return imageURLs.count
+    }
+
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: PostImageCell.identifier, for: indexPath) as! PostImageCell
+
+        let scale = UIScreen.main.scale
+        let imageWidth = (view.bounds.width - 40) * scale
+        let imageHeight: CGFloat = 300 * scale
+        let targetSize = CGSize(width: imageWidth, height: imageHeight)
+
+        cell.configure(with: imageURLs[indexPath.item], targetSize: targetSize)
+        return cell
+    }
+}
+
+extension PostDetailViewController: UICollectionViewDelegateFlowLayout {
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        let imageWidth = view.bounds.width - 40
+        let imageHeight: CGFloat = 300
+        return CGSize(width: imageWidth, height: imageHeight)
     }
 }
