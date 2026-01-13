@@ -36,7 +36,7 @@ final class CommunityViewController: UIViewController {
             config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16)
 
             var background = UIButton.Configuration.filled().background
-            background.strokeColor = index == 0 ? ColorSystem.deepCoast : ColorSystem.gray30
+            background.strokeColor = index == 0 ? .clear : ColorSystem.gray30
             background.strokeWidth = 1
             config.background = background
 
@@ -171,7 +171,7 @@ final class CommunityViewController: UIViewController {
             var config = button.configuration
             config?.baseForegroundColor = isSelected ? ColorSystem.gray0 : ColorSystem.gray60
             config?.baseBackgroundColor = isSelected ? ColorSystem.deepCoast : ColorSystem.gray0
-            config?.background.strokeColor = isSelected ? ColorSystem.deepCoast : ColorSystem.gray30
+            config?.background.strokeColor = isSelected ? .clear : ColorSystem.gray30
             button.configuration = config
         }
     }

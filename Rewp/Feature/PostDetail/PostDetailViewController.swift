@@ -13,7 +13,7 @@ import FlexLayout
 import Kingfisher
 import OSLog
 
-final class PostDetailViewController: UIViewController {
+final class PostDetailViewController: UIViewController, KeyboardHandling {
     var presenter: PostDetailPresenter!
 
     private var navigationBar: CustomNavigationBar!
@@ -85,18 +85,26 @@ final class PostDetailViewController: UIViewController {
         $0.separatorStyle = .none
         $0.isScrollEnabled = false
         $0.register(CommentCell.self, forCellReuseIdentifier: CommentCell.identifier)
+        $0.register(ReplyCell.self, forCellReuseIdentifier: ReplyCell.identifier)
     }
 
     private var comments: [Comment] = []
 
+    private let commentInputBar = CommentInputBar()
+
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let likeTappedTrigger = PublishSubject<Void>()
-    private let disposeBag = DisposeBag()
+    private let sendCommentTrigger = PublishSubject<String>()
+    private let replyToCommentTrigger = PublishSubject<String>()
+    private var currentReplyingCommentId: String?
+    var keyboardHeight: CGFloat = 0
+    let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
         super.viewDidLoad()
         navigationController?.setNavigationBarHidden(true, animated: false)
         setupUI()
+        setupKeyboardHandling()
         bind()
         viewDidLoadTrigger.onNext(())
     }
@@ -106,8 +114,11 @@ final class PostDetailViewController: UIViewController {
         navigationBar = addCustomNavigationBar()
         enableSwipeBackGesture()
 
+        scrollView.keyboardDismissMode = .onDrag
+
         view.addSubview(scrollView)
         view.addSubview(navigationBar)
+        view.addSubview(commentInputBar)
         scrollView.addSubview(contentContainer)
 
         contentContainer.addSubview(profileImageView)
@@ -137,9 +148,32 @@ final class PostDetailViewController: UIViewController {
             .bind(to: likeTappedTrigger)
             .disposed(by: disposeBag)
 
+        commentInputBar.sendButtonTapped
+            .withLatestFrom(commentInputBar.textInput)
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .withUnretained(self)
+            .subscribe(onNext: { owner, text in
+                if let replyingCommentId = owner.currentReplyingCommentId {
+                    owner.replyToCommentTrigger.onNext(replyingCommentId)
+                } else {
+                    owner.sendCommentTrigger.onNext(text)
+                }
+                owner.commentInputBar.clearText()
+                owner.currentReplyingCommentId = nil
+                owner.commentInputBar.setPlaceholder("댓글을 입력하세요")
+            })
+            .disposed(by: disposeBag)
+
+        let replyWithContentObservable = replyToCommentTrigger
+            .withLatestFrom(commentInputBar.textInput) { commentId, content in
+                return (commentId: commentId, content: content)
+            }
+
         let input = PostDetailPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
-            likeTapped: likeTappedTrigger.asObservable()
+            likeTapped: likeTappedTrigger.asObservable(),
+            sendComment: sendCommentTrigger.asObservable(),
+            replyToComment: replyWithContentObservable
         )
 
         let output = presenter.transform(input: input)
@@ -176,6 +210,15 @@ final class PostDetailViewController: UIViewController {
                 owner.likeCountLabel.typography(FontSystem.Pretendard.body2, text: "\(count)")
             }
             .disposed(by: disposeBag)
+
+        output.commentPosted
+            .drive(with: self) { owner, _ in
+            }
+            .disposed(by: disposeBag)
+    }
+
+    func dismissKeyboard() {
+        view.endEditing(true)
     }
 
     private func configurePost(_ post: Post) {
@@ -185,7 +228,8 @@ final class PostDetailViewController: UIViewController {
         contentLabel.typography(FontSystem.Pretendard.body2, text: post.content)
 
         comments = post.comments
-        commentsSectionLabel.typography(FontSystem.Pretendard.body1, text: "댓글 \(post.commentsCount)")
+        let totalCommentsCount = comments.count + comments.flatMap { $0.replies }.count
+        commentsSectionLabel.typography(FontSystem.Pretendard.body1, text: "댓글 \(totalCommentsCount)")
         commentsTableView.reloadData()
 
         profileImageView.setImage(from: post.creatorProfileImage, targetSize: CGSize(width: 48, height: 48))
@@ -209,10 +253,16 @@ final class PostDetailViewController: UIViewController {
             .horizontally()
             .height(56)
 
+        commentInputBar.pin
+            .left()
+            .right()
+            .bottom(view.pin.safeArea.bottom + keyboardHeight)
+            .height(commentInputBar.intrinsicContentSize.height)
+
         scrollView.pin
             .below(of: navigationBar)
             .horizontally()
-            .bottom()
+            .above(of: commentInputBar)
 
         profileImageView.pin
             .top()
@@ -282,19 +332,19 @@ final class PostDetailViewController: UIViewController {
             let tableHeight = calculateCommentsTableHeight()
             commentsTableView.pin
                 .below(of: commentsSectionLabel)
-                .marginTop(8)
+                .marginTop(4)
                 .horizontally()
                 .height(tableHeight)
 
             contentContainer.pin
                 .top()
                 .horizontally()
-                .height(commentsTableView.frame.maxY + 40)
+                .height(commentsTableView.frame.maxY)
         } else {
             contentContainer.pin
                 .top()
                 .horizontally()
-                .height(likeCountLabel.frame.maxY + 40)
+                .height(likeCountLabel.frame.maxY + 20)
         }
 
         scrollView.contentSize = contentContainer.frame.size
@@ -302,11 +352,20 @@ final class PostDetailViewController: UIViewController {
 
     private func calculateCommentsTableHeight() -> CGFloat {
         var totalHeight: CGFloat = 0
-        for (_, comment) in comments.enumerated() {
-            let cell = CommentCell()
-            cell.configure(with: comment)
-            let size = cell.sizeThatFits(CGSize(width: view.bounds.width, height: .greatestFiniteMagnitude))
-            totalHeight += size.height
+        for comment in comments {
+            let commentCell = CommentCell()
+            let hasReplies = !comment.replies.isEmpty
+            commentCell.configure(with: comment, hasReplies: hasReplies)
+            let commentSize = commentCell.sizeThatFits(CGSize(width: view.bounds.width, height: .greatestFiniteMagnitude))
+            totalHeight += commentSize.height
+
+            for (index, reply) in comment.replies.enumerated() {
+                let replyCell = ReplyCell()
+                let isLastReply = (index == comment.replies.count - 1)
+                replyCell.configure(with: reply, hasReplies: !isLastReply)
+                let replySize = replyCell.sizeThatFits(CGSize(width: view.bounds.width, height: .greatestFiniteMagnitude))
+                totalHeight += replySize.height
+            }
         }
         return totalHeight
     }
@@ -314,13 +373,49 @@ final class PostDetailViewController: UIViewController {
 
 extension PostDetailViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return comments.count
+        var totalRows = 0
+        for comment in comments {
+            totalRows += 1
+            totalRows += comment.replies.count
+        }
+        return totalRows
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: CommentCell.identifier, for: indexPath) as! CommentCell
-        cell.configure(with: comments[indexPath.row])
-        return cell
+        var currentIndex = 0
+
+        for comment in comments {
+            if currentIndex == indexPath.row {
+                let cell = tableView.dequeueReusableCell(withIdentifier: CommentCell.identifier, for: indexPath) as! CommentCell
+                let hasReplies = !comment.replies.isEmpty
+                cell.configure(with: comment, hasReplies: hasReplies)
+
+                cell.replyTapped
+                    .withUnretained(self)
+                    .subscribe(onNext: { owner, _ in
+                        owner.currentReplyingCommentId = comment.commentId
+                        owner.commentInputBar.setPlaceholder("\(comment.creatorNickname)님에게 답글 작성")
+                        owner.commentInputBar.focusInput()
+                    })
+                    .disposed(by: cell.disposeBag)
+
+                return cell
+            }
+            currentIndex += 1
+
+            let replies = comment.replies
+            for (index, reply) in replies.enumerated() {
+                if currentIndex == indexPath.row {
+                    let cell = tableView.dequeueReusableCell(withIdentifier: ReplyCell.identifier, for: indexPath) as! ReplyCell
+                    let isLastReply = (index == replies.count - 1)
+                    cell.configure(with: reply, hasReplies: !isLastReply)
+                    return cell
+                }
+                currentIndex += 1
+            }
+        }
+
+        return UITableViewCell()
     }
 }
 

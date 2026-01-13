@@ -16,6 +16,13 @@ struct LikeResponse: Codable {
     let like_status: Bool
 }
 
+struct CommentResponse: Codable {
+    let comment_id: String
+    let content: String
+    let createdAt: String
+    let creator: PostCreatorDTO
+}
+
 struct PostDTO: Codable {
     let post_id: String
     let category: String

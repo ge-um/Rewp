@@ -12,6 +12,7 @@ protocol PostRepository {
     func fetchPostsByLocation(longitude: Double?, latitude: Double?, limit: String?, productId: String?) -> Single<[PostDTO]>
     func fetchPostDetail(postId: String) -> Single<PostDTO>
     func toggleLike(postId: String, likeStatus: Bool) -> Single<Bool>
+    func createComment(postId: String, content: String, parentCommentId: String?) -> Single<CommentResponse>
 }
 
 final class PostRepositoryImpl: PostRepository {
@@ -44,5 +45,9 @@ final class PostRepositoryImpl: PostRepository {
             .map { (response: LikeResponse) in
                 return response.like_status
             }
+    }
+
+    func createComment(postId: String, content: String, parentCommentId: String?) -> Single<CommentResponse> {
+        return authService.authenticatedRequest(PostRouter.createComment(postId: postId, content: content, parentCommentId: parentCommentId))
     }
 }

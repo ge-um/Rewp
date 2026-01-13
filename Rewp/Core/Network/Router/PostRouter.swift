@@ -12,6 +12,7 @@ enum PostRouter {
     case geolocationPosts(longitude: Double?, latitude: Double?, limit: String?, product_id: String?)
     case postDetail(postId: String)
     case toggleLike(postId: String, likeStatus: Bool)
+    case createComment(postId: String, content: String, parentCommentId: String?)
 }
 
 extension PostRouter: APIRouter {
@@ -27,6 +28,8 @@ extension PostRouter: APIRouter {
             return "/posts/\(postId)"
         case .toggleLike(let postId, _):
             return "/posts/\(postId)/like"
+        case .createComment(let postId, _, _):
+            return "/posts/\(postId)/comments"
         }
     }
 
@@ -34,7 +37,7 @@ extension PostRouter: APIRouter {
         switch self {
         case .geolocationPosts, .postDetail:
             return .get
-        case .toggleLike:
+        case .toggleLike, .createComment:
             return .post
         }
     }
@@ -52,6 +55,12 @@ extension PostRouter: APIRouter {
             return nil
         case .toggleLike(_, let likeStatus):
             return ["like_status": likeStatus]
+        case .createComment(_, let content, let parentCommentId):
+            var params: [String: String] = ["content": content]
+            if let parentCommentId = parentCommentId {
+                params["parent_comment_id"] = parentCommentId
+            }
+            return params
         }
     }
 
@@ -72,7 +81,7 @@ extension PostRouter: APIRouter {
                 params["product_id"] = product_id
             }
             return params
-        case .postDetail, .toggleLike:
+        case .postDetail, .toggleLike, .createComment:
             return nil
         }
     }

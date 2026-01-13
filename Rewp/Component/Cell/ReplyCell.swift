@@ -1,18 +1,24 @@
 //
-//  CommentCell.swift
+//  ReplyCell.swift
 //  Rewp
 //
-//  Created by 금가경 on 01/12/26.
+//  Created by 금가경 on 01/13/26.
 //
 
 import UIKit
 import PinLayout
 import Then
 import Kingfisher
-import RxSwift
-import RxCocoa
 
-final class CommentCell: UITableViewCell, IsIdentifiable {
+final class ReplyCell: UITableViewCell, IsIdentifiable {
+
+    private let verticalConnectionLine = UIView().then {
+        $0.backgroundColor = ColorSystem.gray30
+    }
+
+    private let horizontalConnectionLine = UIView().then {
+        $0.backgroundColor = ColorSystem.gray30
+    }
 
     private let childConnectionLine = UIView().then {
         $0.backgroundColor = ColorSystem.gray30
@@ -28,14 +34,11 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
     private let nicknameLabel = UILabel().then {
         $0.font = FontSystem.Pretendard.caption1Medium.font
         $0.textColor = ColorSystem.gray90
-        $0.baselineAdjustment = .alignCenters
     }
 
     private let timeLabel = UILabel().then {
         $0.font = FontSystem.Pretendard.caption2.font
         $0.textColor = ColorSystem.gray45
-        $0.baselineAdjustment = .alignCenters
-
     }
 
     private let contentLabel = UILabel().then {
@@ -43,26 +46,6 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
         $0.textColor = ColorSystem.gray90
         $0.numberOfLines = 0
     }
-
-    private let replyButton = UIButton().then {
-        var config = UIButton.Configuration.plain()
-        config.contentInsets = .zero
-
-        var titleAttr = AttributedString("답글")
-        titleAttr.font = FontSystem.Pretendard.caption1Regular.font
-        titleAttr.foregroundColor = ColorSystem.gray60
-        config.attributedTitle = titleAttr
-
-        config.baseForegroundColor = ColorSystem.gray60
-
-        $0.configuration = config
-    }
-
-    var replyTapped: Observable<Void> {
-        return replyButton.rx.tap.asObservable()
-    }
-
-    var disposeBag = DisposeBag()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -77,7 +60,6 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
         super.prepareForReuse()
         profileImageView.kf.cancelDownloadTask()
         profileImageView.image = nil
-        disposeBag = DisposeBag()
     }
 
     private func setupUI() {
@@ -85,26 +67,38 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
         backgroundColor = .clear
         contentView.backgroundColor = .clear
 
+        contentView.addSubview(verticalConnectionLine)
+        contentView.addSubview(horizontalConnectionLine)
         contentView.addSubview(childConnectionLine)
         contentView.addSubview(profileImageView)
         contentView.addSubview(nicknameLabel)
         contentView.addSubview(timeLabel)
         contentView.addSubview(contentLabel)
-        contentView.addSubview(replyButton)
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
 
+        let parentProfileCenterX: CGFloat = 20 + 16
+        let replyProfileLeft: CGFloat = 64
+
         profileImageView.pin
-            .top(8)
-            .left(20)
+            .top(16)
+            .left(replyProfileLeft)
             .size(32)
+
+        let replyProfileCenterY = profileImageView.frame.minY + 16
+
+        horizontalConnectionLine.pin
+            .vCenter(to: profileImageView.edge.vCenter)
+            .left(parentProfileCenterX)
+            .width(replyProfileLeft - parentProfileCenterX)
+            .height(1)
 
         nicknameLabel.pin
             .after(of: profileImageView)
             .marginLeft(12)
-            .top(12)
+            .top(16)
             .sizeToFit()
 
         timeLabel.pin
@@ -120,34 +114,35 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
             .right(20)
             .sizeToFit(.width)
 
-        replyButton.pin
-            .below(of: contentLabel)
-            .marginTop(8)
-            .left(to: nicknameLabel.edge.left)
-            .sizeToFit()
-
-        let profileCenterX = profileImageView.frame.minX + 16
-        childConnectionLine.pin
-            .top(profileImageView.frame.maxY)
-            .left(profileCenterX - 0.5)
-            .width(1)
-            .bottom()
+        if childConnectionLine.isHidden {
+            verticalConnectionLine.pin
+                .top()
+                .left(parentProfileCenterX - 0.5)
+                .width(1)
+                .height(replyProfileCenterY)
+        } else {
+            verticalConnectionLine.pin
+                .top()
+                .left(parentProfileCenterX - 0.5)
+                .width(1)
+                .bottom()
+        }
     }
 
     override func sizeThatFits(_ size: CGSize) -> CGSize {
         contentView.pin.width(size.width)
         layoutSubviews()
 
-        let height = replyButton.frame.maxY
+        let height = contentLabel.frame.maxY + 16
         return CGSize(width: size.width, height: height)
     }
 
-    func configure(with comment: Comment, hasReplies: Bool) {
-        nicknameLabel.text = comment.creatorNickname
-        timeLabel.text = comment.relativeTime
-        contentLabel.typography(FontSystem.Pretendard.body2, text: comment.content)
+    func configure(with reply: Reply, hasReplies: Bool) {
+        nicknameLabel.text = reply.creatorNickname
+        timeLabel.text = reply.relativeTime
+        contentLabel.typography(FontSystem.Pretendard.body2, text: reply.content)
 
-        profileImageView.setImage(from: comment.creatorProfileImage, targetSize: CGSize(width: 32, height: 32))
+        profileImageView.setImage(from: reply.creatorProfileImage, targetSize: CGSize(width: 32, height: 32))
 
         childConnectionLine.isHidden = !hasReplies
     }
