@@ -135,10 +135,53 @@ final class CommunityViewController: UIViewController {
 
         let output = presenter.transform(input: input)
 
-        output.posts
-            .drive(with: self) { owner, posts in
-                owner.posts = posts
-                owner.tableView.reloadData()
+        output.postUpdate
+            .drive(with: self) { owner, updateType in
+                switch updateType {
+                case .reload(let posts):
+                    owner.posts = posts
+                    owner.tableView.reloadData()
+
+                case .append(let newPosts, let startIndex):
+                    owner.posts.append(contentsOf: newPosts)
+                    let indexPaths = (startIndex..<owner.posts.count).map {
+                        IndexPath(row: $0, section: 0)
+                    }
+                    owner.tableView.performBatchUpdates {
+                        owner.tableView.insertRows(at: indexPaths, with: .none)
+                    }
+
+                case .filter(let posts, let previousCount):
+                    let oldCount = previousCount
+                    let newCount = posts.count
+                    owner.posts = posts
+
+                    if oldCount == newCount {
+                        owner.tableView.reloadData()
+                    } else {
+                        owner.tableView.performBatchUpdates {
+                            if oldCount > newCount {
+                                let deleteIndexPaths = (newCount..<oldCount).map {
+                                    IndexPath(row: $0, section: 0)
+                                }
+                                owner.tableView.deleteRows(at: deleteIndexPaths, with: .fade)
+                            } else {
+                                let insertIndexPaths = (oldCount..<newCount).map {
+                                    IndexPath(row: $0, section: 0)
+                                }
+                                owner.tableView.insertRows(at: insertIndexPaths, with: .fade)
+                            }
+                        }
+                    }
+
+                case .update(let post, let index):
+                    guard index < owner.posts.count else { return }
+                    owner.posts[index] = post
+                    let indexPath = IndexPath(row: index, section: 0)
+                    if owner.tableView.indexPathsForVisibleRows?.contains(indexPath) == true {
+                        owner.tableView.reloadRows(at: [indexPath], with: .none)
+                    }
+                }
             }
             .disposed(by: disposeBag)
 

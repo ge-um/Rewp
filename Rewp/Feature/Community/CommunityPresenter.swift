@@ -24,6 +24,13 @@ final class CommunityPresenter {
         self.locationManager = locationManager
     }
 
+    enum PostUpdateType {
+        case reload([Post])
+        case append([Post], startIndex: Int)
+        case filter([Post], previousCount: Int)
+        case update(Post, at: Int)
+    }
+
     struct Input {
         let viewDidLoad: Observable<Void>
         let viewWillAppear: Observable<Void>
@@ -35,7 +42,7 @@ final class CommunityPresenter {
     }
 
     struct Output {
-        let posts: Driver<[Post]>
+        let postUpdate: Driver<PostUpdateType>
         let isLoading: Driver<Bool>
         let isLoadingMore: Driver<Bool>
         let error: Driver<String>
@@ -45,6 +52,7 @@ final class CommunityPresenter {
 
     func transform(input: Input) -> Output {
         let postsRelay = BehaviorRelay<[Post]>(value: [])
+        let postUpdateRelay = PublishRelay<PostUpdateType>()
         let isLoadingRelay = PublishRelay<Bool>()
         let isLoadingMoreRelay = PublishRelay<Bool>()
         let errorRelay = PublishRelay<String>()
@@ -64,8 +72,10 @@ final class CommunityPresenter {
                 owner.selectedCategory = category
                 selectedCategoryRelay.accept(category)
 
+                let previousCount = postsRelay.value.count
                 let filteredPosts = owner.filterPosts(allPosts.value, by: category)
                 postsRelay.accept(filteredPosts)
+                postUpdateRelay.accept(.filter(filteredPosts, previousCount: previousCount))
             })
             .disposed(by: disposeBag)
 
@@ -111,6 +121,7 @@ final class CommunityPresenter {
 
                 let filteredPosts = owner.filterPosts(posts, by: owner.selectedCategory)
                 postsRelay.accept(filteredPosts)
+                postUpdateRelay.accept(.reload(filteredPosts))
             })
             .disposed(by: disposeBag)
 
@@ -158,8 +169,12 @@ final class CommunityPresenter {
                 let updatedPosts = allPosts.value + newPosts
                 allPosts.accept(updatedPosts)
 
+                let previousCount = postsRelay.value.count
                 let filteredPosts = owner.filterPosts(updatedPosts, by: owner.selectedCategory)
                 postsRelay.accept(filteredPosts)
+
+                let newFilteredPosts = Array(filteredPosts[previousCount...])
+                postUpdateRelay.accept(.append(newFilteredPosts, startIndex: previousCount))
             })
             .disposed(by: disposeBag)
 
@@ -195,6 +210,7 @@ final class CommunityPresenter {
                 owner.fetchedPostIds.insert(updatedPost.postId)
                 posts[index] = updatedPost
                 postsRelay.accept(posts)
+                postUpdateRelay.accept(.update(updatedPost, at: index))
 
                 var all = allPosts.value
                 if let allIndex = all.firstIndex(where: { $0.postId == updatedPost.postId }) {
@@ -209,7 +225,7 @@ final class CommunityPresenter {
             .disposed(by: disposeBag)
 
         return Output(
-            posts: postsRelay.asDriver(onErrorDriveWith: .empty()),
+            postUpdate: postUpdateRelay.asDriver(onErrorDriveWith: .empty()),
             isLoading: isLoadingRelay.asDriver(onErrorJustReturn: false),
             isLoadingMore: isLoadingMoreRelay.asDriver(onErrorJustReturn: false),
             error: errorRelay.asDriver(onErrorJustReturn: ""),
