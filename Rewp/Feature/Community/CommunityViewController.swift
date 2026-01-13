@@ -27,10 +27,9 @@ final class CommunityViewController: UIViewController {
     private let categoryContainerView = UIView()
 
     private lazy var categoryButtons: [UIButton] = {
-        let categories = ["전체", "친목", "생활", "질문", "자유"]
-        return categories.enumerated().map { index, title in
+        return PostCategory.allCases.enumerated().map { index, category in
             var config = UIButton.Configuration.filled()
-            config.title = title
+            config.title = category.displayName
             config.baseForegroundColor = index == 0 ? ColorSystem.gray0 : ColorSystem.gray60
             config.baseBackgroundColor = index == 0 ? ColorSystem.deepCoast : ColorSystem.gray0
             config.cornerStyle = .capsule
@@ -69,6 +68,7 @@ final class CommunityViewController: UIViewController {
     private let viewWillAppearTrigger = PublishSubject<Void>()
     private let refreshTriggered = PublishSubject<Void>()
     private let postSelectedTrigger = PublishSubject<String>()
+    private let categorySelectedTrigger = PublishSubject<PostCategory>()
 
     private var posts: [Post] = []
     private let disposeBag = DisposeBag()
@@ -102,11 +102,19 @@ final class CommunityViewController: UIViewController {
     }
 
     private func bind() {
+        categoryButtons.enumerated().forEach { index, button in
+            button.rx.tap
+                .map { PostCategory.allCases[index] }
+                .bind(to: categorySelectedTrigger)
+                .disposed(by: disposeBag)
+        }
+
         let input = CommunityPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
             viewWillAppear: viewWillAppearTrigger.asObservable(),
             refreshTriggered: refreshControl.rx.controlEvent(.valueChanged).asObservable(),
-            postSelected: postSelectedTrigger.asObservable()
+            postSelected: postSelectedTrigger.asObservable(),
+            categorySelected: categorySelectedTrigger.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -147,6 +155,25 @@ final class CommunityViewController: UIViewController {
                 owner.navigationController?.pushViewController(detailVC, animated: true)
             }
             .disposed(by: disposeBag)
+
+        output.selectedCategory
+            .drive(with: self) { owner, category in
+                owner.updateCategoryButtons(selectedCategory: category)
+            }
+            .disposed(by: disposeBag)
+    }
+
+    private func updateCategoryButtons(selectedCategory: PostCategory) {
+        categoryButtons.enumerated().forEach { index, button in
+            let category = PostCategory.allCases[index]
+            let isSelected = category == selectedCategory
+
+            var config = button.configuration
+            config?.baseForegroundColor = isSelected ? ColorSystem.gray0 : ColorSystem.gray60
+            config?.baseBackgroundColor = isSelected ? ColorSystem.deepCoast : ColorSystem.gray0
+            config?.background.strokeColor = isSelected ? ColorSystem.deepCoast : ColorSystem.gray30
+            button.configuration = config
+        }
     }
 
     override func viewDidLayoutSubviews() {

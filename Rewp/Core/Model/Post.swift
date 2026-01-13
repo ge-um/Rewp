@@ -7,10 +7,33 @@
 
 import Foundation
 
+enum PostCategory: String, CaseIterable {
+    case all = "전체"
+    case friendship = "친목"
+    case life = "생활"
+    case question = "질문"
+    case free = "자유"
+
+    init?(from rawValue: String) {
+        switch rawValue {
+        case "친목": self = .friendship
+        case "생활": self = .life
+        case "질문": self = .question
+        case "자유": self = .free
+        default: return nil
+        }
+    }
+
+    var displayName: String {
+        return rawValue
+    }
+}
+
 struct Post {
     let postId: String
     let title: String
     let content: String
+    let category: PostCategory?
     let creatorId: String
     let creatorNickname: String
     let creatorProfileImage: String?

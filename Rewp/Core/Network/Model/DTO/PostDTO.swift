@@ -80,10 +80,13 @@ extension PostDTO {
             commentDTO.toDomain()
         }
 
+        let postCategory = PostCategory(from: category)
+
         return Post(
             postId: post_id,
             title: title,
             content: content,
+            category: postCategory,
             creatorId: creator.user_id,
             creatorNickname: creator.nick,
             creatorProfileImage: profileImageURL,

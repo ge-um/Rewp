@@ -14,6 +14,7 @@ final class CommunityPresenter {
     private let postRepository: PostRepository
     private let locationManager: LocationManager
     private let disposeBag = DisposeBag()
+    private var selectedCategory: PostCategory = .all
 
     init(postRepository: PostRepository, locationManager: LocationManager = .shared) {
         self.postRepository = postRepository
@@ -25,6 +26,7 @@ final class CommunityPresenter {
         let viewWillAppear: Observable<Void>
         let refreshTriggered: Observable<Void>
         let postSelected: Observable<String>
+        let categorySelected: Observable<PostCategory>
     }
 
     struct Output {
@@ -32,6 +34,7 @@ final class CommunityPresenter {
         let isLoading: Driver<Bool>
         let error: Driver<String>
         let navigateToDetail: Driver<String>
+        let selectedCategory: Driver<PostCategory>
     }
 
     func transform(input: Input) -> Output {
@@ -39,12 +42,25 @@ final class CommunityPresenter {
         let isLoadingRelay = PublishRelay<Bool>()
         let errorRelay = PublishRelay<String>()
         let navigateToDetailRelay = PublishRelay<String>()
+        let selectedCategoryRelay = BehaviorRelay<PostCategory>(value: .all)
+        let allPosts = BehaviorRelay<[Post]>(value: [])
 
         let loadTrigger = Observable.merge(
             input.viewDidLoad,
             input.viewWillAppear.skip(1),
             input.refreshTriggered
         )
+
+        input.categorySelected
+            .withUnretained(self)
+            .subscribe(onNext: { owner, category in
+                owner.selectedCategory = category
+                selectedCategoryRelay.accept(category)
+
+                let filteredPosts = owner.filterPosts(allPosts.value, by: category)
+                postsRelay.accept(filteredPosts)
+            })
+            .disposed(by: disposeBag)
 
         loadTrigger
             .withUnretained(self)
@@ -80,7 +96,10 @@ final class CommunityPresenter {
             .subscribe(onNext: { owner, postDTOs in
                 isLoadingRelay.accept(false)
                 let posts = postDTOs.map { $0.toDomain() }
-                postsRelay.accept(posts)
+                allPosts.accept(posts)
+
+                let filteredPosts = owner.filterPosts(posts, by: owner.selectedCategory)
+                postsRelay.accept(filteredPosts)
             })
             .disposed(by: disposeBag)
 
@@ -92,7 +111,13 @@ final class CommunityPresenter {
             posts: postsRelay.asDriver(onErrorDriveWith: .empty()),
             isLoading: isLoadingRelay.asDriver(onErrorJustReturn: false),
             error: errorRelay.asDriver(onErrorJustReturn: ""),
-            navigateToDetail: navigateToDetailRelay.asDriver(onErrorDriveWith: .empty())
+            navigateToDetail: navigateToDetailRelay.asDriver(onErrorDriveWith: .empty()),
+            selectedCategory: selectedCategoryRelay.asDriver()
         )
+    }
+
+    private func filterPosts(_ posts: [Post], by category: PostCategory) -> [Post] {
+        guard category != .all else { return posts }
+        return posts.filter { $0.category == category }
     }
 }
