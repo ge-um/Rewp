@@ -9,8 +9,8 @@ import Foundation
 import RxSwift
 
 protocol PostRepository {
-    func fetchPostsByLocation(longitude: Double?, latitude: Double?, limit: String?, productId: String?) -> Single<[PostDTO]>
-    func fetchPostDetail(postId: String) -> Single<PostDTO>
+    func fetchPostsByLocation(longitude: Double?, latitude: Double?, limit: String?, productId: String?, nextCursor: String?) -> Single<PostsResponse>
+    func fetchPostDetail(postId: String) -> Single<PostDetailDTO>
     func toggleLike(postId: String, likeStatus: Bool) -> Single<Bool>
     func createComment(postId: String, content: String, parentCommentId: String?) -> Single<CommentResponse>
     func updateComment(postId: String, commentId: String, content: String) -> Single<CommentResponse>
@@ -24,21 +24,19 @@ final class PostRepositoryImpl: PostRepository {
         self.authService = authService
     }
 
-    func fetchPostsByLocation(longitude: Double?, latitude: Double?, limit: String?, productId: String?) -> Single<[PostDTO]> {
+    func fetchPostsByLocation(longitude: Double?, latitude: Double?, limit: String?, productId: String?, nextCursor: String?) -> Single<PostsResponse> {
         return authService.authenticatedRequest(
             PostRouter.geolocationPosts(
                 longitude: longitude,
                 latitude: latitude,
                 limit: limit,
-                product_id: productId
+                product_id: productId,
+                next_cursor: nextCursor
             )
         )
-        .map { (response: PostsResponse) in
-            return response.data
-        }
     }
 
-    func fetchPostDetail(postId: String) -> Single<PostDTO> {
+    func fetchPostDetail(postId: String) -> Single<PostDetailDTO> {
         return authService.authenticatedRequest(PostRouter.postDetail(postId: postId))
     }
 
@@ -61,3 +59,4 @@ final class PostRepositoryImpl: PostRepository {
         return authService.authenticatedRequestEmpty(PostRouter.deleteComment(postId: postId, commentId: commentId))
     }
 }
+

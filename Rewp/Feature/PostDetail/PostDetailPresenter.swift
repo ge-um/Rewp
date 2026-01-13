@@ -66,8 +66,8 @@ final class PostDetailPresenter {
                     }
             }
             .withUnretained(self)
-            .subscribe(onNext: { owner, postDTO in
-                let post = postDTO.toDomain()
+            .subscribe(onNext: { owner, postDetailDTO in
+                let post = postDetailDTO.toDomain()
                 postRelay.accept(post)
                 isLikedRelay.accept(post.isLiked)
                 likeCountRelay.accept(post.likesCount)

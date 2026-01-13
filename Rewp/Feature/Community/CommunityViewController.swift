@@ -64,11 +64,23 @@ final class CommunityViewController: UIViewController {
 
     private let refreshControl = UIRefreshControl()
 
+    private let loadingFooterView = UIView().then {
+        $0.frame = CGRect(x: 0, y: 0, width: 0, height: 60)
+        $0.backgroundColor = ColorSystem.gray15
+    }
+
+    private let footerActivityIndicator = UIActivityIndicatorView(style: .medium).then {
+        $0.color = ColorSystem.gray60
+        $0.hidesWhenStopped = true
+    }
+
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let viewWillAppearTrigger = PublishSubject<Void>()
     private let refreshTriggered = PublishSubject<Void>()
     private let postSelectedTrigger = PublishSubject<String>()
     private let categorySelectedTrigger = PublishSubject<PostCategory>()
+    private let cellWillDisplayTrigger = PublishSubject<Int>()
+    private let loadMoreTrigger = PublishSubject<Void>()
 
     private var posts: [Post] = []
     private let disposeBag = DisposeBag()
@@ -96,6 +108,8 @@ final class CommunityViewController: UIViewController {
             categoryContainerView.addSubview(button)
         }
 
+        loadingFooterView.addSubview(footerActivityIndicator)
+
         tableView.refreshControl = refreshControl
         tableView.dataSource = self
         tableView.delegate = self
@@ -114,7 +128,9 @@ final class CommunityViewController: UIViewController {
             viewWillAppear: viewWillAppearTrigger.asObservable(),
             refreshTriggered: refreshControl.rx.controlEvent(.valueChanged).asObservable(),
             postSelected: postSelectedTrigger.asObservable(),
-            categorySelected: categorySelectedTrigger.asObservable()
+            categorySelected: categorySelectedTrigger.asObservable(),
+            cellWillDisplay: cellWillDisplayTrigger.asObservable(),
+            loadMore: loadMoreTrigger.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -132,6 +148,19 @@ final class CommunityViewController: UIViewController {
                     owner.refreshControl.beginRefreshing()
                 } else {
                     owner.refreshControl.endRefreshing()
+                }
+            }
+            .disposed(by: disposeBag)
+
+        output.isLoadingMore
+            .drive(with: self) { owner, isLoadingMore in
+                if isLoadingMore {
+                    owner.tableView.tableFooterView = owner.loadingFooterView
+                    owner.footerActivityIndicator.pin.center()
+                    owner.footerActivityIndicator.startAnimating()
+                } else {
+                    owner.footerActivityIndicator.stopAnimating()
+                    owner.tableView.tableFooterView = nil
                 }
             }
             .disposed(by: disposeBag)
@@ -243,5 +272,13 @@ extension CommunityViewController: UITableViewDelegate {
 
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return 132
+    }
+
+    func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        cellWillDisplayTrigger.onNext(indexPath.row)
+
+        if posts.count >= 20 && indexPath.row >= posts.count - 5 {
+            loadMoreTrigger.onNext(())
+        }
     }
 }

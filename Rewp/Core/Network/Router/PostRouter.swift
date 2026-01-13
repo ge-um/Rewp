@@ -9,7 +9,7 @@ import Foundation
 import Alamofire
 
 enum PostRouter {
-    case geolocationPosts(longitude: Double?, latitude: Double?, limit: String?, product_id: String?)
+    case geolocationPosts(longitude: Double?, latitude: Double?, limit: String?, product_id: String?, next_cursor: String?)
     case postDetail(postId: String)
     case toggleLike(postId: String, likeStatus: Bool)
     case createComment(postId: String, content: String, parentCommentId: String?)
@@ -80,7 +80,7 @@ extension PostRouter: APIRouter {
 
     var queryParameters: [String: String]? {
         switch self {
-        case .geolocationPosts(let longitude, let latitude, let limit, let product_id):
+        case .geolocationPosts(let longitude, let latitude, let limit, let product_id, let next_cursor):
             var params: [String: String] = [:]
             if let longitude = longitude {
                 params["longitude"] = "\(longitude)"
@@ -93,6 +93,9 @@ extension PostRouter: APIRouter {
             }
             if let product_id = product_id {
                 params["product_id"] = product_id
+            }
+            if let next_cursor = next_cursor {
+                params["next_cursor"] = next_cursor
             }
             return params
         case .postDetail, .toggleLike, .createComment, .updateComment, .deleteComment:

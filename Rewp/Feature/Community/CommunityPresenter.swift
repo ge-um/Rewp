@@ -15,6 +15,9 @@ final class CommunityPresenter {
     private let locationManager: LocationManager
     private let disposeBag = DisposeBag()
     private var selectedCategory: PostCategory = .all
+    private var nextCursor: String?
+    private var isLoadingMore = false
+    private var fetchedPostIds: Set<String> = []
 
     init(postRepository: PostRepository, locationManager: LocationManager = .shared) {
         self.postRepository = postRepository
@@ -27,19 +30,23 @@ final class CommunityPresenter {
         let refreshTriggered: Observable<Void>
         let postSelected: Observable<String>
         let categorySelected: Observable<PostCategory>
+        let cellWillDisplay: Observable<Int>
+        let loadMore: Observable<Void>
     }
 
     struct Output {
         let posts: Driver<[Post]>
         let isLoading: Driver<Bool>
+        let isLoadingMore: Driver<Bool>
         let error: Driver<String>
         let navigateToDetail: Driver<String>
         let selectedCategory: Driver<PostCategory>
     }
 
     func transform(input: Input) -> Output {
-        let postsRelay = PublishRelay<[Post]>()
+        let postsRelay = BehaviorRelay<[Post]>(value: [])
         let isLoadingRelay = PublishRelay<Bool>()
+        let isLoadingMoreRelay = PublishRelay<Bool>()
         let errorRelay = PublishRelay<String>()
         let navigateToDetailRelay = PublishRelay<String>()
         let selectedCategoryRelay = BehaviorRelay<PostCategory>(value: .all)
@@ -66,8 +73,10 @@ final class CommunityPresenter {
             .withUnretained(self)
             .do(onNext: { owner, _ in
                 isLoadingRelay.accept(true)
+                owner.nextCursor = nil
+                owner.fetchedPostIds.removeAll()
             })
-            .flatMapLatest { owner, _ -> Observable<[PostDTO]> in
+            .flatMapLatest { owner, _ -> Observable<PostsResponse> in
                 return owner.locationManager.currentLocation
                     .take(1)
                     .timeout(.seconds(2), scheduler: MainScheduler.instance)
@@ -80,8 +89,9 @@ final class CommunityPresenter {
                             .fetchPostsByLocation(
                                 longitude: longitude,
                                 latitude: latitude,
-                                limit: "50",
-                                productId: NetworkConfig.productId
+                                limit: "20",
+                                productId: NetworkConfig.productId,
+                                nextCursor: nil
                             )
                             .asObservable()
                             .catch { error in
@@ -93,13 +103,104 @@ final class CommunityPresenter {
                     }
             }
             .withUnretained(self)
-            .subscribe(onNext: { owner, postDTOs in
+            .subscribe(onNext: { owner, response in
                 isLoadingRelay.accept(false)
-                let posts = postDTOs.map { $0.toDomain() }
+                owner.nextCursor = response.next_cursor == "0" ? nil : response.next_cursor
+                let posts = response.data.map { $0.toDomain() }
                 allPosts.accept(posts)
 
                 let filteredPosts = owner.filterPosts(posts, by: owner.selectedCategory)
                 postsRelay.accept(filteredPosts)
+            })
+            .disposed(by: disposeBag)
+
+        input.loadMore
+            .withUnretained(self)
+            .filter { owner, _ in
+                !owner.isLoadingMore && owner.nextCursor != nil
+            }
+            .do(onNext: { owner, _ in
+                owner.isLoadingMore = true
+                isLoadingMoreRelay.accept(true)
+            })
+            .flatMapLatest { owner, _ -> Observable<PostsResponse> in
+                return owner.locationManager.currentLocation
+                    .take(1)
+                    .timeout(.seconds(2), scheduler: MainScheduler.instance)
+                    .map { location -> (Double?, Double?) in
+                        (location.coordinate.longitude, location.coordinate.latitude)
+                    }
+                    .catchAndReturn((nil, nil))
+                    .flatMap { longitude, latitude in
+                        owner.postRepository
+                            .fetchPostsByLocation(
+                                longitude: longitude,
+                                latitude: latitude,
+                                limit: "20",
+                                productId: NetworkConfig.productId,
+                                nextCursor: owner.nextCursor
+                            )
+                            .asObservable()
+                            .catch { error in
+                                Logger.community.error("Failed to load more posts - \(error.localizedDescription)")
+                                owner.isLoadingMore = false
+                                isLoadingMoreRelay.accept(false)
+                                return .empty()
+                            }
+                    }
+            }
+            .withUnretained(self)
+            .subscribe(onNext: { owner, response in
+                owner.isLoadingMore = false
+                isLoadingMoreRelay.accept(false)
+                owner.nextCursor = response.next_cursor == "0" ? nil : response.next_cursor
+                let newPosts = response.data.map { $0.toDomain() }
+                let updatedPosts = allPosts.value + newPosts
+                allPosts.accept(updatedPosts)
+
+                let filteredPosts = owner.filterPosts(updatedPosts, by: owner.selectedCategory)
+                postsRelay.accept(filteredPosts)
+            })
+            .disposed(by: disposeBag)
+
+        input.cellWillDisplay
+            .withUnretained(self)
+            .filter { owner, index in
+                let posts = postsRelay.value
+                guard index < posts.count else { return false }
+                let post = posts[index]
+                return !owner.fetchedPostIds.contains(post.postId)
+            }
+            .flatMap { owner, index -> Observable<(Int, PostDetailDTO)> in
+                let posts = postsRelay.value
+                guard index < posts.count else { return .empty() }
+                let post = posts[index]
+
+                return owner.postRepository
+                    .fetchPostDetail(postId: post.postId)
+                    .asObservable()
+                    .map { (index, $0) }
+                    .catch { error in
+                        Logger.community.error("Failed to fetch post detail - \(error.localizedDescription)")
+                        return .empty()
+                    }
+            }
+            .withUnretained(self)
+            .subscribe(onNext: { owner, result in
+                let (index, postDetailDTO) = result
+                var posts = postsRelay.value
+                guard index < posts.count else { return }
+
+                let updatedPost = postDetailDTO.toDomain()
+                owner.fetchedPostIds.insert(updatedPost.postId)
+                posts[index] = updatedPost
+                postsRelay.accept(posts)
+
+                var all = allPosts.value
+                if let allIndex = all.firstIndex(where: { $0.postId == updatedPost.postId }) {
+                    all[allIndex] = updatedPost
+                    allPosts.accept(all)
+                }
             })
             .disposed(by: disposeBag)
 
@@ -110,6 +211,7 @@ final class CommunityPresenter {
         return Output(
             posts: postsRelay.asDriver(onErrorDriveWith: .empty()),
             isLoading: isLoadingRelay.asDriver(onErrorJustReturn: false),
+            isLoadingMore: isLoadingMoreRelay.asDriver(onErrorJustReturn: false),
             error: errorRelay.asDriver(onErrorJustReturn: ""),
             navigateToDetail: navigateToDetailRelay.asDriver(onErrorDriveWith: .empty()),
             selectedCategory: selectedCategoryRelay.asDriver()
