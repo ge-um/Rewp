@@ -16,10 +16,7 @@ final class RecentSearchItem: UIView {
         $0.layer.cornerRadius = 12
         $0.layer.borderWidth = 1
         $0.layer.borderColor = ColorSystem.gray30.cgColor
-        $0.layer.shadowColor = ColorSystem.shadow.cgColor
-        $0.layer.shadowOpacity = 0.08
-        $0.layer.shadowOffset = CGSize(width: 0, height: 4)
-        $0.layer.shadowRadius = 6
+        $0.layer.applyShadow(ShadowSystem.sm)
     }
 
     private let thumbnailImageView = UIImageView().then {

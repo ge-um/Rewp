@@ -14,7 +14,7 @@ import RxCocoa
 final class CommentInputBar: UIView {
     private let containerView = UIView().then {
         $0.backgroundColor = ColorSystem.gray0
-        $0.applyShadow(.topBar)
+        $0.applyShadow(ShadowSystem.xs)
     }
 
     private let textContainerView = UIView().then {

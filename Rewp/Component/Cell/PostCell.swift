@@ -102,6 +102,7 @@ final class PostCell: UITableViewCell, IsIdentifiable {
         thumbnailImageView.kf.cancelDownloadTask()
         profileImageView.image = nil
         thumbnailImageView.image = nil
+        showDivider()
     }
 
     private func setupUI() {
@@ -154,8 +155,7 @@ final class PostCell: UITableViewCell, IsIdentifiable {
         super.layoutSubviews()
 
         cardView.pin
-            .horizontally()
-            .height(136)
+            .all()
         
         divider.pin
             .bottom()
@@ -213,10 +213,6 @@ final class PostCell: UITableViewCell, IsIdentifiable {
             .height(20)
 
         interactionContainer.flex.layout(mode: .adjustWidth)
-        
-        divider.pin
-            .bottom()
-            .horizontally()
     }
     
     func configure(with post: Post) {
@@ -236,5 +232,13 @@ final class PostCell: UITableViewCell, IsIdentifiable {
             thumbnailImageView.isHidden = true
             thumbnailImageView.image = nil
         }
+    }
+
+    func hideDivider() {
+        divider.isHidden = true
+    }
+
+    func showDivider() {
+        divider.isHidden = false
     }
 }

@@ -56,10 +56,22 @@ final class CommunityViewController: UIViewController {
         }
     }()
 
+    private let tableContainerView = UIView().then {
+        $0.backgroundColor = ColorSystem.gray0
+        $0.layer.cornerRadius = 20
+        $0.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+        $0.clipsToBounds = false
+        $0.layer.applyShadow(ShadowSystem.lg)
+    }
+
     private let tableView = UITableView().then {
-        $0.backgroundColor = ColorSystem.gray15
+        $0.backgroundColor = ColorSystem.gray0
         $0.separatorStyle = .none
         $0.register(PostCell.self, forCellReuseIdentifier: PostCell.identifier)
+        $0.clipsToBounds = true
+        $0.layer.cornerRadius = 20
+        $0.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+        $0.showsVerticalScrollIndicator = false
     }
 
     private let refreshControl = UIRefreshControl()
@@ -73,10 +85,7 @@ final class CommunityViewController: UIViewController {
         config.contentInsets = NSDirectionalEdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
 
         let button = UIButton(configuration: config)
-        button.layer.shadowColor = UIColor.black.cgColor
-        button.layer.shadowOpacity = 0.1
-        button.layer.shadowOffset = CGSize(width: 0, height: 2)
-        button.layer.shadowRadius = 8
+        button.layer.applyShadow(ShadowSystem.lg)
 
         return button
     }()
@@ -118,7 +127,9 @@ final class CommunityViewController: UIViewController {
     private func setupUI() {
         view.addSubview(titleLabel)
         view.addSubview(categoryScrollView)
-        view.addSubview(tableView)
+        view.addSubview(tableContainerView)
+
+        tableContainerView.addSubview(tableView)
 
         categoryScrollView.addSubview(categoryContainerView)
         categoryButtons.forEach { button in
@@ -303,11 +314,13 @@ final class CommunityViewController: UIViewController {
         categoryContainerView.pin.width(xOffset - 8)
         categoryScrollView.contentSize = CGSize(width: categoryContainerView.frame.width + 40, height: 48)
 
-        tableView.pin
+        tableContainerView.pin
             .below(of: categoryScrollView)
             .marginTop(8)
             .horizontally()
             .bottom()
+
+        tableView.pin.all()
 
         writeButton.pin
             .bottom(view.pin.safeArea.bottom + 24)
@@ -331,6 +344,14 @@ extension CommunityViewController: UITableViewDataSource {
 
         let post = posts[indexPath.row]
         cell.configure(with: post)
+
+        let isLast = indexPath.row == posts.count - 1
+        if isLast {
+            cell.hideDivider()
+        } else {
+            cell.showDivider()
+        }
+
         return cell
     }
 }
@@ -342,7 +363,7 @@ extension CommunityViewController: UITableViewDelegate {
     }
 
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 132
+        return 140
     }
 
     func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {

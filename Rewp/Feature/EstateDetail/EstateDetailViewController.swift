@@ -189,10 +189,7 @@ final class EstateDetailViewController: UIViewController {
 
     private let bottomContainer = UIView().then {
         $0.backgroundColor = ColorSystem.gray15
-        $0.layer.shadowColor = ColorSystem.shadow.cgColor
-        $0.layer.shadowOffset = CGSize(width: 0, height: -2)
-        $0.layer.shadowOpacity = 0.08
-        $0.layer.shadowRadius = 6
+        $0.layer.applyShadow(ShadowSystem.smTop)
     }
 
     private let reservationButton = UIButton().then {

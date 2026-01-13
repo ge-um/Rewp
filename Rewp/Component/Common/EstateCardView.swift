@@ -18,10 +18,7 @@ final class EstateCardView: UIView {
     private let containerView = UIView().then {
         $0.backgroundColor = ColorSystem.gray0
         $0.layer.cornerRadius = 12
-        $0.layer.shadowColor = UIColor.black.cgColor
-        $0.layer.shadowOpacity = 0.1
-        $0.layer.shadowOffset = CGSize(width: 0, height: 2)
-        $0.layer.shadowRadius = 4
+        $0.layer.applyShadow(ShadowSystem.md)
     }
 
     private let thumbnailImageView = UIImageView().then {
