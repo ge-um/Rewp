@@ -11,6 +11,7 @@ import RxSwift
 protocol PostRepository {
     func fetchPostsByLocation(longitude: Double?, latitude: Double?, limit: String?, productId: String?, nextCursor: String?) -> Single<PostsResponse>
     func fetchPostDetail(postId: String) -> Single<PostDetailDTO>
+    func deletePost(postId: String) -> Single<Void>
     func toggleLike(postId: String, likeStatus: Bool) -> Single<Bool>
     func createComment(postId: String, content: String, parentCommentId: String?) -> Single<CommentResponse>
     func updateComment(postId: String, commentId: String, content: String) -> Single<CommentResponse>
@@ -38,6 +39,10 @@ final class PostRepositoryImpl: PostRepository {
 
     func fetchPostDetail(postId: String) -> Single<PostDetailDTO> {
         return authService.authenticatedRequest(PostRouter.postDetail(postId: postId))
+    }
+
+    func deletePost(postId: String) -> Single<Void> {
+        return authService.authenticatedRequestEmpty(PostRouter.deletePost(postId: postId))
     }
 
     func toggleLike(postId: String, likeStatus: Bool) -> Single<Bool> {

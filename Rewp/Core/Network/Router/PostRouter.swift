@@ -11,6 +11,7 @@ import Alamofire
 enum PostRouter {
     case geolocationPosts(longitude: Double?, latitude: Double?, limit: String?, product_id: String?, next_cursor: String?)
     case postDetail(postId: String)
+    case deletePost(postId: String)
     case toggleLike(postId: String, likeStatus: Bool)
     case createComment(postId: String, content: String, parentCommentId: String?)
     case updateComment(postId: String, commentId: String, content: String)
@@ -27,6 +28,8 @@ extension PostRouter: APIRouter {
         case .geolocationPosts:
             return "/posts/geolocation"
         case .postDetail(let postId):
+            return "/posts/\(postId)"
+        case .deletePost(let postId):
             return "/posts/\(postId)"
         case .toggleLike(let postId, _):
             return "/posts/\(postId)/like"
@@ -47,7 +50,7 @@ extension PostRouter: APIRouter {
             return .post
         case .updateComment:
             return .put
-        case .deleteComment:
+        case .deletePost, .deleteComment:
             return .delete
         }
     }
@@ -61,7 +64,7 @@ extension PostRouter: APIRouter {
 
     var body: Encodable? {
         switch self {
-        case .geolocationPosts, .postDetail:
+        case .geolocationPosts, .postDetail, .deletePost:
             return nil
         case .toggleLike(_, let likeStatus):
             return ["like_status": likeStatus]
@@ -98,7 +101,7 @@ extension PostRouter: APIRouter {
                 params["next_cursor"] = next_cursor
             }
             return params
-        case .postDetail, .toggleLike, .createComment, .updateComment, .deleteComment:
+        case .postDetail, .deletePost, .toggleLike, .createComment, .updateComment, .deleteComment:
             return nil
         }
     }

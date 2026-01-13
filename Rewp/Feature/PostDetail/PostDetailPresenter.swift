@@ -22,6 +22,7 @@ final class PostDetailPresenter {
 
     struct Input {
         let viewDidLoad: Observable<Void>
+        let deletePost: Observable<Void>
         let likeTapped: Observable<Void>
         let sendComment: Observable<String>
         let replyToComment: Observable<(commentId: String, content: String)>
@@ -32,6 +33,7 @@ final class PostDetailPresenter {
     struct Output {
         let post: Driver<Post>
         let error: Driver<String>
+        let postDeleted: Driver<Void>
         let isLiked: Driver<Bool>
         let likeCount: Driver<Int>
         let commentPosted: Driver<Void>
@@ -40,6 +42,7 @@ final class PostDetailPresenter {
     func transform(input: Input) -> Output {
         let postRelay = BehaviorRelay<Post?>(value: nil)
         let errorRelay = PublishRelay<String>()
+        let postDeletedRelay = PublishRelay<Void>()
         let isLikedRelay = BehaviorRelay<Bool>(value: false)
         let likeCountRelay = BehaviorRelay<Int>(value: 0)
         let commentPostedRelay = PublishRelay<Void>()
@@ -71,6 +74,24 @@ final class PostDetailPresenter {
                 postRelay.accept(post)
                 isLikedRelay.accept(post.isLiked)
                 likeCountRelay.accept(post.likesCount)
+            })
+            .disposed(by: disposeBag)
+
+        input.deletePost
+            .withUnretained(self)
+            .flatMapLatest { owner, _ in
+                owner.postRepository
+                    .deletePost(postId: owner.postId)
+                    .asObservable()
+                    .catch { error in
+                        Logger.community.error("Failed to delete post - \(error.localizedDescription)")
+                        errorRelay.accept("게시글 삭제에 실패했습니다")
+                        return .empty()
+                    }
+            }
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                postDeletedRelay.accept(())
             })
             .disposed(by: disposeBag)
 
@@ -283,6 +304,7 @@ final class PostDetailPresenter {
         return Output(
             post: postRelay.compactMap { $0 }.asDriver(onErrorDriveWith: .empty()),
             error: errorRelay.asDriver(onErrorJustReturn: ""),
+            postDeleted: postDeletedRelay.asDriver(onErrorDriveWith: .empty()),
             isLiked: isLikedRelay.asDriver(),
             likeCount: likeCountRelay.asDriver(),
             commentPosted: commentPostedRelay.asDriver(onErrorDriveWith: .empty())

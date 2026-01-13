@@ -93,6 +93,8 @@ final class PostDetailViewController: UIViewController, KeyboardHandling {
     private let commentInputBar = CommentInputBar()
 
     private let viewDidLoadTrigger = PublishSubject<Void>()
+    private let moreButtonTappedTrigger = PublishSubject<Void>()
+    private let deletePostTrigger = PublishSubject<Void>()
     private let likeTappedTrigger = PublishSubject<Void>()
     private let sendCommentTrigger = PublishSubject<String>()
     private let replyToCommentTrigger = PublishSubject<String>()
@@ -100,6 +102,7 @@ final class PostDetailViewController: UIViewController, KeyboardHandling {
     private let deleteCommentTrigger = PublishSubject<String>()
     private var currentReplyingCommentId: String?
     private var currentEditingCommentId: String?
+    private var currentPost: Post?
     var keyboardHeight: CGFloat = 0
     let disposeBag = DisposeBag()
 
@@ -114,7 +117,15 @@ final class PostDetailViewController: UIViewController, KeyboardHandling {
 
     private func setupUI() {
         view.backgroundColor = ColorSystem.gray0
-        navigationBar = addCustomNavigationBar()
+        let imageConfig = UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)
+        let moreImage = UIImage(systemName: "ellipsis", withConfiguration: imageConfig)?
+            .withTintColor(ColorSystem.gray75, renderingMode: .alwaysOriginal)
+            .rotate(radians: .pi / 2)
+        navigationBar = addCustomNavigationBar(showRightButton: true, rightButtonImage: moreImage)
+        navigationBar.onRightButtonTapped = { [weak self] in
+            Logger.community.debug("More button tapped")
+            self?.moreButtonTappedTrigger.onNext(())
+        }
         enableSwipeBackGesture()
 
         scrollView.keyboardDismissMode = .onDrag
@@ -182,6 +193,7 @@ final class PostDetailViewController: UIViewController, KeyboardHandling {
 
         let input = PostDetailPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
+            deletePost: deletePostTrigger.asObservable(),
             likeTapped: likeTappedTrigger.asObservable(),
             sendComment: sendCommentTrigger.asObservable(),
             replyToComment: replyWithContentObservable,
@@ -228,6 +240,49 @@ final class PostDetailViewController: UIViewController, KeyboardHandling {
             .drive(with: self) { owner, _ in
             }
             .disposed(by: disposeBag)
+
+        output.postDeleted
+            .drive(with: self) { owner, _ in
+                owner.navigationController?.popViewController(animated: true)
+            }
+            .disposed(by: disposeBag)
+
+        moreButtonTappedTrigger
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                guard let post = owner.currentPost else {
+                    Logger.community.debug("currentPost is nil")
+                    return
+                }
+                let currentUserId = KeychainManager.shared.getLastLoggedInUserId()
+                Logger.community.debug("currentUserId: \(currentUserId ?? "nil"), creatorId: \(post.creatorId)")
+
+                guard currentUserId == post.creatorId else {
+                    Logger.community.debug("Not the post creator")
+                    return
+                }
+
+                let alert = UIAlertController(
+                    title: nil,
+                    message: nil,
+                    preferredStyle: .actionSheet
+                )
+                alert.addAction(UIAlertAction(title: "삭제", style: .destructive) { _ in
+                    let confirmAlert = UIAlertController(
+                        title: "게시글 삭제",
+                        message: "삭제한 게시글은 복구할 수 없습니다.",
+                        preferredStyle: .alert
+                    )
+                    confirmAlert.addAction(UIAlertAction(title: "취소", style: .cancel))
+                    confirmAlert.addAction(UIAlertAction(title: "삭제", style: .destructive) { _ in
+                        owner.deletePostTrigger.onNext(())
+                    })
+                    owner.present(confirmAlert, animated: true)
+                })
+                alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+                owner.present(alert, animated: true)
+            })
+            .disposed(by: disposeBag)
     }
 
     func dismissKeyboard() {
@@ -235,6 +290,8 @@ final class PostDetailViewController: UIViewController, KeyboardHandling {
     }
 
     private func configurePost(_ post: Post) {
+        currentPost = post
+
         nicknameLabel.typography(FontSystem.Pretendard.body2Bold, text: post.creatorNickname)
         timeLabel.typography(FontSystem.Pretendard.caption1Regular, text: post.relativeTime)
         titleLabel.typography(FontSystem.Pretendard.title1Bold, text: post.title)

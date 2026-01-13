@@ -51,6 +51,7 @@ final class CustomNavigationBar: UIView {
     private var searchBar: SearchBar?
 
     private var useLocationTitle: Bool = false
+    private var showRightButton: Bool = false
 
     var onBackButtonTap: (() -> Void)?
     var onRightButtonTapped: (() -> Void)?
@@ -58,10 +59,15 @@ final class CustomNavigationBar: UIView {
 
     private var showBackButton: Bool = true
 
-    init(title: String? = nil, showBackButton: Bool = true, showRightButton: Bool = false, showSearchBar: Bool = false, useLocationTitle: Bool = false) {
+    init(title: String? = nil, showBackButton: Bool = true, showRightButton: Bool = false, rightButtonImage: UIImage? = nil, showSearchBar: Bool = false, useLocationTitle: Bool = false) {
         super.init(frame: .zero)
         self.useLocationTitle = useLocationTitle
         self.showBackButton = showBackButton
+        self.showRightButton = showRightButton
+
+        if let image = rightButtonImage {
+            rightButton.setImage(image, for: .normal)
+        }
 
         if useLocationTitle {
             locationTitleLabel.typography(FontSystem.Pretendard.body1Bold, text: title ?? "위치 확인 중...")
@@ -115,6 +121,12 @@ final class CustomNavigationBar: UIView {
                             navFlex.addItem(titleLabel)
                                 .grow(1)
                         }
+
+                        if showRightButton {
+                            navFlex.addItem(rightButton)
+                                .size(40)
+                                .marginLeft(8)
+                        }
                     }
 
                 if let searchBar = searchBar {
@@ -127,10 +139,15 @@ final class CustomNavigationBar: UIView {
 
     private func setupActions() {
         backButton.addTarget(self, action: #selector(backButtonTapped), for: .touchUpInside)
+        rightButton.addTarget(self, action: #selector(rightButtonTapped), for: .touchUpInside)
     }
 
     @objc private func backButtonTapped() {
         onBackButtonTap?()
+    }
+
+    @objc private func rightButtonTapped() {
+        onRightButtonTapped?()
     }
 
     func setTitle(_ title: String) {
@@ -169,8 +186,8 @@ final class CustomNavigationBar: UIView {
 }
 
 extension UIViewController {
-    func addCustomNavigationBar(title: String? = nil, showSearchBar: Bool = false, useLocationTitle: Bool = false) -> CustomNavigationBar {
-        let navBar = CustomNavigationBar(title: title, showSearchBar: showSearchBar, useLocationTitle: useLocationTitle)
+    func addCustomNavigationBar(title: String? = nil, showSearchBar: Bool = false, showRightButton: Bool = false, rightButtonImage: UIImage? = nil, useLocationTitle: Bool = false) -> CustomNavigationBar {
+        let navBar = CustomNavigationBar(title: title, showRightButton: showRightButton, rightButtonImage: rightButtonImage, showSearchBar: showSearchBar, useLocationTitle: useLocationTitle)
         view.addSubview(navBar)
 
         navBar.onBackButtonTap = { [weak self] in
