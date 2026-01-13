@@ -1,5 +1,5 @@
 {
-  "originHash" : "d443c7fc61a6f1236c82089f72baffd6ded925baefcc0cc5e7acc525d08d506b",
+  "originHash" : "e17f42a2a0e13fcb50253d973e998dc3f5037e698ca7e5e2c3a5445f4938f055",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -215,15 +215,6 @@
       "state" : {
         "revision" : "9535b58695b91fb67f56d58d6fd0c76462d7743a",
         "version" : "6.1.2"
-      }
-    },
-    {
-      "identity" : "rxgesture",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/RxSwiftCommunity/RxGesture.git",
-      "state" : {
-        "revision" : "1b137c576b4aaaab949235752278956697c9e4a0",
-        "version" : "4.0.4"
       }
     },
     {

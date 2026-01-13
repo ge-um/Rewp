@@ -25,6 +25,7 @@ final class PostDetailPresenter {
         let likeTapped: Observable<Void>
         let sendComment: Observable<String>
         let replyToComment: Observable<(commentId: String, content: String)>
+        let editComment: Observable<(commentId: String, content: String)>
     }
 
     struct Output {
@@ -36,7 +37,7 @@ final class PostDetailPresenter {
     }
 
     func transform(input: Input) -> Output {
-        let postRelay = PublishRelay<Post>()
+        let postRelay = BehaviorRelay<Post?>(value: nil)
         let errorRelay = PublishRelay<String>()
         let isLikedRelay = BehaviorRelay<Bool>(value: false)
         let likeCountRelay = BehaviorRelay<Int>(value: 0)
@@ -135,8 +136,89 @@ final class PostDetailPresenter {
             })
             .disposed(by: disposeBag)
 
+        input.editComment
+            .withUnretained(self)
+            .subscribe(onNext: { owner, data in
+                guard let currentPost = postRelay.value else { return }
+
+                let previousPost = currentPost
+                var updatedComments = currentPost.comments
+
+                if let commentIndex = updatedComments.firstIndex(where: { $0.commentId == data.commentId }) {
+                    let comment = updatedComments[commentIndex]
+                    let updatedComment = Comment(
+                        commentId: comment.commentId,
+                        content: data.content,
+                        creatorId: comment.creatorId,
+                        creatorNickname: comment.creatorNickname,
+                        creatorProfileImage: comment.creatorProfileImage,
+                        createdAt: comment.createdAt,
+                        replies: comment.replies
+                    )
+                    updatedComments[commentIndex] = updatedComment
+                } else {
+                    for (commentIndex, comment) in updatedComments.enumerated() {
+                        if let replyIndex = comment.replies.firstIndex(where: { $0.replyId == data.commentId }) {
+                            var updatedReplies = comment.replies
+                            let reply = updatedReplies[replyIndex]
+                            let updatedReply = Reply(
+                                replyId: reply.replyId,
+                                content: data.content,
+                                creatorId: reply.creatorId,
+                                creatorNickname: reply.creatorNickname,
+                                creatorProfileImage: reply.creatorProfileImage,
+                                createdAt: reply.createdAt
+                            )
+                            updatedReplies[replyIndex] = updatedReply
+                            let updatedComment = Comment(
+                                commentId: comment.commentId,
+                                content: comment.content,
+                                creatorId: comment.creatorId,
+                                creatorNickname: comment.creatorNickname,
+                                creatorProfileImage: comment.creatorProfileImage,
+                                createdAt: comment.createdAt,
+                                replies: updatedReplies
+                            )
+                            updatedComments[commentIndex] = updatedComment
+                            break
+                        }
+                    }
+                }
+
+                let optimisticPost = Post(
+                    postId: currentPost.postId,
+                    title: currentPost.title,
+                    content: currentPost.content,
+                    category: currentPost.category,
+                    creatorId: currentPost.creatorId,
+                    creatorNickname: currentPost.creatorNickname,
+                    creatorProfileImage: currentPost.creatorProfileImage,
+                    imageURLs: currentPost.imageURLs,
+                    likesCount: currentPost.likesCount,
+                    commentsCount: currentPost.commentsCount,
+                    createdAt: currentPost.createdAt,
+                    isLiked: currentPost.isLiked,
+                    comments: updatedComments
+                )
+
+                postRelay.accept(optimisticPost)
+
+                owner.postRepository
+                    .updateComment(postId: owner.postId, commentId: data.commentId, content: data.content)
+                    .asObservable()
+                    .catch { error in
+                        Logger.community.error("Failed to update comment - \(error.localizedDescription)")
+                        errorRelay.accept("댓글 수정에 실패했습니다")
+                        postRelay.accept(previousPost)
+                        return .empty()
+                    }
+                    .subscribe()
+                    .disposed(by: owner.disposeBag)
+            })
+            .disposed(by: disposeBag)
+
         return Output(
-            post: postRelay.asDriver(onErrorDriveWith: .empty()),
+            post: postRelay.compactMap { $0 }.asDriver(onErrorDriveWith: .empty()),
             error: errorRelay.asDriver(onErrorJustReturn: ""),
             isLiked: isLikedRelay.asDriver(),
             likeCount: likeCountRelay.asDriver(),

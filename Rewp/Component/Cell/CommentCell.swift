@@ -58,8 +58,27 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
         $0.configuration = config
     }
 
+    private let editButton = UIButton().then {
+        var config = UIButton.Configuration.plain()
+        config.contentInsets = .zero
+
+        var titleAttr = AttributedString("수정")
+        titleAttr.font = FontSystem.Pretendard.caption1Regular.font
+        titleAttr.foregroundColor = ColorSystem.gray60
+        config.attributedTitle = titleAttr
+
+        config.baseForegroundColor = ColorSystem.gray60
+
+        $0.configuration = config
+        $0.isHidden = true
+    }
+
     var replyTapped: Observable<Void> {
         return replyButton.rx.tap.asObservable()
+    }
+
+    var editTapped: Observable<Void> {
+        return editButton.rx.tap.asObservable()
     }
 
     var disposeBag = DisposeBag()
@@ -91,6 +110,7 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
         contentView.addSubview(timeLabel)
         contentView.addSubview(contentLabel)
         contentView.addSubview(replyButton)
+        contentView.addSubview(editButton)
     }
 
     override func layoutSubviews() {
@@ -126,6 +146,12 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
             .left(to: nicknameLabel.edge.left)
             .sizeToFit()
 
+        editButton.pin
+            .after(of: replyButton)
+            .marginLeft(12)
+            .vCenter(to: replyButton.edge.vCenter)
+            .sizeToFit()
+
         let profileCenterX = profileImageView.frame.minX + 16
         childConnectionLine.pin
             .top(profileImageView.frame.maxY)
@@ -138,11 +164,16 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
         contentView.pin.width(size.width)
         layoutSubviews()
 
-        let height = replyButton.frame.maxY
+        let height: CGFloat
+        if editButton.isHidden {
+            height = replyButton.frame.maxY
+        } else {
+            height = max(replyButton.frame.maxY, editButton.frame.maxY)
+        }
         return CGSize(width: size.width, height: height)
     }
 
-    func configure(with comment: Comment, hasReplies: Bool) {
+    func configure(with comment: Comment, hasReplies: Bool, isCurrentUser: Bool) {
         nicknameLabel.text = comment.creatorNickname
         timeLabel.text = comment.relativeTime
         contentLabel.typography(FontSystem.Pretendard.body2, text: comment.content)
@@ -150,5 +181,6 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
         profileImageView.setImage(from: comment.creatorProfileImage, targetSize: CGSize(width: 32, height: 32))
 
         childConnectionLine.isHidden = !hasReplies
+        editButton.isHidden = !isCurrentUser
     }
 }

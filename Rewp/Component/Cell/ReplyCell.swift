@@ -9,6 +9,8 @@ import UIKit
 import PinLayout
 import Then
 import Kingfisher
+import RxSwift
+import RxCocoa
 
 final class ReplyCell: UITableViewCell, IsIdentifiable {
 
@@ -47,6 +49,27 @@ final class ReplyCell: UITableViewCell, IsIdentifiable {
         $0.numberOfLines = 0
     }
 
+    private let editButton = UIButton().then {
+        var config = UIButton.Configuration.plain()
+        config.contentInsets = .zero
+
+        var titleAttr = AttributedString("수정")
+        titleAttr.font = FontSystem.Pretendard.caption1Regular.font
+        titleAttr.foregroundColor = ColorSystem.gray60
+        config.attributedTitle = titleAttr
+
+        config.baseForegroundColor = ColorSystem.gray60
+
+        $0.configuration = config
+        $0.isHidden = true
+    }
+
+    var editTapped: Observable<Void> {
+        return editButton.rx.tap.asObservable()
+    }
+
+    var disposeBag = DisposeBag()
+
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         setupUI()
@@ -60,6 +83,7 @@ final class ReplyCell: UITableViewCell, IsIdentifiable {
         super.prepareForReuse()
         profileImageView.kf.cancelDownloadTask()
         profileImageView.image = nil
+        disposeBag = DisposeBag()
     }
 
     private func setupUI() {
@@ -74,6 +98,7 @@ final class ReplyCell: UITableViewCell, IsIdentifiable {
         contentView.addSubview(nicknameLabel)
         contentView.addSubview(timeLabel)
         contentView.addSubview(contentLabel)
+        contentView.addSubview(editButton)
     }
 
     override func layoutSubviews() {
@@ -114,6 +139,12 @@ final class ReplyCell: UITableViewCell, IsIdentifiable {
             .right(20)
             .sizeToFit(.width)
 
+        editButton.pin
+            .below(of: contentLabel)
+            .marginTop(8)
+            .left(to: nicknameLabel.edge.left)
+            .sizeToFit()
+
         if childConnectionLine.isHidden {
             verticalConnectionLine.pin
                 .top()
@@ -133,11 +164,16 @@ final class ReplyCell: UITableViewCell, IsIdentifiable {
         contentView.pin.width(size.width)
         layoutSubviews()
 
-        let height = contentLabel.frame.maxY + 16
+        let height: CGFloat
+        if editButton.isHidden {
+            height = contentLabel.frame.maxY + 16
+        } else {
+            height = editButton.frame.maxY + 16
+        }
         return CGSize(width: size.width, height: height)
     }
 
-    func configure(with reply: Reply, hasReplies: Bool) {
+    func configure(with reply: Reply, hasReplies: Bool, isCurrentUser: Bool) {
         nicknameLabel.text = reply.creatorNickname
         timeLabel.text = reply.relativeTime
         contentLabel.typography(FontSystem.Pretendard.body2, text: reply.content)
@@ -145,5 +181,6 @@ final class ReplyCell: UITableViewCell, IsIdentifiable {
         profileImageView.setImage(from: reply.creatorProfileImage, targetSize: CGSize(width: 32, height: 32))
 
         childConnectionLine.isHidden = !hasReplies
+        editButton.isHidden = !isCurrentUser
     }
 }

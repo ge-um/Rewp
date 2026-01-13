@@ -96,7 +96,9 @@ final class PostDetailViewController: UIViewController, KeyboardHandling {
     private let likeTappedTrigger = PublishSubject<Void>()
     private let sendCommentTrigger = PublishSubject<String>()
     private let replyToCommentTrigger = PublishSubject<String>()
+    private let editCommentTrigger = PublishSubject<String>()
     private var currentReplyingCommentId: String?
+    private var currentEditingCommentId: String?
     var keyboardHeight: CGFloat = 0
     let disposeBag = DisposeBag()
 
@@ -153,13 +155,16 @@ final class PostDetailViewController: UIViewController, KeyboardHandling {
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .withUnretained(self)
             .subscribe(onNext: { owner, text in
-                if let replyingCommentId = owner.currentReplyingCommentId {
+                if let editingCommentId = owner.currentEditingCommentId {
+                    owner.editCommentTrigger.onNext(editingCommentId)
+                    owner.currentEditingCommentId = nil
+                } else if let replyingCommentId = owner.currentReplyingCommentId {
                     owner.replyToCommentTrigger.onNext(replyingCommentId)
+                    owner.currentReplyingCommentId = nil
                 } else {
                     owner.sendCommentTrigger.onNext(text)
                 }
                 owner.commentInputBar.clearText()
-                owner.currentReplyingCommentId = nil
                 owner.commentInputBar.setPlaceholder("댓글을 입력하세요")
             })
             .disposed(by: disposeBag)
@@ -169,11 +174,17 @@ final class PostDetailViewController: UIViewController, KeyboardHandling {
                 return (commentId: commentId, content: content)
             }
 
+        let editWithContentObservable = editCommentTrigger
+            .withLatestFrom(commentInputBar.textInput) { commentId, content in
+                return (commentId: commentId, content: content)
+            }
+
         let input = PostDetailPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
             likeTapped: likeTappedTrigger.asObservable(),
             sendComment: sendCommentTrigger.asObservable(),
-            replyToComment: replyWithContentObservable
+            replyToComment: replyWithContentObservable,
+            editComment: editWithContentObservable
         )
 
         let output = presenter.transform(input: input)
@@ -352,17 +363,21 @@ final class PostDetailViewController: UIViewController, KeyboardHandling {
 
     private func calculateCommentsTableHeight() -> CGFloat {
         var totalHeight: CGFloat = 0
+        let currentUserId = KeychainManager.shared.getLastLoggedInUserId()
+
         for comment in comments {
             let commentCell = CommentCell()
             let hasReplies = !comment.replies.isEmpty
-            commentCell.configure(with: comment, hasReplies: hasReplies)
+            let isCurrentUser = (currentUserId == comment.creatorId)
+            commentCell.configure(with: comment, hasReplies: hasReplies, isCurrentUser: isCurrentUser)
             let commentSize = commentCell.sizeThatFits(CGSize(width: view.bounds.width, height: .greatestFiniteMagnitude))
             totalHeight += commentSize.height
 
             for (index, reply) in comment.replies.enumerated() {
                 let replyCell = ReplyCell()
                 let isLastReply = (index == comment.replies.count - 1)
-                replyCell.configure(with: reply, hasReplies: !isLastReply)
+                let isCurrentUser = (currentUserId == reply.creatorId)
+                replyCell.configure(with: reply, hasReplies: !isLastReply, isCurrentUser: isCurrentUser)
                 let replySize = replyCell.sizeThatFits(CGSize(width: view.bounds.width, height: .greatestFiniteMagnitude))
                 totalHeight += replySize.height
             }
@@ -383,18 +398,32 @@ extension PostDetailViewController: UITableViewDataSource {
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         var currentIndex = 0
+        let currentUserId = KeychainManager.shared.getLastLoggedInUserId()
 
         for comment in comments {
             if currentIndex == indexPath.row {
                 let cell = tableView.dequeueReusableCell(withIdentifier: CommentCell.identifier, for: indexPath) as! CommentCell
                 let hasReplies = !comment.replies.isEmpty
-                cell.configure(with: comment, hasReplies: hasReplies)
+                let isCurrentUser = (currentUserId == comment.creatorId)
+                cell.configure(with: comment, hasReplies: hasReplies, isCurrentUser: isCurrentUser)
 
                 cell.replyTapped
                     .withUnretained(self)
                     .subscribe(onNext: { owner, _ in
                         owner.currentReplyingCommentId = comment.commentId
+                        owner.currentEditingCommentId = nil
                         owner.commentInputBar.setPlaceholder("\(comment.creatorNickname)님에게 답글 작성")
+                        owner.commentInputBar.focusInput()
+                    })
+                    .disposed(by: cell.disposeBag)
+
+                cell.editTapped
+                    .withUnretained(self)
+                    .subscribe(onNext: { owner, _ in
+                        owner.currentEditingCommentId = comment.commentId
+                        owner.currentReplyingCommentId = nil
+                        owner.commentInputBar.text = comment.content
+                        owner.commentInputBar.setPlaceholder("댓글 수정")
                         owner.commentInputBar.focusInput()
                     })
                     .disposed(by: cell.disposeBag)
@@ -408,7 +437,20 @@ extension PostDetailViewController: UITableViewDataSource {
                 if currentIndex == indexPath.row {
                     let cell = tableView.dequeueReusableCell(withIdentifier: ReplyCell.identifier, for: indexPath) as! ReplyCell
                     let isLastReply = (index == replies.count - 1)
-                    cell.configure(with: reply, hasReplies: !isLastReply)
+                    let isCurrentUser = (currentUserId == reply.creatorId)
+                    cell.configure(with: reply, hasReplies: !isLastReply, isCurrentUser: isCurrentUser)
+
+                    cell.editTapped
+                        .withUnretained(self)
+                        .subscribe(onNext: { owner, _ in
+                            owner.currentEditingCommentId = reply.replyId
+                            owner.currentReplyingCommentId = nil
+                            owner.commentInputBar.text = reply.content
+                            owner.commentInputBar.setPlaceholder("답글 수정")
+                            owner.commentInputBar.focusInput()
+                        })
+                        .disposed(by: cell.disposeBag)
+
                     return cell
                 }
                 currentIndex += 1

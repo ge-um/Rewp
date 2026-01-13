@@ -13,6 +13,7 @@ protocol PostRepository {
     func fetchPostDetail(postId: String) -> Single<PostDTO>
     func toggleLike(postId: String, likeStatus: Bool) -> Single<Bool>
     func createComment(postId: String, content: String, parentCommentId: String?) -> Single<CommentResponse>
+    func updateComment(postId: String, commentId: String, content: String) -> Single<CommentResponse>
 }
 
 final class PostRepositoryImpl: PostRepository {
@@ -49,5 +50,9 @@ final class PostRepositoryImpl: PostRepository {
 
     func createComment(postId: String, content: String, parentCommentId: String?) -> Single<CommentResponse> {
         return authService.authenticatedRequest(PostRouter.createComment(postId: postId, content: content, parentCommentId: parentCommentId))
+    }
+
+    func updateComment(postId: String, commentId: String, content: String) -> Single<CommentResponse> {
+        return authService.authenticatedRequest(PostRouter.updateComment(postId: postId, commentId: commentId, content: content))
     }
 }
