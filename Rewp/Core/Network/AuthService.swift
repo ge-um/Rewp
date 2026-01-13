@@ -23,6 +23,7 @@ protocol AuthServiceProtocol {
     func authenticatedRequestEmpty(_ router: APIRouter) -> Single<Void>
     func authenticatedRequestText(_ router: APIRouter) -> Single<String>
     func uploadFiles(roomId: String, files: [Data]) -> Single<UploadFilesResponse>
+    func uploadPostFiles(files: [Data]) -> Single<UploadFilesResponse>
 }
 
 final class AuthService: AuthServiceProtocol {
@@ -326,6 +327,55 @@ final class AuthService: AuthServiceProtocol {
                         observer(.failure(NetworkError.serverError(message: errorResponse.message)))
                     } else {
                         Logger.network.error("File upload failed [\(statusCode)]")
+                        observer(.failure(NetworkError.serverError(message: "파일 업로드 실패")))
+                    }
+                }
+            }
+
+            return Disposables.create {
+                uploadRequest.cancel()
+            }
+        }
+    }
+
+    func uploadPostFiles(files: [Data]) -> Single<UploadFilesResponse> {
+        guard currentCredential != nil else {
+            return .error(AuthError.notAuthenticated)
+        }
+
+        return Single.create { [weak self] observer in
+            guard let self = self else {
+                observer(.failure(NSError(domain: "AuthService", code: -1)))
+                return Disposables.create()
+            }
+
+            let uploadRequest = self.session.upload(
+                multipartFormData: { multipartFormData in
+                    for imageData in files {
+                        multipartFormData.append(
+                            imageData,
+                            withName: "files",
+                            fileName: "image_\(Int(Date().timeIntervalSince1970 * 1000)).jpg",
+                            mimeType: "image/jpeg"
+                        )
+                    }
+                },
+                with: PostRouter.uploadFiles(files: files)
+            )
+            .validate(statusCode: 200..<300)
+            .responseDecodable(of: UploadFilesResponse.self) { response in
+                switch response.result {
+                case .success(let value):
+                    Logger.network.notice("Post file upload succeeded")
+                    observer(.success(value))
+                case .failure:
+                    let statusCode = response.response?.statusCode ?? 0
+                    if let data = response.data,
+                       let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                        Logger.network.error("Post file upload failed [\(statusCode)] - \(errorResponse.message)")
+                        observer(.failure(NetworkError.serverError(message: errorResponse.message)))
+                    } else {
+                        Logger.network.error("Post file upload failed [\(statusCode)]")
                         observer(.failure(NetworkError.serverError(message: "파일 업로드 실패")))
                     }
                 }

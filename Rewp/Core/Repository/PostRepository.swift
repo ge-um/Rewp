@@ -17,6 +17,7 @@ protocol PostRepository {
     func createComment(postId: String, content: String, parentCommentId: String?) -> Single<CommentResponse>
     func updateComment(postId: String, commentId: String, content: String) -> Single<CommentResponse>
     func deleteComment(postId: String, commentId: String) -> Single<Void>
+    func uploadPostFiles(files: [Data]) -> Single<UploadFilesResponse>
 }
 
 final class PostRepositoryImpl: PostRepository {
@@ -67,6 +68,10 @@ final class PostRepositoryImpl: PostRepository {
 
     func deleteComment(postId: String, commentId: String) -> Single<Void> {
         return authService.authenticatedRequestEmpty(PostRouter.deleteComment(postId: postId, commentId: commentId))
+    }
+
+    func uploadPostFiles(files: [Data]) -> Single<UploadFilesResponse> {
+        return authService.uploadPostFiles(files: files)
     }
 }
 

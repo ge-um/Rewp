@@ -9,6 +9,8 @@ import UIKit
 import RxSwift
 import RxCocoa
 import PinLayout
+import FlexLayout
+import PhotosUI
 
 final class CreatePostViewController: UIViewController, KeyboardHandling {
     var presenter: CreatePostPresenter!
@@ -43,7 +45,7 @@ final class CreatePostViewController: UIViewController, KeyboardHandling {
         }
         return button
     }()
-
+ 
     private lazy var submitButton: UIButton = {
         var config = UIButton.Configuration.plain()
         config.title = "완료"
@@ -123,18 +125,44 @@ final class CreatePostViewController: UIViewController, KeyboardHandling {
         $0.textColor = ColorSystem.gray45
     }
 
+    private let imageScrollView = UIScrollView().then {
+        $0.showsHorizontalScrollIndicator = false
+        $0.isHidden = true
+    }
+
+    private let imageContainerView = UIView()
+
+    private var imageItemViews: [ImageItemView] = []
+
+    private lazy var addImageButton: UIButton = {
+        var config = UIButton.Configuration.filled()
+        config.baseBackgroundColor = ColorSystem.gray15
+        config.baseForegroundColor = ColorSystem.gray60
+        config.cornerStyle = .medium
+        config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16)
+
+        var attributedTitle = AttributedString("사진 추가")
+        attributedTitle.font = FontSystem.Pretendard.body2.font
+        config.attributedTitle = attributedTitle
+
+        let button = UIButton(configuration: config)
+        return button
+    }()
+
     private let loadingIndicator = UIActivityIndicatorView(style: .medium).then {
         $0.hidesWhenStopped = true
         $0.color = ColorSystem.gray60
     }
 
     private let categorySelectedTrigger = PublishSubject<PostCategory>()
+    private let selectedImages = BehaviorRelay<[UIImage]>(value: [])
     let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = ColorSystem.gray0
         setupUI()
+        setupImageViews()
         setupKeyboardHandling()
         bind()
     }
@@ -154,8 +182,28 @@ final class CreatePostViewController: UIViewController, KeyboardHandling {
         contentView.addSubview(titleTextField)
         contentView.addSubview(contentTextView)
         contentTextView.addSubview(placeholderLabel)
+        contentView.addSubview(addImageButton)
+        contentView.addSubview(imageScrollView)
+        imageScrollView.addSubview(imageContainerView)
 
         view.addSubview(loadingIndicator)
+    }
+
+    private func setupImageViews() {
+        imageContainerView.flex
+            .direction(.row)
+            .define { flex in
+                for _ in 0..<5 {
+                    let imageItemView = ImageItemView()
+                    imageItemView.isHidden = true
+                    imageItemViews.append(imageItemView)
+
+                    flex.addItem(imageItemView)
+                        .width(80)
+                        .height(80)
+                        .marginRight(8)
+                }
+            }
     }
 
     func dismissKeyboard() {
@@ -175,10 +223,25 @@ final class CreatePostViewController: UIViewController, KeyboardHandling {
             .bind(to: placeholderLabel.rx.isHidden)
             .disposed(by: disposeBag)
 
+        addImageButton.rx.tap
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                owner.presentImagePicker()
+            })
+            .disposed(by: disposeBag)
+
+        selectedImages
+            .withUnretained(self)
+            .subscribe(onNext: { owner, images in
+                owner.updateImageStackView(with: images)
+            })
+            .disposed(by: disposeBag)
+
         let input = CreatePostPresenter.Input(
             categorySelected: categorySelectedTrigger.asObservable(),
             titleText: titleTextField.rx.text.orEmpty.asObservable(),
             contentText: contentTextView.rx.text.orEmpty.asObservable(),
+            selectedImages: selectedImages.asObservable(),
             submitTapped: submitButton.rx.tap.asObservable(),
             cancelTapped: cancelButton.rx.tap.asObservable()
         )
@@ -247,6 +310,62 @@ final class CreatePostViewController: UIViewController, KeyboardHandling {
         }
     }
 
+    private func presentImagePicker() {
+        let currentCount = selectedImages.value.count
+        let remainingCount = 5 - currentCount
+
+        guard remainingCount > 0 else {
+            let alert = UIAlertController(
+                title: "최대 5장",
+                message: "사진은 최대 5장까지 선택할 수 있습니다.",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "확인", style: .default))
+            present(alert, animated: true)
+            return
+        }
+
+        var config = PHPickerConfiguration()
+        config.selectionLimit = remainingCount
+        config.filter = .images
+
+        let picker = PHPickerViewController(configuration: config)
+        picker.delegate = self
+        present(picker, animated: true)
+    }
+
+    private func updateImageStackView(with images: [UIImage]) {
+        imageScrollView.isHidden = images.isEmpty
+
+        for (index, imageItemView) in imageItemViews.enumerated() {
+            if index < images.count {
+                imageItemView.isHidden = false
+                imageItemView.configure(image: images[index]) { [weak self] in
+                    guard let self = self else { return }
+                    var current = self.selectedImages.value
+                    current.remove(at: index)
+                    self.selectedImages.accept(current)
+                }
+            } else {
+                imageItemView.isHidden = true
+            }
+        }
+
+        if !images.isEmpty {
+            imageScrollView.pin
+                .below(of: addImageButton)
+                .marginTop(12)
+                .horizontally(20)
+                .height(80)
+
+            imageContainerView.flex.layout(mode: .adjustWidth)
+            imageScrollView.contentSize = imageContainerView.frame.size
+
+            contentView.pin.wrapContent(.vertically, padding: 24)
+            scrollView.contentSize = contentView.frame.size
+        }
+    }
+
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
 
@@ -307,6 +426,23 @@ final class CreatePostViewController: UIViewController, KeyboardHandling {
             .left(16)
             .sizeToFit()
 
+        addImageButton.pin
+            .below(of: contentTextView)
+            .marginTop(16)
+            .left(20)
+            .sizeToFit()
+
+        if !imageScrollView.isHidden {
+            imageScrollView.pin
+                .below(of: addImageButton)
+                .marginTop(12)
+                .horizontally(20)
+                .height(80)
+
+            imageContainerView.flex.layout(mode: .adjustWidth)
+            imageScrollView.contentSize = imageContainerView.frame.size
+        }
+
         contentView.pin
             .wrapContent(.vertically, padding: 24)
 
@@ -314,5 +450,36 @@ final class CreatePostViewController: UIViewController, KeyboardHandling {
 
         loadingIndicator.pin
             .center()
+    }
+}
+
+extension CreatePostViewController: PHPickerViewControllerDelegate {
+    func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        picker.dismiss(animated: true)
+
+        guard !results.isEmpty else { return }
+
+        var newImages: [UIImage] = []
+
+        let group = DispatchGroup()
+
+        for result in results {
+            group.enter()
+
+            result.itemProvider.loadObject(ofClass: UIImage.self) { object, error in
+                defer { group.leave() }
+
+                if let image = object as? UIImage {
+                    newImages.append(image)
+                }
+            }
+        }
+
+        group.notify(queue: .main) { [weak self] in
+            guard let self = self else { return }
+            var current = self.selectedImages.value
+            current.append(contentsOf: newImages)
+            self.selectedImages.accept(current)
+        }
     }
 }

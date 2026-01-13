@@ -26,6 +26,7 @@ enum PostRouter {
     case createComment(postId: String, content: String, parentCommentId: String?)
     case updateComment(postId: String, commentId: String, content: String)
     case deleteComment(postId: String, commentId: String)
+    case uploadFiles(files: [Data])
 }
 
 extension PostRouter: APIRouter {
@@ -51,6 +52,8 @@ extension PostRouter: APIRouter {
             return "/posts/\(postId)/comments/\(commentId)"
         case .deleteComment(let postId, let commentId):
             return "/posts/\(postId)/comments/\(commentId)"
+        case .uploadFiles:
+            return "/posts/files"
         }
     }
 
@@ -58,7 +61,7 @@ extension PostRouter: APIRouter {
         switch self {
         case .geolocationPosts, .postDetail:
             return .get
-        case .createPost, .toggleLike, .createComment:
+        case .createPost, .toggleLike, .createComment, .uploadFiles:
             return .post
         case .updateComment:
             return .put
@@ -68,15 +71,23 @@ extension PostRouter: APIRouter {
     }
 
     var headers: HTTPHeaders? {
-        return [
-            "Content-Type": "application/json",
-            "SesacKey": NetworkConfig.rewpKey
-        ]
+        switch self {
+        case .uploadFiles:
+            return [
+                "Content-Type": "multipart/form-data",
+                "SesacKey": NetworkConfig.rewpKey
+            ]
+        default:
+            return [
+                "Content-Type": "application/json",
+                "SesacKey": NetworkConfig.rewpKey
+            ]
+        }
     }
 
     var body: Encodable? {
         switch self {
-        case .geolocationPosts, .postDetail, .deletePost:
+        case .geolocationPosts, .postDetail, .deletePost, .uploadFiles:
             return nil
         case .createPost(let category, let title, let content, let latitude, let longitude, let files):
             return CreatePostRequest(
@@ -122,7 +133,7 @@ extension PostRouter: APIRouter {
                 params["next_cursor"] = next_cursor
             }
             return params
-        case .postDetail, .createPost, .deletePost, .toggleLike, .createComment, .updateComment, .deleteComment:
+        case .postDetail, .createPost, .deletePost, .toggleLike, .createComment, .updateComment, .deleteComment, .uploadFiles:
             return nil
         }
     }
