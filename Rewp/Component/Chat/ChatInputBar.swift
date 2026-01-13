@@ -15,10 +15,7 @@ import RxCocoa
 final class ChatInputBar: UIView {
     private let containerView = UIView().then {
         $0.backgroundColor = ColorSystem.gray0
-        $0.layer.shadowColor = UIColor.black.cgColor
-        $0.layer.shadowOpacity = 0.08
-        $0.layer.shadowOffset = CGSize(width: 0, height: -4)
-        $0.layer.shadowRadius = 4
+        $0.applyShadow(.topBar)
     }
 
     private let textContainerView = UIView().then {

@@ -120,8 +120,6 @@ final class MainTabBarController: UIViewController {
         currentViewController?.view.frame = containerView.bounds
     }
 
-    /// 특정 탭으로 이동
-    /// - Parameter index: 탭 인덱스 (0: Feed, 1: Community, 2: Video, 3: ChatList, 4: Settings)
     func selectTab(at index: Int) {
         tabBar.selectTab(at: index)
     }

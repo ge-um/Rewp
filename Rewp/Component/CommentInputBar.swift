@@ -14,10 +14,7 @@ import RxCocoa
 final class CommentInputBar: UIView {
     private let containerView = UIView().then {
         $0.backgroundColor = ColorSystem.gray0
-        $0.layer.shadowColor = UIColor.black.cgColor
-        $0.layer.shadowOpacity = 0.08
-        $0.layer.shadowOffset = CGSize(width: 0, height: -2)
-        $0.layer.shadowRadius = 8
+        $0.applyShadow(.topBar)
     }
 
     private let textContainerView = UIView().then {
@@ -74,7 +71,7 @@ final class CommentInputBar: UIView {
     }
 
     private func setupUI() {
-        backgroundColor = .clear
+        backgroundColor = ColorSystem.gray0
 
         addSubview(containerView)
         containerView.addSubview(textContainerView)
@@ -111,7 +108,13 @@ final class CommentInputBar: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
 
-        containerView.pin.all()
+        let contentHeight = intrinsicContentSize.height - pin.safeArea.bottom
+
+        containerView.pin
+            .top()
+            .horizontally()
+            .height(contentHeight)
+
         containerView.layer.shadowPath = UIBezierPath(rect: containerView.bounds).cgPath
 
         sendButton.pin

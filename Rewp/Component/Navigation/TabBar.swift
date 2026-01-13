@@ -71,11 +71,7 @@ final class TabBar: UIView {
 
     private func setupUI() {
         backgroundColor = ColorSystem.gray0
-
-        layer.shadowColor = ColorSystem.gray100.cgColor
-        layer.shadowOpacity = 0.1
-        layer.shadowOffset = CGSize(width: 0, height: -1)
-        layer.shadowRadius = 1
+        applyShadow(.topBar)
 
         addSubview(stackView)
 
