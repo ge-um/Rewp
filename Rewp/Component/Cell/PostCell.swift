@@ -142,10 +142,9 @@ final class PostCell: UITableViewCell, IsIdentifiable {
                     .size(16)
                 flex.addItem(likeCountLabel)
                     .marginLeft(4)
-                    .marginRight(0)
                 flex.addItem(commentIconImageView)
                     .size(16)
-                    .marginLeft(12)
+                    .marginLeft(8)
                 flex.addItem(commentCountLabel)
                     .marginLeft(4)
             }
