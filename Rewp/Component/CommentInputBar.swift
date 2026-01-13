@@ -1,18 +1,17 @@
 //
-//  ChatInputBar.swift
+//  CommentInputBar.swift
 //  Rewp
 //
-//  Created by 금가경 on 01/03/26.
+//  Created by 금가경 on 01/13/26.
 //
 
 import UIKit
 import PinLayout
-import FlexLayout
 import Then
 import RxSwift
 import RxCocoa
 
-final class ChatInputBar: UIView {
+final class CommentInputBar: UIView {
     private let containerView = UIView().then {
         $0.backgroundColor = ColorSystem.gray0
         $0.applyShadow(ShadowSystem.xs)
@@ -34,18 +33,13 @@ final class ChatInputBar: UIView {
 
     private let placeholderLabel = UILabel().then {
         $0.textColor = ColorSystem.gray60
-        $0.typography(FontSystem.Pretendard.body2, text: "메시지를 입력하세요")
+        $0.typography(FontSystem.Pretendard.body2, text: "댓글을 입력하세요")
     }
 
     private let sendButton = UIButton(type: .system).then {
         $0.setImage(UIImage(systemName: "arrow.up.circle.fill"), for: .normal)
         $0.tintColor = ColorSystem.brightCoast
         $0.isEnabled = false
-    }
-
-    private let attachButton = UIButton(type: .system).then {
-        $0.setImage(UIImage(systemName: "plus.circle"), for: .normal)
-        $0.tintColor = ColorSystem.gray60
     }
 
     private let disposeBag = DisposeBag()
@@ -59,10 +53,6 @@ final class ChatInputBar: UIView {
 
     var textInput: Observable<String> {
         return textView.rx.text.orEmpty.asObservable()
-    }
-
-    var attachButtonTapped: Observable<Void> {
-        return attachButton.rx.tap.asObservable()
     }
 
     var text: String {
@@ -84,7 +74,6 @@ final class ChatInputBar: UIView {
         backgroundColor = ColorSystem.gray0
 
         addSubview(containerView)
-        containerView.addSubview(attachButton)
         containerView.addSubview(textContainerView)
         textContainerView.addSubview(textView)
         textContainerView.addSubview(placeholderLabel)
@@ -112,24 +101,29 @@ final class ChatInputBar: UIView {
         sendButton.isEnabled = !textView.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    func setPlaceholder(_ text: String) {
+        placeholderLabel.typography(FontSystem.Pretendard.body2, text: text)
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
 
-        containerView.pin.all()
+        let contentHeight = intrinsicContentSize.height - pin.safeArea.bottom
+
+        containerView.pin
+            .top()
+            .horizontally()
+            .height(contentHeight)
+
+        containerView.layer.shadowPath = UIBezierPath(rect: containerView.bounds).cgPath
 
         sendButton.pin
             .right(16)
             .vCenter()
             .size(36)
 
-        attachButton.pin
-            .left(16)
-            .vCenter()
-            .size(32)
-
         textContainerView.pin
-            .after(of: attachButton)
-            .marginLeft(8)
+            .left(16)
             .before(of: sendButton)
             .marginRight(8)
             .vCenter()
@@ -168,7 +162,7 @@ final class ChatInputBar: UIView {
     override var intrinsicContentSize: CGSize {
         let screenWidth = superview?.bounds.width ?? UIScreen.main.bounds.width
         let padding: CGFloat = 12
-        let availableWidth = screenWidth - 16 - 32 - 8 - 8 - 36 - 16 - padding * 2
+        let availableWidth = screenWidth - 16 - 8 - 36 - 16 - padding * 2
 
         if cachedTextHeight == nil || cachedAvailableWidth != availableWidth {
             let textSize = textView.sizeThatFits(
@@ -193,5 +187,9 @@ final class ChatInputBar: UIView {
         superview?.setNeedsLayout()
         layoutIfNeeded()
         superview?.layoutIfNeeded()
+    }
+
+    func focusInput() {
+        textView.becomeFirstResponder()
     }
 }

@@ -16,10 +16,7 @@ final class RangeFilterOverlay: UIView {
     let containerView = UIView().then {
         $0.backgroundColor = ColorSystem.gray0
         $0.layer.cornerRadius = 12
-        $0.layer.shadowColor = UIColor.black.cgColor
-        $0.layer.shadowOpacity = 0.15
-        $0.layer.shadowOffset = CGSize(width: 0, height: 4)
-        $0.layer.shadowRadius = 12
+        $0.layer.applyShadow(ShadowSystem.xl)
     }
 
     private let rangeBubbleView = UIView().then {

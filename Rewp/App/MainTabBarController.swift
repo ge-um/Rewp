@@ -20,6 +20,10 @@ final class MainTabBarController: UIViewController {
         return container.makeFeedViewController()
     }()
 
+    private lazy var communityViewController: UIViewController = {
+        return container.makeCommunityViewController()
+    }()
+
     private lazy var videoListViewController: UIViewController = {
         return container.makeVideoListViewController()
     }()
@@ -73,10 +77,12 @@ final class MainTabBarController: UIViewController {
         case 0:
             newViewController = feedViewController
         case 1:
-            newViewController = videoListViewController
+            newViewController = communityViewController
         case 2:
-            newViewController = chatListViewController
+            newViewController = videoListViewController
         case 3:
+            newViewController = chatListViewController
+        case 4:
             newViewController = settingsViewController
         default:
             return
@@ -114,8 +120,6 @@ final class MainTabBarController: UIViewController {
         currentViewController?.view.frame = containerView.bounds
     }
 
-    /// 특정 탭으로 이동
-    /// - Parameter index: 탭 인덱스 (0: Feed, 1: Video, 2: ChatList, 3: Settings)
     func selectTab(at index: Int) {
         tabBar.selectTab(at: index)
     }
@@ -123,7 +127,7 @@ final class MainTabBarController: UIViewController {
     /// 채팅방으로 네비게이션
     /// - Parameter chatRoom: 이동할 채팅방
     func navigateToChatRoom(chatRoom: ChatRoom) {
-        selectTab(at: 2)
+        selectTab(at: 3)
         let chatRoomVC = container.makeChatRoomViewController(chatRoom: chatRoom)
         navigationController?.pushViewController(chatRoomVC, animated: true)
     }

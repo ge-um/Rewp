@@ -1,0 +1,313 @@
+//
+//  PostDetailPresenter.swift
+//  Rewp
+//
+//  Created by 금가경 on 01/12/26.
+//
+
+import Foundation
+import RxSwift
+import RxCocoa
+import OSLog
+
+final class PostDetailPresenter {
+    private let postRepository: PostRepository
+    private let postId: String
+    private let disposeBag = DisposeBag()
+
+    init(postRepository: PostRepository, postId: String) {
+        self.postRepository = postRepository
+        self.postId = postId
+    }
+
+    struct Input {
+        let viewDidLoad: Observable<Void>
+        let deletePost: Observable<Void>
+        let likeTapped: Observable<Void>
+        let sendComment: Observable<String>
+        let replyToComment: Observable<(commentId: String, content: String)>
+        let editComment: Observable<(commentId: String, content: String)>
+        let deleteComment: Observable<String>
+    }
+
+    struct Output {
+        let post: Driver<Post>
+        let error: Driver<String>
+        let postDeleted: Driver<Void>
+        let isLiked: Driver<Bool>
+        let likeCount: Driver<Int>
+        let commentPosted: Driver<Void>
+    }
+
+    func transform(input: Input) -> Output {
+        let postRelay = BehaviorRelay<Post?>(value: nil)
+        let errorRelay = PublishRelay<String>()
+        let postDeletedRelay = PublishRelay<Void>()
+        let isLikedRelay = BehaviorRelay<Bool>(value: false)
+        let likeCountRelay = BehaviorRelay<Int>(value: 0)
+        let commentPostedRelay = PublishRelay<Void>()
+
+        let refreshPostTrigger = PublishRelay<Void>()
+
+        let loadTrigger = Observable.merge(
+            input.viewDidLoad,
+            refreshPostTrigger.asObservable()
+        )
+
+        loadTrigger
+            .withUnretained(self)
+            .do(onNext: { owner, _ in
+            })
+            .flatMapLatest { owner, _ in
+                owner.postRepository
+                    .fetchPostDetail(postId: owner.postId)
+                    .asObservable()
+                    .catch { error in
+                        Logger.community.error("Failed to fetch post detail - \(error.localizedDescription)")
+                        errorRelay.accept("게시글을 불러올 수 없습니다")
+                        return .empty()
+                    }
+            }
+            .withUnretained(self)
+            .subscribe(onNext: { owner, postDetailDTO in
+                let post = postDetailDTO.toDomain()
+                postRelay.accept(post)
+                isLikedRelay.accept(post.isLiked)
+                likeCountRelay.accept(post.likesCount)
+            })
+            .disposed(by: disposeBag)
+
+        input.deletePost
+            .withUnretained(self)
+            .flatMapLatest { owner, _ in
+                owner.postRepository
+                    .deletePost(postId: owner.postId)
+                    .asObservable()
+                    .catch { error in
+                        Logger.community.error("Failed to delete post - \(error.localizedDescription)")
+                        errorRelay.accept("게시글 삭제에 실패했습니다")
+                        return .empty()
+                    }
+            }
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                postDeletedRelay.accept(())
+            })
+            .disposed(by: disposeBag)
+
+        input.likeTapped
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                let currentState = isLikedRelay.value
+                let currentCount = likeCountRelay.value
+                let newLikedState = !currentState
+                let newCount = newLikedState ? currentCount + 1 : currentCount - 1
+
+                isLikedRelay.accept(newLikedState)
+                likeCountRelay.accept(newCount)
+
+                owner.postRepository
+                    .toggleLike(postId: owner.postId, likeStatus: newLikedState)
+                    .asObservable()
+                    .catch { error in
+                        Logger.community.error("Failed to toggle like - \(error.localizedDescription)")
+                        isLikedRelay.accept(currentState)
+                        likeCountRelay.accept(currentCount)
+                        return .empty()
+                    }
+                    .subscribe()
+                    .disposed(by: owner.disposeBag)
+            })
+            .disposed(by: disposeBag)
+
+        input.sendComment
+            .withUnretained(self)
+            .flatMapLatest { owner, content in
+                owner.postRepository
+                    .createComment(postId: owner.postId, content: content, parentCommentId: nil)
+                    .asObservable()
+                    .catch { error in
+                        Logger.community.error("Failed to create comment - \(error.localizedDescription)")
+                        errorRelay.accept("댓글 작성에 실패했습니다")
+                        return .empty()
+                    }
+            }
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                commentPostedRelay.accept(())
+                refreshPostTrigger.accept(())
+            })
+            .disposed(by: disposeBag)
+
+        input.replyToComment
+            .withUnretained(self)
+            .flatMapLatest { owner, data in
+                owner.postRepository
+                    .createComment(postId: owner.postId, content: data.content, parentCommentId: data.commentId)
+                    .asObservable()
+                    .catch { error in
+                        Logger.community.error("Failed to create reply - \(error.localizedDescription)")
+                        errorRelay.accept("답글 작성에 실패했습니다")
+                        return .empty()
+                    }
+            }
+            .withUnretained(self)
+            .subscribe(onNext: { owner, _ in
+                commentPostedRelay.accept(())
+                refreshPostTrigger.accept(())
+            })
+            .disposed(by: disposeBag)
+
+        input.editComment
+            .withUnretained(self)
+            .subscribe(onNext: { owner, data in
+                guard let currentPost = postRelay.value else { return }
+
+                let previousPost = currentPost
+                var updatedComments = currentPost.comments
+
+                if let commentIndex = updatedComments.firstIndex(where: { $0.commentId == data.commentId }) {
+                    let comment = updatedComments[commentIndex]
+                    let updatedComment = Comment(
+                        commentId: comment.commentId,
+                        content: data.content,
+                        creatorId: comment.creatorId,
+                        creatorNickname: comment.creatorNickname,
+                        creatorProfileImage: comment.creatorProfileImage,
+                        createdAt: comment.createdAt,
+                        replies: comment.replies
+                    )
+                    updatedComments[commentIndex] = updatedComment
+                } else {
+                    for (commentIndex, comment) in updatedComments.enumerated() {
+                        if let replyIndex = comment.replies.firstIndex(where: { $0.replyId == data.commentId }) {
+                            var updatedReplies = comment.replies
+                            let reply = updatedReplies[replyIndex]
+                            let updatedReply = Reply(
+                                replyId: reply.replyId,
+                                content: data.content,
+                                creatorId: reply.creatorId,
+                                creatorNickname: reply.creatorNickname,
+                                creatorProfileImage: reply.creatorProfileImage,
+                                createdAt: reply.createdAt
+                            )
+                            updatedReplies[replyIndex] = updatedReply
+                            let updatedComment = Comment(
+                                commentId: comment.commentId,
+                                content: comment.content,
+                                creatorId: comment.creatorId,
+                                creatorNickname: comment.creatorNickname,
+                                creatorProfileImage: comment.creatorProfileImage,
+                                createdAt: comment.createdAt,
+                                replies: updatedReplies
+                            )
+                            updatedComments[commentIndex] = updatedComment
+                            break
+                        }
+                    }
+                }
+
+                let optimisticPost = Post(
+                    postId: currentPost.postId,
+                    title: currentPost.title,
+                    content: currentPost.content,
+                    category: currentPost.category,
+                    creatorId: currentPost.creatorId,
+                    creatorNickname: currentPost.creatorNickname,
+                    creatorProfileImage: currentPost.creatorProfileImage,
+                    imageURLs: currentPost.imageURLs,
+                    likesCount: currentPost.likesCount,
+                    commentsCount: currentPost.commentsCount,
+                    createdAt: currentPost.createdAt,
+                    isLiked: currentPost.isLiked,
+                    comments: updatedComments
+                )
+
+                postRelay.accept(optimisticPost)
+
+                owner.postRepository
+                    .updateComment(postId: owner.postId, commentId: data.commentId, content: data.content)
+                    .asObservable()
+                    .catch { error in
+                        Logger.community.error("Failed to update comment - \(error.localizedDescription)")
+                        errorRelay.accept("댓글 수정에 실패했습니다")
+                        postRelay.accept(previousPost)
+                        return .empty()
+                    }
+                    .subscribe()
+                    .disposed(by: owner.disposeBag)
+            })
+            .disposed(by: disposeBag)
+
+        input.deleteComment
+            .withUnretained(self)
+            .subscribe(onNext: { owner, commentId in
+                guard let currentPost = postRelay.value else { return }
+
+                let previousPost = currentPost
+                var updatedComments = currentPost.comments
+
+                if let commentIndex = updatedComments.firstIndex(where: { $0.commentId == commentId }) {
+                    updatedComments.remove(at: commentIndex)
+                } else {
+                    for (commentIndex, comment) in updatedComments.enumerated() {
+                        if let replyIndex = comment.replies.firstIndex(where: { $0.replyId == commentId }) {
+                            var updatedReplies = comment.replies
+                            updatedReplies.remove(at: replyIndex)
+                            let updatedComment = Comment(
+                                commentId: comment.commentId,
+                                content: comment.content,
+                                creatorId: comment.creatorId,
+                                creatorNickname: comment.creatorNickname,
+                                creatorProfileImage: comment.creatorProfileImage,
+                                createdAt: comment.createdAt,
+                                replies: updatedReplies
+                            )
+                            updatedComments[commentIndex] = updatedComment
+                            break
+                        }
+                    }
+                }
+
+                let optimisticPost = Post(
+                    postId: currentPost.postId,
+                    title: currentPost.title,
+                    content: currentPost.content,
+                    category: currentPost.category,
+                    creatorId: currentPost.creatorId,
+                    creatorNickname: currentPost.creatorNickname,
+                    creatorProfileImage: currentPost.creatorProfileImage,
+                    imageURLs: currentPost.imageURLs,
+                    likesCount: currentPost.likesCount,
+                    commentsCount: currentPost.commentsCount,
+                    createdAt: currentPost.createdAt,
+                    isLiked: currentPost.isLiked,
+                    comments: updatedComments
+                )
+
+                postRelay.accept(optimisticPost)
+
+                owner.postRepository
+                    .deleteComment(postId: owner.postId, commentId: commentId)
+                    .asObservable()
+                    .catch { error in
+                        Logger.community.error("Failed to delete comment - \(error.localizedDescription)")
+                        errorRelay.accept("댓글 삭제에 실패했습니다")
+                        postRelay.accept(previousPost)
+                        return .empty()
+                    }
+                    .subscribe()
+                    .disposed(by: owner.disposeBag)
+            })
+            .disposed(by: disposeBag)
+
+        return Output(
+            post: postRelay.compactMap { $0 }.asDriver(onErrorDriveWith: .empty()),
+            error: errorRelay.asDriver(onErrorJustReturn: ""),
+            postDeleted: postDeletedRelay.asDriver(onErrorDriveWith: .empty()),
+            isLiked: isLikedRelay.asDriver(),
+            likeCount: likeCountRelay.asDriver(),
+            commentPosted: commentPostedRelay.asDriver(onErrorDriveWith: .empty())
+        )
+    }
+}

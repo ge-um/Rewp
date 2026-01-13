@@ -219,3 +219,13 @@ extension UITextField {
         }
     }
 }
+
+extension UITextView {
+    func typography(_ typography: Typography) {
+        self.font = typography.font
+        self.typingAttributes = [
+            .font: typography.font,
+            .kern: typography.kerning
+        ]
+    }
+}

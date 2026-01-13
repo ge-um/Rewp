@@ -101,10 +101,7 @@ final class RangeSlider: UIView {
         thumb.layer.cornerRadius = thumbSize / 2
         thumb.layer.borderWidth = 3
         thumb.layer.borderColor = borderColor.cgColor
-        thumb.layer.shadowColor = ColorSystem.shadow.cgColor
-        thumb.layer.shadowOffset = CGSize(width: 0, height: 2)
-        thumb.layer.shadowOpacity = 0.15
-        thumb.layer.shadowRadius = 4
+        thumb.layer.applyShadow(ShadowSystem.mdEmphasis)
     }
     
     override func layoutSubviews() {
