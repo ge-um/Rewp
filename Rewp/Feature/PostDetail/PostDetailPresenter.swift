@@ -26,6 +26,7 @@ final class PostDetailPresenter {
         let sendComment: Observable<String>
         let replyToComment: Observable<(commentId: String, content: String)>
         let editComment: Observable<(commentId: String, content: String)>
+        let deleteComment: Observable<String>
     }
 
     struct Output {
@@ -209,6 +210,68 @@ final class PostDetailPresenter {
                     .catch { error in
                         Logger.community.error("Failed to update comment - \(error.localizedDescription)")
                         errorRelay.accept("댓글 수정에 실패했습니다")
+                        postRelay.accept(previousPost)
+                        return .empty()
+                    }
+                    .subscribe()
+                    .disposed(by: owner.disposeBag)
+            })
+            .disposed(by: disposeBag)
+
+        input.deleteComment
+            .withUnretained(self)
+            .subscribe(onNext: { owner, commentId in
+                guard let currentPost = postRelay.value else { return }
+
+                let previousPost = currentPost
+                var updatedComments = currentPost.comments
+
+                if let commentIndex = updatedComments.firstIndex(where: { $0.commentId == commentId }) {
+                    updatedComments.remove(at: commentIndex)
+                } else {
+                    for (commentIndex, comment) in updatedComments.enumerated() {
+                        if let replyIndex = comment.replies.firstIndex(where: { $0.replyId == commentId }) {
+                            var updatedReplies = comment.replies
+                            updatedReplies.remove(at: replyIndex)
+                            let updatedComment = Comment(
+                                commentId: comment.commentId,
+                                content: comment.content,
+                                creatorId: comment.creatorId,
+                                creatorNickname: comment.creatorNickname,
+                                creatorProfileImage: comment.creatorProfileImage,
+                                createdAt: comment.createdAt,
+                                replies: updatedReplies
+                            )
+                            updatedComments[commentIndex] = updatedComment
+                            break
+                        }
+                    }
+                }
+
+                let optimisticPost = Post(
+                    postId: currentPost.postId,
+                    title: currentPost.title,
+                    content: currentPost.content,
+                    category: currentPost.category,
+                    creatorId: currentPost.creatorId,
+                    creatorNickname: currentPost.creatorNickname,
+                    creatorProfileImage: currentPost.creatorProfileImage,
+                    imageURLs: currentPost.imageURLs,
+                    likesCount: currentPost.likesCount,
+                    commentsCount: currentPost.commentsCount,
+                    createdAt: currentPost.createdAt,
+                    isLiked: currentPost.isLiked,
+                    comments: updatedComments
+                )
+
+                postRelay.accept(optimisticPost)
+
+                owner.postRepository
+                    .deleteComment(postId: owner.postId, commentId: commentId)
+                    .asObservable()
+                    .catch { error in
+                        Logger.community.error("Failed to delete comment - \(error.localizedDescription)")
+                        errorRelay.accept("댓글 삭제에 실패했습니다")
                         postRelay.accept(previousPost)
                         return .empty()
                     }

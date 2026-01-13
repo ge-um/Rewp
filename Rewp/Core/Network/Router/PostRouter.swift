@@ -14,6 +14,7 @@ enum PostRouter {
     case toggleLike(postId: String, likeStatus: Bool)
     case createComment(postId: String, content: String, parentCommentId: String?)
     case updateComment(postId: String, commentId: String, content: String)
+    case deleteComment(postId: String, commentId: String)
 }
 
 extension PostRouter: APIRouter {
@@ -33,6 +34,8 @@ extension PostRouter: APIRouter {
             return "/posts/\(postId)/comments"
         case .updateComment(let postId, let commentId, _):
             return "/posts/\(postId)/comments/\(commentId)"
+        case .deleteComment(let postId, let commentId):
+            return "/posts/\(postId)/comments/\(commentId)"
         }
     }
 
@@ -44,6 +47,8 @@ extension PostRouter: APIRouter {
             return .post
         case .updateComment:
             return .put
+        case .deleteComment:
+            return .delete
         }
     }
 
@@ -68,6 +73,8 @@ extension PostRouter: APIRouter {
             return params
         case .updateComment(_, _, let content):
             return ["content": content]
+        case .deleteComment:
+            return nil
         }
     }
 
@@ -88,7 +95,7 @@ extension PostRouter: APIRouter {
                 params["product_id"] = product_id
             }
             return params
-        case .postDetail, .toggleLike, .createComment, .updateComment:
+        case .postDetail, .toggleLike, .createComment, .updateComment, .deleteComment:
             return nil
         }
     }

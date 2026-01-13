@@ -14,6 +14,7 @@ protocol PostRepository {
     func toggleLike(postId: String, likeStatus: Bool) -> Single<Bool>
     func createComment(postId: String, content: String, parentCommentId: String?) -> Single<CommentResponse>
     func updateComment(postId: String, commentId: String, content: String) -> Single<CommentResponse>
+    func deleteComment(postId: String, commentId: String) -> Single<Void>
 }
 
 final class PostRepositoryImpl: PostRepository {
@@ -54,5 +55,9 @@ final class PostRepositoryImpl: PostRepository {
 
     func updateComment(postId: String, commentId: String, content: String) -> Single<CommentResponse> {
         return authService.authenticatedRequest(PostRouter.updateComment(postId: postId, commentId: commentId, content: content))
+    }
+
+    func deleteComment(postId: String, commentId: String) -> Single<Void> {
+        return authService.authenticatedRequestEmpty(PostRouter.deleteComment(postId: postId, commentId: commentId))
     }
 }

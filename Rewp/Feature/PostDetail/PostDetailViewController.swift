@@ -97,6 +97,7 @@ final class PostDetailViewController: UIViewController, KeyboardHandling {
     private let sendCommentTrigger = PublishSubject<String>()
     private let replyToCommentTrigger = PublishSubject<String>()
     private let editCommentTrigger = PublishSubject<String>()
+    private let deleteCommentTrigger = PublishSubject<String>()
     private var currentReplyingCommentId: String?
     private var currentEditingCommentId: String?
     var keyboardHeight: CGFloat = 0
@@ -184,7 +185,8 @@ final class PostDetailViewController: UIViewController, KeyboardHandling {
             likeTapped: likeTappedTrigger.asObservable(),
             sendComment: sendCommentTrigger.asObservable(),
             replyToComment: replyWithContentObservable,
-            editComment: editWithContentObservable
+            editComment: editWithContentObservable,
+            deleteComment: deleteCommentTrigger.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -428,6 +430,22 @@ extension PostDetailViewController: UITableViewDataSource {
                     })
                     .disposed(by: cell.disposeBag)
 
+                cell.deleteTapped
+                    .withUnretained(self)
+                    .subscribe(onNext: { owner, _ in
+                        let alert = UIAlertController(
+                            title: "댓글 삭제",
+                            message: "삭제한 댓글은 복구할 수 없습니다.",
+                            preferredStyle: .alert
+                        )
+                        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+                        alert.addAction(UIAlertAction(title: "삭제", style: .destructive) { _ in
+                            owner.deleteCommentTrigger.onNext(comment.commentId)
+                        })
+                        owner.present(alert, animated: true)
+                    })
+                    .disposed(by: cell.disposeBag)
+
                 return cell
             }
             currentIndex += 1
@@ -448,6 +466,22 @@ extension PostDetailViewController: UITableViewDataSource {
                             owner.commentInputBar.text = reply.content
                             owner.commentInputBar.setPlaceholder("답글 수정")
                             owner.commentInputBar.focusInput()
+                        })
+                        .disposed(by: cell.disposeBag)
+
+                    cell.deleteTapped
+                        .withUnretained(self)
+                        .subscribe(onNext: { owner, _ in
+                            let alert = UIAlertController(
+                                title: "답글 삭제",
+                                message: "삭제한 답글은 복구할 수 없습니다.",
+                                preferredStyle: .alert
+                            )
+                            alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+                            alert.addAction(UIAlertAction(title: "삭제", style: .destructive) { _ in
+                                owner.deleteCommentTrigger.onNext(reply.replyId)
+                            })
+                            owner.present(alert, animated: true)
                         })
                         .disposed(by: cell.disposeBag)
 

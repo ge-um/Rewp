@@ -73,12 +73,31 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
         $0.isHidden = true
     }
 
+    private let deleteButton = UIButton().then {
+        var config = UIButton.Configuration.plain()
+        config.contentInsets = .zero
+
+        var titleAttr = AttributedString("삭제")
+        titleAttr.font = FontSystem.Pretendard.caption1Regular.font
+        titleAttr.foregroundColor = ColorSystem.gray60
+        config.attributedTitle = titleAttr
+
+        config.baseForegroundColor = ColorSystem.gray60
+
+        $0.configuration = config
+        $0.isHidden = true
+    }
+
     var replyTapped: Observable<Void> {
         return replyButton.rx.tap.asObservable()
     }
 
     var editTapped: Observable<Void> {
         return editButton.rx.tap.asObservable()
+    }
+
+    var deleteTapped: Observable<Void> {
+        return deleteButton.rx.tap.asObservable()
     }
 
     var disposeBag = DisposeBag()
@@ -111,6 +130,7 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
         contentView.addSubview(contentLabel)
         contentView.addSubview(replyButton)
         contentView.addSubview(editButton)
+        contentView.addSubview(deleteButton)
     }
 
     override func layoutSubviews() {
@@ -152,6 +172,12 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
             .vCenter(to: replyButton.edge.vCenter)
             .sizeToFit()
 
+        deleteButton.pin
+            .after(of: editButton)
+            .marginLeft(12)
+            .vCenter(to: replyButton.edge.vCenter)
+            .sizeToFit()
+
         let profileCenterX = profileImageView.frame.minX + 16
         childConnectionLine.pin
             .top(profileImageView.frame.maxY)
@@ -165,10 +191,14 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
         layoutSubviews()
 
         let height: CGFloat
-        if editButton.isHidden {
-            height = replyButton.frame.maxY
+        if deleteButton.isHidden {
+            if editButton.isHidden {
+                height = replyButton.frame.maxY
+            } else {
+                height = max(replyButton.frame.maxY, editButton.frame.maxY)
+            }
         } else {
-            height = max(replyButton.frame.maxY, editButton.frame.maxY)
+            height = max(replyButton.frame.maxY, editButton.frame.maxY, deleteButton.frame.maxY)
         }
         return CGSize(width: size.width, height: height)
     }
@@ -182,5 +212,6 @@ final class CommentCell: UITableViewCell, IsIdentifiable {
 
         childConnectionLine.isHidden = !hasReplies
         editButton.isHidden = !isCurrentUser
+        deleteButton.isHidden = !isCurrentUser
     }
 }
