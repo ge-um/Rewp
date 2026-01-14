@@ -54,14 +54,10 @@ final class TokenAuthenticator: Authenticator {
 
                 switch response.result {
                 case .success(let refreshResponse):
-                    guard let newCredential = TokenCredential.from(
+                    let newCredential = TokenCredential(
                         accessToken: refreshResponse.accessToken,
                         refreshToken: refreshResponse.refreshToken
-                    ) else {
-                        Logger.auth.error("Invalid token format in refresh response")
-                        completion(.failure(AuthError.invalidToken))
-                        return
-                    }
+                    )
 
                     try? self.keychainManager.saveAccessToken(refreshResponse.accessToken)
                     try? self.keychainManager.saveRefreshToken(refreshResponse.refreshToken)

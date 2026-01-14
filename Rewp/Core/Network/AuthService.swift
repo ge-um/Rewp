@@ -42,7 +42,7 @@ final class AuthService: AuthServiceProtocol {
         do {
             let accessToken = try keychainManager.loadAccessToken()
             let refreshToken = try keychainManager.loadRefreshToken()
-            return TokenCredential.from(
+            return TokenCredential(
                 accessToken: accessToken,
                 refreshToken: refreshToken
             )
@@ -62,7 +62,7 @@ final class AuthService: AuthServiceProtocol {
         do {
             let accessToken = try keychainManager.loadAccessToken()
             let refreshToken = try keychainManager.loadRefreshToken()
-            credential = TokenCredential.from(
+            credential = TokenCredential(
                 accessToken: accessToken,
                 refreshToken: refreshToken
             )
@@ -81,13 +81,10 @@ final class AuthService: AuthServiceProtocol {
     }
 
     func login(accessToken: String, refreshToken: String) throws {
-        guard let credential = TokenCredential.from(
+        let credential = TokenCredential(
             accessToken: accessToken,
             refreshToken: refreshToken
-        ) else {
-            Logger.auth.error("Invalid token format during login")
-            throw AuthError.invalidToken
-        }
+        )
 
         try keychainManager.saveAccessToken(accessToken)
         try keychainManager.saveRefreshToken(refreshToken)
