@@ -145,6 +145,18 @@ final class MapSearchViewController: UIViewController {
             forAnnotationViewWithReuseIdentifier: EstateClusterAnnotationView.identifier
         )
 
+        let koreaCenter = CLLocationCoordinate2D(latitude: 36.0, longitude: 127.5)
+        let boundaryRegion = MKCoordinateRegion(
+            center: koreaCenter,
+            latitudinalMeters: 1_500_000,
+            longitudinalMeters: 1_500_000
+        )
+        mapView.cameraBoundary = MKMapView.CameraBoundary(coordinateRegion: boundaryRegion)
+        mapView.cameraZoomRange = MKMapView.CameraZoomRange(
+            minCenterCoordinateDistance: 100,
+            maxCenterCoordinateDistance: 1_500_000
+        )
+
         let defaultRegion = MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: 37.5176577, longitude: 126.8864088),
             span: MKCoordinateSpan(latitudeDelta: 0.0055, longitudeDelta: 0.0055)
