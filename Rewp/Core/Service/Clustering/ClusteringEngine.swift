@@ -32,7 +32,7 @@ final class ClusteringEngine<T: ClusterPoint> {
         }
     }
 
-    init(minZoom: Int = 0, maxZoom: Int = 17, radius: Int = 120, extent: Int = 256, nodeSize: Int = 64) {
+    init(minZoom: Int = 0, maxZoom: Int = 16, radius: Int = 120, extent: Int = 256, nodeSize: Int = 64) {
         self.minZoom = minZoom
         self.maxZoom = maxZoom
         self.radius = radius
@@ -53,17 +53,17 @@ final class ClusteringEngine<T: ClusterPoint> {
                 originalIndex: index,
                 parentId: nil,
                 numPoints: 1,
-                zoom: maxZoom
+                zoom: maxZoom + 1
             )
         }
-        Logger.map.debug("Initial clusters created: \(clusters.count) (zoom: \(self.maxZoom))")
+        Logger.map.debug("Initial clusters created: \(clusters.count) (zoom: \(self.maxZoom + 1))")
 
-        trees[maxZoom] = KDBush(points: clusters, nodeSize: nodeSize)
-        Logger.map.notice("--- Building tree for zoom \(self.maxZoom) with \(clusters.count) clusters (no clustering) ---")
+        trees[maxZoom + 1] = KDBush(points: clusters, nodeSize: nodeSize)
+        Logger.map.notice("--- Building tree for zoom \(self.maxZoom + 1) with \(clusters.count) clusters (no clustering) ---")
 
-        buildClusterPointsCache(for: maxZoom, clusters: clusters)
+        buildClusterPointsCache(for: maxZoom + 1, clusters: clusters)
 
-        for zoom in stride(from: maxZoom - 1, through: minZoom, by: -1) {
+        for zoom in stride(from: maxZoom, through: minZoom, by: -1) {
             let beforeCount = clusters.count
             clusters = buildClustersForZoomLevel(clusters: clusters, zoom: zoom)
             Logger.map.notice("Clustering zoom \(zoom): \(beforeCount) → \(clusters.count) clusters (reduced by \(beforeCount - clusters.count))")
