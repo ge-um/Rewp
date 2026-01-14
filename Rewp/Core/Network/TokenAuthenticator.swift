@@ -11,7 +11,6 @@ import OSLog
 
 final class TokenAuthenticator: Authenticator {
     private let keychainManager: KeychainManager
-    private let refreshSession = Session()
 
     init(keychainManager: KeychainManager = .shared) {
         self.keychainManager = keychainManager
@@ -28,7 +27,7 @@ final class TokenAuthenticator: Authenticator {
     ) {
         Logger.auth.notice("Refreshing expired token")
 
-        refreshSession.request(AuthRouter.refreshToken)
+        session.request(AuthRouter.refreshToken)
             .validate(statusCode: 200..<300)
             .responseDecodable(of: RefreshTokenResponse.self) { [weak self] response in
                 guard let self = self else {
