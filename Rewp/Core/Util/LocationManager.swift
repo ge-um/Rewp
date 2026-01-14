@@ -35,12 +35,7 @@ final class LocationManager: NSObject {
     }
 
     func requestWhenInUseAuthorization() {
-        let status: CLAuthorizationStatus
-        if #available(iOS 14.0, *) {
-            status = locationManager.authorizationStatus
-        } else {
-            status = CLLocationManager.authorizationStatus()
-        }
+        let status = authorizationStatusRelay.value
 
         if status == .notDetermined {
             locationManager.requestWhenInUseAuthorization()
@@ -50,11 +45,7 @@ final class LocationManager: NSObject {
     }
 
     func checkAuthorizationStatus() -> CLAuthorizationStatus {
-        if #available(iOS 14.0, *) {
-            return locationManager.authorizationStatus
-        } else {
-            return CLLocationManager.authorizationStatus()
-        }
+        return authorizationStatusRelay.value
     }
 
     func isAuthorized() -> Bool {
