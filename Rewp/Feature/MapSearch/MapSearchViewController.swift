@@ -446,7 +446,11 @@ final class MapSearchViewController: UIViewController {
 
     private func calculateZoomLevel(for region: MKCoordinateRegion) -> Int {
         let longitudeDelta = region.span.longitudeDelta
-        let zoom = Int(round(log2(360.0 / longitudeDelta)))
+        let mapWidthInPixels = mapView.bounds.width
+        let visibleWorldWidth = longitudeDelta / 360.0 * MKMapSize.world.width
+        let zoomScale = visibleWorldWidth / mapWidthInPixels
+        let zoomScaleAt0 = MKMapSize.world.width / 256.0
+        let zoom = Int(round(log2(zoomScaleAt0 / zoomScale)))
         return min(max(zoom, 0), 16)
     }
 
@@ -557,6 +561,8 @@ extension MapSearchViewController: MKMapViewDelegate {
     }
 
     func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+        guard mapView.bounds.width > 0 else { return }
+
         let region = mapView.region
         let zoom = calculateZoomLevel(for: region)
         currentZoom = zoom
