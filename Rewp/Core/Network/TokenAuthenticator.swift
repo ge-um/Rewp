@@ -20,22 +20,7 @@ final class TokenAuthenticator: Authenticator {
     func apply(_ credential: TokenCredential, to urlRequest: inout URLRequest) {
         urlRequest.headers.add(.authorization(credential.accessToken))
     }
-
-    func didRequest(
-        _ urlRequest: URLRequest,
-        with response: HTTPURLResponse,
-        failDueToAuthenticationError error: Error
-    ) -> Bool {
-        return response.statusCode == 419 || response.statusCode == 401
-    }
-
-    func isRequest(
-        _ urlRequest: URLRequest,
-        authenticatedWith credential: TokenCredential
-    ) -> Bool {
-        return urlRequest.headers["Authorization"] == credential.accessToken
-    }
-
+    
     func refresh(
         _ credential: TokenCredential,
         for session: Session,
@@ -73,5 +58,20 @@ final class TokenAuthenticator: Authenticator {
                     completion(.failure(error))
                 }
             }
+    }
+
+    func didRequest(
+        _ urlRequest: URLRequest,
+        with response: HTTPURLResponse,
+        failDueToAuthenticationError error: Error
+    ) -> Bool {
+        return response.statusCode == 419
+    }
+
+    func isRequest(
+        _ urlRequest: URLRequest,
+        authenticatedWith credential: TokenCredential
+    ) -> Bool {
+        return urlRequest.headers["Authorization"] == credential.accessToken
     }
 }
