@@ -92,8 +92,7 @@ final class MapSearchPresenter {
 
         input.viewDidLoad
             .withUnretained(self)
-            .do(onNext: { owner, _ in
-                owner.locationManager.requestWhenInUseAuthorization()
+            .do(onNext: { _, _ in
                 Logger.map.notice("MapSearch initialized - loading nationwide estates")
             })
             .flatMapLatest { owner, _ -> Observable<[EstateDTO]> in

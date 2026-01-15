@@ -31,17 +31,6 @@ final class LocationManager: NSObject {
         super.init()
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        updateAuthorizationStatus()
-    }
-
-    func requestWhenInUseAuthorization() {
-        let status = authorizationStatusRelay.value
-
-        if status == .notDetermined {
-            locationManager.requestWhenInUseAuthorization()
-        } else if status == .authorizedWhenInUse || status == .authorizedAlways {
-            startUpdatingLocationForInitial()
-        }
     }
 
     func checkAuthorizationStatus() -> CLAuthorizationStatus {
@@ -49,7 +38,7 @@ final class LocationManager: NSObject {
     }
 
     func isAuthorized() -> Bool {
-        let status = checkAuthorizationStatus()
+        let status = authorizationStatusRelay.value
         return status == .authorizedWhenInUse || status == .authorizedAlways
     }
 
@@ -69,10 +58,6 @@ final class LocationManager: NSObject {
     private func startUpdatingLocationForInitial() {
         isRequestingInitialLocation = true
         locationManager.startUpdatingLocation()
-    }
-
-    private func updateAuthorizationStatus() {
-        authorizationStatusRelay.accept(locationManager.authorizationStatus)
     }
 }
 
@@ -101,27 +86,17 @@ extension LocationManager: CLLocationManagerDelegate {
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        updateAuthorizationStatus()
-
-        let status: CLAuthorizationStatus
-        if #available(iOS 14.0, *) {
-            status = manager.authorizationStatus
-        } else {
-            status = CLLocationManager.authorizationStatus()
-        }
-
+        let status = manager.authorizationStatus
+        self.authorizationStatusRelay.accept(status)
         Logger.location.notice("Authorization status changed - \(String(describing: status), privacy: .public)")
-
-        if status == .authorizedWhenInUse || status == .authorizedAlways {
-            startUpdatingLocationForInitial()
-        }
-    }
-
-    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-        authorizationStatusRelay.accept(status)
-
-        if status == .authorizedWhenInUse || status == .authorizedAlways {
-            startUpdatingLocationForInitial()
+        
+        switch status {
+        case .notDetermined:
+            self.locationManager.requestWhenInUseAuthorization()
+        case .authorizedWhenInUse, .authorizedAlways:
+            self.startUpdatingLocationForInitial()
+        default:
+            break
         }
     }
 }
