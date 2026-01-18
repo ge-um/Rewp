@@ -52,6 +52,12 @@ final class ChatRoomCell: UITableViewCell, IsIdentifiable {
         fatalError("init(coder:) has not been implemented")
     }
 
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        profileImageView.kf.cancelDownloadTask()
+        profileImageView.image = nil
+    }
+
     private func setupUI() {
         selectionStyle = .none
         backgroundColor = .clear
