@@ -56,27 +56,29 @@ final class ChatLocalStorage {
 
     func fetchChatRooms() -> Observable<[ChatRoom]> {
         return Observable.create { [realmProvider] observer in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    let realm = try realmProvider.realm()
-                    let rooms = realm.objects(ChatRoomObject.self)
-                        .sorted(byKeyPath: "updatedAt", ascending: false)
+            do {
+                let realm = try realmProvider.realm()
+                let results = realm.objects(ChatRoomObject.self)
+                    .sorted(byKeyPath: "updatedAt", ascending: false)
 
-                    let chatRooms = Array(rooms.map { $0.toDomain() })
-
-                    DispatchQueue.main.async {
-                        observer.onNext(chatRooms)
-                        observer.onCompleted()
-                    }
-                } catch {
-                    DispatchQueue.main.async {
+                let token = results.observe { changes in
+                    switch changes {
+                    case .initial(let results), .update(let results, _, _, _):
+                        observer.onNext(Array(results.map { $0.toDomain() }))
+                    case .error(let error):
                         observer.onError(error)
                     }
                 }
-            }
 
-            return Disposables.create()
+                return Disposables.create {
+                    token.invalidate()
+                }
+            } catch {
+                observer.onError(error)
+                return Disposables.create()
+            }
         }
+        .subscribe(on: MainScheduler.instance)
     }
 
     func deleteChatRoom(roomId: String) -> Completable {
