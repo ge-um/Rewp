@@ -179,6 +179,56 @@ final class ChatLocalStorage {
         }
     }
 
+    func fetchRecentMessages(roomId: String, limit: Int = 50) -> Observable<[ChatMessage]> {
+        return Observable.create { [weak self] observer in
+            guard let self = self else {
+                observer.onError(NSError(domain: "ChatLocalStorage", code: -1))
+                return Disposables.create()
+            }
+
+            do {
+                let realm = try self.realmProvider.realm()
+                let results = realm.objects(ChatMessageObject.self)
+                    .filter("roomId == %@", roomId)
+                    .sorted(byKeyPath: "createdAt", ascending: false)
+
+                let all = Array(results.map { $0.toDomain() })
+                let recent = Array(all.prefix(limit).reversed())
+                observer.onNext(recent)
+                observer.onCompleted()
+            } catch {
+                observer.onError(error)
+            }
+
+            return Disposables.create()
+        }
+    }
+
+    func fetchOlderMessages(roomId: String, before: Date, limit: Int = 20) -> Observable<[ChatMessage]> {
+        return Observable.create { [weak self] observer in
+            guard let self = self else {
+                observer.onError(NSError(domain: "ChatLocalStorage", code: -1))
+                return Disposables.create()
+            }
+
+            do {
+                let realm = try self.realmProvider.realm()
+                let results = realm.objects(ChatMessageObject.self)
+                    .filter("roomId == %@ AND createdAt < %@", roomId, before)
+                    .sorted(byKeyPath: "createdAt", ascending: false)
+
+                let all = Array(results.map { $0.toDomain() })
+                let older = Array(all.prefix(limit).reversed())
+                observer.onNext(older)
+                observer.onCompleted()
+            } catch {
+                observer.onError(error)
+            }
+
+            return Disposables.create()
+        }
+    }
+
     func isMessageExists(chatId: String) -> Bool {
         do {
             let realm = try realmProvider.realm()

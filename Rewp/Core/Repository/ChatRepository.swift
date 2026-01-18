@@ -32,6 +32,9 @@ protocol ChatRepository {
 
     func syncMessages(roomId: String) -> Observable<[ChatMessage]>
 
+    func fetchRecentMessagesFromLocal(roomId: String, limit: Int) -> Observable<[ChatMessage]>
+    func fetchOlderMessagesFromLocal(roomId: String, before: Date, limit: Int) -> Observable<[ChatMessage]>
+
     func updateLastReadAt(roomId: String, date: Date) -> Completable
     func getLastReadAt(roomId: String) -> Date?
     func getAllChatRoomIds() -> [String]
@@ -175,5 +178,13 @@ final class ChatRepositoryImpl: ChatRepository {
                 return owner.saveMessagesToLocal(messages)
                     .andThen(owner.fetchMessagesFromLocal(roomId: roomId))
             }
+    }
+
+    func fetchRecentMessagesFromLocal(roomId: String, limit: Int) -> Observable<[ChatMessage]> {
+        return localStorage.fetchRecentMessages(roomId: roomId, limit: limit)
+    }
+
+    func fetchOlderMessagesFromLocal(roomId: String, before: Date, limit: Int) -> Observable<[ChatMessage]> {
+        return localStorage.fetchOlderMessages(roomId: roomId, before: before, limit: limit)
     }
 }

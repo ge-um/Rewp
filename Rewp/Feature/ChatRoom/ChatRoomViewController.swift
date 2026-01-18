@@ -44,7 +44,14 @@ final class ChatRoomViewController: UIViewController {
     private let deleteMessageRelay = PublishRelay<String>()
     private let filesSelectedRelay = PublishRelay<[UIImage]>()
     private let photoSendConfirmedRelay = PublishRelay<(images: [UIImage], text: String)>()
+    private let loadMoreTrigger = PublishRelay<Void>()
     private let disposeBag = DisposeBag()
+    private lazy var offscreenSentCell = ChatMessageCell(style: .default, reuseIdentifier: nil)
+    private lazy var offscreenReceivedCell = ChatMessageReceivedCell(style: .default, reuseIdentifier: nil)
+
+    private let loadingIndicator = UIActivityIndicatorView(style: .medium).then {
+        $0.hidesWhenStopped = true
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -65,6 +72,7 @@ final class ChatRoomViewController: UIViewController {
         view.addSubview(tableView)
         view.addSubview(bottomBackgroundView)
         view.addSubview(inputBar)
+        view.addSubview(loadingIndicator)
 
         navigationBar.onBackButtonTap = { [weak self] in
             self?.navigationController?.popViewController(animated: true)
@@ -100,7 +108,8 @@ final class ChatRoomViewController: UIViewController {
             deleteMessageTapped: deleteMessageRelay.asObservable(),
             attachButtonTapped: inputBar.attachButtonTapped,
             filesSelected: filesSelectedRelay.asObservable(),
-            photoSendConfirmed: photoSendConfirmedRelay.asObservable()
+            photoSendConfirmed: photoSendConfirmedRelay.asObservable(),
+            loadMoreTrigger: loadMoreTrigger.asObservable()
         )
 
         let output = presenter.transform(input: input)
@@ -113,8 +122,35 @@ final class ChatRoomViewController: UIViewController {
 
         output.messages
             .drive(with: self) { owner, messages in
-                owner.messages = messages.reversed()
-                owner.tableView.reloadData()
+                let previousMessages = owner.messages
+                let newMessages = Array(messages.reversed())
+
+                let isLoadMore = !previousMessages.isEmpty
+                    && newMessages.count > previousMessages.count
+                    && previousMessages.last?.chatId != newMessages.last?.chatId
+
+                if isLoadMore {
+                    let currentOffset = owner.tableView.contentOffset
+
+                    owner.messages = newMessages
+                    owner.tableView.reloadData()
+                    owner.tableView.layoutIfNeeded()
+
+                    owner.tableView.contentOffset = currentOffset
+                } else {
+                    owner.messages = newMessages
+                    owner.tableView.reloadData()
+                }
+            }
+            .disposed(by: disposeBag)
+
+        output.isLoadingMore
+            .drive(with: self) { owner, isLoading in
+                if isLoading {
+                    owner.loadingIndicator.startAnimating()
+                } else {
+                    owner.loadingIndicator.stopAnimating()
+                }
             }
             .disposed(by: disposeBag)
 
@@ -219,6 +255,24 @@ final class ChatRoomViewController: UIViewController {
             .top(inputBar.frame.minY)
             .horizontally()
             .bottom()
+
+        loadingIndicator.pin
+            .below(of: networkStatusBanner)
+            .hCenter()
+            .marginTop(10)
+            .sizeToFit()
+    }
+
+    private func calculateHeight(for message: ChatMessage) -> CGFloat {
+        let width = view.bounds.width
+
+        if message.isFromMe {
+            offscreenSentCell.configure(with: message)
+            return offscreenSentCell.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height
+        } else {
+            offscreenReceivedCell.configure(with: message)
+            return offscreenReceivedCell.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height
+        }
     }
 }
 
@@ -237,6 +291,7 @@ extension ChatRoomViewController: UITableViewDataSource {
             ) as? ChatMessageCell else {
                 return UITableViewCell()
             }
+            cell.contentView.transform = CGAffineTransform(scaleX: 1, y: -1)
             cell.configure(with: message)
             cell.onRetryTapped = { [weak self] in
                 guard let tempId = message.tempId else { return }
@@ -246,7 +301,6 @@ extension ChatRoomViewController: UITableViewDataSource {
                 guard let tempId = message.tempId else { return }
                 self?.deleteMessageRelay.accept(tempId)
             }
-            cell.contentView.transform = CGAffineTransform(scaleX: 1, y: -1)
             return cell
         } else {
             guard let cell = tableView.dequeueReusableCell(
@@ -255,8 +309,8 @@ extension ChatRoomViewController: UITableViewDataSource {
             ) as? ChatMessageReceivedCell else {
                 return UITableViewCell()
             }
-            cell.configure(with: message)
             cell.contentView.transform = CGAffineTransform(scaleX: 1, y: -1)
+            cell.configure(with: message)
             return cell
         }
     }
@@ -268,7 +322,22 @@ extension ChatRoomViewController: UITableViewDelegate {
     }
 
     func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 60
+        let message = messages[indexPath.row]
+        return calculateHeight(for: message)
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        let offsetY = scrollView.contentOffset.y
+        let contentHeight = scrollView.contentSize.height
+        let frameHeight = scrollView.frame.height
+        let threshold: CGFloat = 50
+
+        if contentHeight > frameHeight {
+            let distanceFromBottom = contentHeight - offsetY - frameHeight
+            if distanceFromBottom < threshold {
+                loadMoreTrigger.accept(())
+            }
+        }
     }
 }
 
