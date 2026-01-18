@@ -244,9 +244,9 @@ final class ChatMessageReceivedCell: UITableViewCell, IsIdentifiable {
             imageGridView.isHidden = true
         }
 
-        if let profileImageURL = message.senderProfileImage,
-           let url = URL(string: NetworkConfig.baseURL.replacingOccurrences(of: "/v1", with: "") + "/" + profileImageURL) {
-            profileImageView.kf.setImage(with: url)
+        if let profileImageURL = message.senderProfileImage {
+            let fullURL = NetworkConfig.baseURL + profileImageURL
+            profileImageView.setImage(from: fullURL)
         } else {
             profileImageView.image = nil
         }

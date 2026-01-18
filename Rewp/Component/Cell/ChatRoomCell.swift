@@ -113,9 +113,9 @@ final class ChatRoomCell: UITableViewCell, IsIdentifiable {
             unreadBadge.isHidden = true
         }
 
-        if let profileImageURL = chatRoom.participantProfileImage,
-           let url = URL(string: profileImageURL) {
-            profileImageView.kf.setImage(with: url)
+        if let profileImageURL = chatRoom.participantProfileImage {
+            let fullURL = NetworkConfig.baseURL + profileImageURL
+            profileImageView.setImage(from: fullURL)
         } else {
             profileImageView.image = nil
         }
