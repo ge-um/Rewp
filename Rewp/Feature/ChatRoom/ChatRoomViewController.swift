@@ -33,6 +33,10 @@ final class ChatRoomViewController: UIViewController {
         $0.backgroundColor = ColorSystem.gray0
     }
 
+    private let networkStatusBanner = NetworkStatusBanner().then {
+        $0.isHidden = true
+    }
+
     private var messages: [ChatMessage] = []
     private let viewDidLoadTrigger = PublishSubject<Void>()
     private let viewWillDisappearTrigger = PublishSubject<Void>()
@@ -57,6 +61,7 @@ final class ChatRoomViewController: UIViewController {
 
     private func setupUI() {
         view.addSubview(navigationBar)
+        view.addSubview(networkStatusBanner)
         view.addSubview(tableView)
         view.addSubview(bottomBackgroundView)
         view.addSubview(inputBar)
@@ -139,6 +144,20 @@ final class ChatRoomViewController: UIViewController {
             }
             .disposed(by: disposeBag)
 
+        output.isNetworkConnected
+            .drive(with: self) { owner, isConnected in
+                let wasHidden = owner.networkStatusBanner.isHidden
+                owner.networkStatusBanner.isHidden = isConnected
+
+                if wasHidden != isConnected {
+                    owner.view.setNeedsLayout()
+                    UIView.animate(withDuration: 0.25) {
+                        owner.view.layoutIfNeeded()
+                    }
+                }
+            }
+            .disposed(by: disposeBag)
+
         NotificationCenter.default.rx.notification(UIResponder.keyboardWillShowNotification)
             .withUnretained(self)
             .subscribe(onNext: { owner, notification in
@@ -179,6 +198,11 @@ final class ChatRoomViewController: UIViewController {
             .horizontally()
             .height(56)
 
+        networkStatusBanner.pin
+            .below(of: navigationBar)
+            .horizontally()
+            .height(networkStatusBanner.isHidden ? 0 : 36)
+
         inputBar.pin
             .left()
             .right()
@@ -186,7 +210,7 @@ final class ChatRoomViewController: UIViewController {
             .height(inputBar.intrinsicContentSize.height)
 
         tableView.pin
-            .below(of: navigationBar)
+            .below(of: networkStatusBanner)
             .horizontally()
             .above(of: inputBar)
             .marginBottom(12)

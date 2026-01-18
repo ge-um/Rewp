@@ -86,6 +86,10 @@ final class AppContainer {
         PostRepositoryImpl(authService: authService)
     }()
 
+    lazy var networkMonitor: NetworkMonitorProtocol = {
+        NetworkMonitor.shared
+    }()
+
     // MARK: - Factory Methods
 
     func makeLoginViewController() -> LoginViewController {

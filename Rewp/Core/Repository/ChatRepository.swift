@@ -30,6 +30,8 @@ protocol ChatRepository {
     func markAsRead(roomId: String) -> Completable
     func updateLastMessage(roomId: String, content: String, date: Date) -> Completable
 
+    func syncMessages(roomId: String) -> Observable<[ChatMessage]>
+
     func updateLastReadAt(roomId: String, date: Date) -> Completable
     func getLastReadAt(roomId: String) -> Date?
     func getAllChatRoomIds() -> [String]
@@ -78,9 +80,9 @@ final class ChatRepositoryImpl: ChatRepository {
 
     func saveChatRoomsToLocal(_ rooms: [ChatRoom]) -> Completable {
         return Observable.from(rooms)
-            .flatMap { [weak self] room -> Completable in
-                guard let self = self else { return .empty() }
-                return self.localStorage.saveChatRoom(room)
+            .withUnretained(self)
+            .flatMap { owner, room -> Completable in
+                return owner.localStorage.saveChatRoom(room)
             }
             .toArray()
             .asCompletable()
@@ -159,5 +161,19 @@ final class ChatRepositoryImpl: ChatRepository {
 
     func updateUnreadCount(roomId: String, count: Int) -> Completable {
         return localStorage.updateUnreadCount(roomId: roomId, count: count)
+    }
+
+    func syncMessages(roomId: String) -> Observable<[ChatMessage]> {
+        let lastDate = getLastMessageDate(roomId: roomId)
+
+        return fetchMessagesFromRemote(roomId: roomId, after: lastDate)
+            .withUnretained(self)
+            .flatMap { owner, messages -> Observable<[ChatMessage]> in
+                guard !messages.isEmpty else {
+                    return owner.fetchMessagesFromLocal(roomId: roomId)
+                }
+                return owner.saveMessagesToLocal(messages)
+                    .andThen(owner.fetchMessagesFromLocal(roomId: roomId))
+            }
     }
 }

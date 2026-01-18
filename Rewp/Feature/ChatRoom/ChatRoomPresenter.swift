@@ -17,6 +17,7 @@ final class ChatRoomPresenter {
     private let socketService: SocketServiceProtocol
     private let chatRepository: ChatRepository
     private let authService: AuthServiceProtocol
+    private let networkMonitor: NetworkMonitorProtocol
     private let disposeBag = DisposeBag()
 
     init(
@@ -24,13 +25,15 @@ final class ChatRoomPresenter {
         roomTitle: String,
         socketService: SocketServiceProtocol,
         chatRepository: ChatRepository,
-        authService: AuthServiceProtocol
+        authService: AuthServiceProtocol,
+        networkMonitor: NetworkMonitorProtocol
     ) {
         self.roomId = roomId
         self.roomTitle = roomTitle
         self.socketService = socketService
         self.chatRepository = chatRepository
         self.authService = authService
+        self.networkMonitor = networkMonitor
     }
 
     struct Input {
@@ -49,6 +52,7 @@ final class ChatRoomPresenter {
         let messages: Driver<[ChatMessage]>
         let messageSent: Driver<Void>
         let isConnected: Driver<Bool>
+        let isNetworkConnected: Driver<Bool>
         let showAttachmentSheet: Driver<Void>
         let showPhotoPreview: Driver<[UIImage]>
     }
@@ -136,18 +140,8 @@ final class ChatRoomPresenter {
             .flatMapLatest { owner, _ -> Observable<Void> in
                 owner.socketService.connect(roomId: owner.roomId)
 
-                let lastDate = owner.chatRepository.getLastMessageDate(roomId: owner.roomId)
-
                 return owner.chatRepository
-                    .fetchMessagesFromRemote(roomId: owner.roomId, after: lastDate)
-                    .flatMap { messages -> Observable<[ChatMessage]> in
-                        guard !messages.isEmpty else {
-                            return .just(messagesRelay.value)
-                        }
-                        return owner.chatRepository
-                            .saveMessagesToLocal(messages)
-                            .andThen(owner.chatRepository.fetchMessagesFromLocal(roomId: owner.roomId))
-                    }
+                    .syncMessages(roomId: owner.roomId)
                     .do(onNext: { messages in
                         messagesRelay.accept(messages)
                         Logger.socket.notice("Messages synced on foreground - count: \(messages.count, privacy: .public)")
@@ -457,11 +451,35 @@ final class ChatRoomPresenter {
             .subscribe()
             .disposed(by: disposeBag)
 
+        networkMonitor.isConnected
+            .distinctUntilChanged()
+            .skip(1)
+            .filter { $0 }
+            .withUnretained(self)
+            .flatMapLatest { owner, _ -> Observable<Void> in
+                owner.socketService.connect(roomId: owner.roomId)
+
+                return owner.chatRepository
+                    .syncMessages(roomId: owner.roomId)
+                    .do(onNext: { messages in
+                        messagesRelay.accept(messages)
+                        Logger.socket.notice("Messages synced on network recovery - count: \(messages.count, privacy: .public)")
+                    })
+                    .map { _ in () }
+                    .catch { error in
+                        Logger.socket.error("Failed to sync messages on network recovery - \(error.localizedDescription)")
+                        return .just(())
+                    }
+            }
+            .subscribe()
+            .disposed(by: disposeBag)
+
         return Output(
             title: .just(roomTitle),
             messages: messagesRelay.asDriver(),
             messageSent: messageSent,
             isConnected: socketService.isConnected.asDriver(onErrorJustReturn: false),
+            isNetworkConnected: networkMonitor.isConnected.asDriver(onErrorJustReturn: true),
             showAttachmentSheet: showAttachmentSheetRelay.asDriver(onErrorDriveWith: .empty()),
             showPhotoPreview: showPhotoPreviewRelay.asDriver(onErrorDriveWith: .empty())
         )
@@ -474,14 +492,7 @@ final class ChatRoomPresenter {
                 return .just([])
             }
 
-        let lastDate = chatRepository.getLastMessageDate(roomId: roomId)
-
-        let remoteMessages = chatRepository.fetchMessagesFromRemote(roomId: roomId, after: lastDate)
-            .flatMap { [weak self] messages -> Observable<[ChatMessage]> in
-                guard let self = self else { return .just([]) }
-                return self.chatRepository.saveMessagesToLocal(messages)
-                    .andThen(self.chatRepository.fetchMessagesFromLocal(roomId: self.roomId))
-            }
+        let remoteMessages = chatRepository.syncMessages(roomId: roomId)
             .catch { error in
                 Logger.network.error("Failed to fetch remote messages - \(error.localizedDescription)")
                 return .empty()
