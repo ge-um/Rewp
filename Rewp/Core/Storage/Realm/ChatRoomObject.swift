@@ -18,6 +18,7 @@ final class ChatRoomObject: Object {
     @Persisted var unreadCount: Int
     @Persisted var lastReadAt: Date?
     @Persisted var updatedAt: Date?
+    @Persisted var messages: List<ChatMessageObject>
 
     convenience init(
         roomId: String,

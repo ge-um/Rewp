@@ -18,14 +18,9 @@ final class ChatLocalStorage {
     }
 
     func saveChatRoom(_ room: ChatRoom) -> Completable {
-        return Completable.create { [weak self] completable in
-            guard let self = self else {
-                completable(.error(NSError(domain: "ChatLocalStorage", code: -1)))
-                return Disposables.create()
-            }
-
+        return Completable.create { [realmProvider] completable in
             do {
-                let realm = try self.realmProvider.realm()
+                let realm = try realmProvider.realm()
 
                 let existingLastReadAt: Date?
                 if let existingRoom = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: room.roomId) {
@@ -60,22 +55,24 @@ final class ChatLocalStorage {
     }
 
     func fetchChatRooms() -> Observable<[ChatRoom]> {
-        return Observable.create { [weak self] observer in
-            guard let self = self else {
-                observer.onError(NSError(domain: "ChatLocalStorage", code: -1))
-                return Disposables.create()
-            }
+        return Observable.create { [realmProvider] observer in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let realm = try realmProvider.realm()
+                    let rooms = realm.objects(ChatRoomObject.self)
+                        .sorted(byKeyPath: "updatedAt", ascending: false)
 
-            do {
-                let realm = try self.realmProvider.realm()
-                let rooms = realm.objects(ChatRoomObject.self)
-                    .sorted(byKeyPath: "updatedAt", ascending: false)
+                    let chatRooms = Array(rooms.map { $0.toDomain() })
 
-                let chatRooms = rooms.map { $0.toDomain() }
-                observer.onNext(Array(chatRooms))
-                observer.onCompleted()
-            } catch {
-                observer.onError(error)
+                    DispatchQueue.main.async {
+                        observer.onNext(chatRooms)
+                        observer.onCompleted()
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        observer.onError(error)
+                    }
+                }
             }
 
             return Disposables.create()
@@ -83,17 +80,13 @@ final class ChatLocalStorage {
     }
 
     func deleteChatRoom(roomId: String) -> Completable {
-        return Completable.create { [weak self] completable in
-            guard let self = self else {
-                completable(.error(NSError(domain: "ChatLocalStorage", code: -1)))
-                return Disposables.create()
-            }
-
+        return Completable.create { [realmProvider] completable in
             do {
-                let realm = try self.realmProvider.realm()
+                let realm = try realmProvider.realm()
 
                 if let room = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: roomId) {
                     try realm.write {
+                        realm.delete(room.messages)
                         realm.delete(room)
                     }
                 }
@@ -108,18 +101,19 @@ final class ChatLocalStorage {
     }
 
     func saveMessage(_ message: ChatMessage, sendStatus: SendStatus? = nil, tempId: String? = nil) -> Completable {
-        return Completable.create { [weak self] completable in
-            guard let self = self else {
-                completable(.error(NSError(domain: "ChatLocalStorage", code: -1)))
-                return Disposables.create()
-            }
-
+        return Completable.create { [realmProvider] completable in
             do {
-                let realm = try self.realmProvider.realm()
+                let realm = try realmProvider.realm()
                 let messageObject = ChatMessageObject.fromDomain(message, sendStatus: sendStatus, tempId: tempId)
 
                 try realm.write {
                     realm.add(messageObject, update: .modified)
+
+                    if let room = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: message.roomId) {
+                        if !room.messages.contains(where: { $0.chatId == message.chatId }) {
+                            room.messages.append(messageObject)
+                        }
+                    }
                 }
 
                 completable(.completed)
@@ -132,18 +126,21 @@ final class ChatLocalStorage {
     }
 
     func saveMessages(_ messages: [ChatMessage]) -> Completable {
-        return Completable.create { [weak self] completable in
-            guard let self = self else {
-                completable(.error(NSError(domain: "ChatLocalStorage", code: -1)))
-                return Disposables.create()
-            }
-
+        return Completable.create { [realmProvider] completable in
             do {
-                let realm = try self.realmProvider.realm()
-                let messageObjects = messages.map { ChatMessageObject.fromDomain($0) }
+                let realm = try realmProvider.realm()
 
                 try realm.write {
-                    realm.add(messageObjects, update: .modified)
+                    for message in messages {
+                        let messageObject = ChatMessageObject.fromDomain(message)
+                        realm.add(messageObject, update: .modified)
+
+                        if let room = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: message.roomId) {
+                            if !room.messages.contains(where: { $0.chatId == message.chatId }) {
+                                room.messages.append(messageObject)
+                            }
+                        }
+                    }
                 }
 
                 completable(.completed)
@@ -156,23 +153,33 @@ final class ChatLocalStorage {
     }
 
     func fetchMessages(roomId: String) -> Observable<[ChatMessage]> {
-        return Observable.create { [weak self] observer in
-            guard let self = self else {
-                observer.onError(NSError(domain: "ChatLocalStorage", code: -1))
-                return Disposables.create()
-            }
+        return Observable.create { [realmProvider] observer in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let realm = try realmProvider.realm()
 
-            do {
-                let realm = try self.realmProvider.realm()
-                let messages = realm.objects(ChatMessageObject.self)
-                    .filter("roomId == %@", roomId)
-                    .sorted(byKeyPath: "createdAt", ascending: true)
+                    guard let room = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: roomId) else {
+                        DispatchQueue.main.async {
+                            observer.onNext([])
+                            observer.onCompleted()
+                        }
+                        return
+                    }
 
-                let chatMessages = messages.map { $0.toDomain() }
-                observer.onNext(Array(chatMessages))
-                observer.onCompleted()
-            } catch {
-                observer.onError(error)
+                    let results = room.messages
+                        .sorted(byKeyPath: "createdAt", ascending: true)
+
+                    let chatMessages = Array(results.map { $0.toDomain() })
+
+                    DispatchQueue.main.async {
+                        observer.onNext(chatMessages)
+                        observer.onCompleted()
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        observer.onError(error)
+                    }
+                }
             }
 
             return Disposables.create()
@@ -180,24 +187,39 @@ final class ChatLocalStorage {
     }
 
     func fetchRecentMessages(roomId: String, limit: Int = 50) -> Observable<[ChatMessage]> {
-        return Observable.create { [weak self] observer in
-            guard let self = self else {
-                observer.onError(NSError(domain: "ChatLocalStorage", code: -1))
-                return Disposables.create()
-            }
+        return Observable.create { [realmProvider] observer in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let realm = try realmProvider.realm()
 
-            do {
-                let realm = try self.realmProvider.realm()
-                let results = realm.objects(ChatMessageObject.self)
-                    .filter("roomId == %@", roomId)
-                    .sorted(byKeyPath: "createdAt", ascending: false)
+                    guard let room = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: roomId) else {
+                        DispatchQueue.main.async {
+                            observer.onNext([])
+                            observer.onCompleted()
+                        }
+                        return
+                    }
 
-                let all = Array(results.map { $0.toDomain() })
-                let recent = Array(all.prefix(limit).reversed())
-                observer.onNext(recent)
-                observer.onCompleted()
-            } catch {
-                observer.onError(error)
+                    let results = room.messages
+                        .sorted(byKeyPath: "createdAt", ascending: false)
+
+                    let count = min(limit, results.count)
+                    var messages: [ChatMessage] = []
+                    messages.reserveCapacity(count)
+
+                    for i in stride(from: count - 1, through: 0, by: -1) {
+                        messages.append(results[i].toDomain())
+                    }
+
+                    DispatchQueue.main.async {
+                        observer.onNext(messages)
+                        observer.onCompleted()
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        observer.onError(error)
+                    }
+                }
             }
 
             return Disposables.create()
@@ -205,24 +227,40 @@ final class ChatLocalStorage {
     }
 
     func fetchOlderMessages(roomId: String, before: Date, limit: Int = 20) -> Observable<[ChatMessage]> {
-        return Observable.create { [weak self] observer in
-            guard let self = self else {
-                observer.onError(NSError(domain: "ChatLocalStorage", code: -1))
-                return Disposables.create()
-            }
+        return Observable.create { [realmProvider] observer in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let realm = try realmProvider.realm()
 
-            do {
-                let realm = try self.realmProvider.realm()
-                let results = realm.objects(ChatMessageObject.self)
-                    .filter("roomId == %@ AND createdAt < %@", roomId, before)
-                    .sorted(byKeyPath: "createdAt", ascending: false)
+                    guard let room = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: roomId) else {
+                        DispatchQueue.main.async {
+                            observer.onNext([])
+                            observer.onCompleted()
+                        }
+                        return
+                    }
 
-                let all = Array(results.map { $0.toDomain() })
-                let older = Array(all.prefix(limit).reversed())
-                observer.onNext(older)
-                observer.onCompleted()
-            } catch {
-                observer.onError(error)
+                    let results = room.messages
+                        .filter("createdAt < %@", before)
+                        .sorted(byKeyPath: "createdAt", ascending: false)
+
+                    let count = min(limit, results.count)
+                    var messages: [ChatMessage] = []
+                    messages.reserveCapacity(count)
+
+                    for i in stride(from: count - 1, through: 0, by: -1) {
+                        messages.append(results[i].toDomain())
+                    }
+
+                    DispatchQueue.main.async {
+                        observer.onNext(messages)
+                        observer.onCompleted()
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        observer.onError(error)
+                    }
+                }
             }
 
             return Disposables.create()
@@ -241,25 +279,24 @@ final class ChatLocalStorage {
     func getLastMessageDate(roomId: String) -> Date? {
         do {
             let realm = try realmProvider.realm()
-            let messages = realm.objects(ChatMessageObject.self)
-                .filter("roomId == %@", roomId)
-                .sorted(byKeyPath: "createdAt", ascending: false)
 
-            return messages.first?.createdAt
+            guard let room = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: roomId) else {
+                return nil
+            }
+
+            return room.messages
+                .sorted(byKeyPath: "createdAt", ascending: false)
+                .first?
+                .createdAt
         } catch {
             return nil
         }
     }
 
     func incrementUnreadCount(roomId: String) -> Completable {
-        return Completable.create { [weak self] completable in
-            guard let self = self else {
-                completable(.error(NSError(domain: "ChatLocalStorage", code: -1)))
-                return Disposables.create()
-            }
-
+        return Completable.create { [realmProvider] completable in
             do {
-                let realm = try self.realmProvider.realm()
+                let realm = try realmProvider.realm()
 
                 if let room = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: roomId) {
                     try realm.write {
@@ -287,14 +324,9 @@ final class ChatLocalStorage {
     }
 
     func markAsRead(roomId: String) -> Completable {
-        return Completable.create { [weak self] completable in
-            guard let self = self else {
-                completable(.error(NSError(domain: "ChatLocalStorage", code: -1)))
-                return Disposables.create()
-            }
-
+        return Completable.create { [realmProvider] completable in
             do {
-                let realm = try self.realmProvider.realm()
+                let realm = try realmProvider.realm()
 
                 if let room = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: roomId) {
                     try realm.write {
@@ -312,23 +344,34 @@ final class ChatLocalStorage {
     }
 
     func getFailedMessages(roomId: String) -> Observable<[ChatMessage]> {
-        return Observable.create { [weak self] observer in
-            guard let self = self else {
-                observer.onError(NSError(domain: "ChatLocalStorage", code: -1))
-                return Disposables.create()
-            }
+        return Observable.create { [realmProvider] observer in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let realm = try realmProvider.realm()
 
-            do {
-                let realm = try self.realmProvider.realm()
-                let messages = realm.objects(ChatMessageObject.self)
-                    .filter("roomId == %@ AND isSent == false", roomId)
-                    .sorted(byKeyPath: "createdAt", ascending: true)
+                    guard let room = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: roomId) else {
+                        DispatchQueue.main.async {
+                            observer.onNext([])
+                            observer.onCompleted()
+                        }
+                        return
+                    }
 
-                let chatMessages = messages.map { $0.toDomain() }
-                observer.onNext(Array(chatMessages))
-                observer.onCompleted()
-            } catch {
-                observer.onError(error)
+                    let results = room.messages
+                        .filter("sendStatusRaw == %@", SendStatus.failed.rawValue)
+                        .sorted(byKeyPath: "createdAt", ascending: true)
+
+                    let chatMessages = Array(results.map { $0.toDomain() })
+
+                    DispatchQueue.main.async {
+                        observer.onNext(chatMessages)
+                        observer.onCompleted()
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        observer.onError(error)
+                    }
+                }
             }
 
             return Disposables.create()
@@ -336,14 +379,9 @@ final class ChatLocalStorage {
     }
 
     func deleteTempMessage(tempId: String) -> Completable {
-        return Completable.create { [weak self] completable in
-            guard let self = self else {
-                completable(.error(NSError(domain: "ChatLocalStorage", code: -1)))
-                return Disposables.create()
-            }
-
+        return Completable.create { [realmProvider] completable in
             do {
-                let realm = try self.realmProvider.realm()
+                let realm = try realmProvider.realm()
                 let messages = realm.objects(ChatMessageObject.self)
                     .filter("tempId == %@", tempId)
 
@@ -361,14 +399,9 @@ final class ChatLocalStorage {
     }
 
     func updateLastMessage(roomId: String, content: String, date: Date) -> Completable {
-        return Completable.create { [weak self] completable in
-            guard let self = self else {
-                completable(.error(NSError(domain: "ChatLocalStorage", code: -1)))
-                return Disposables.create()
-            }
-
+        return Completable.create { [realmProvider] completable in
             do {
-                let realm = try self.realmProvider.realm()
+                let realm = try realmProvider.realm()
 
                 if let room = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: roomId) {
                     try realm.write {
@@ -397,14 +430,9 @@ final class ChatLocalStorage {
     }
 
     func updateLastReadAt(roomId: String, date: Date) -> Completable {
-        return Completable.create { [weak self] completable in
-            guard let self = self else {
-                completable(.error(NSError(domain: "ChatLocalStorage", code: -1)))
-                return Disposables.create()
-            }
-
+        return Completable.create { [realmProvider] completable in
             do {
-                let realm = try self.realmProvider.realm()
+                let realm = try realmProvider.realm()
 
                 if let room = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: roomId) {
                     try realm.write {
@@ -442,14 +470,9 @@ final class ChatLocalStorage {
     }
 
     func updateUnreadCount(roomId: String, count: Int) -> Completable {
-        return Completable.create { [weak self] completable in
-            guard let self = self else {
-                completable(.error(NSError(domain: "ChatLocalStorage", code: -1)))
-                return Disposables.create()
-            }
-
+        return Completable.create { [realmProvider] completable in
             do {
-                let realm = try self.realmProvider.realm()
+                let realm = try realmProvider.realm()
 
                 if let room = realm.object(ofType: ChatRoomObject.self, forPrimaryKey: roomId) {
                     try realm.write {
