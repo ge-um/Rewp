@@ -130,6 +130,37 @@ final class ChatRoomPresenter {
             })
             .disposed(by: disposeBag)
 
+        NotificationCenter.default.rx
+            .notification(.appWillEnterForeground)
+            .withUnretained(self)
+            .flatMapLatest { owner, _ -> Observable<Void> in
+                owner.socketService.connect(roomId: owner.roomId)
+
+                let lastDate = owner.chatRepository.getLastMessageDate(roomId: owner.roomId)
+
+                return owner.chatRepository
+                    .fetchMessagesFromRemote(roomId: owner.roomId, after: lastDate)
+                    .flatMap { messages -> Observable<[ChatMessage]> in
+                        guard !messages.isEmpty else {
+                            return .just(messagesRelay.value)
+                        }
+                        return owner.chatRepository
+                            .saveMessagesToLocal(messages)
+                            .andThen(owner.chatRepository.fetchMessagesFromLocal(roomId: owner.roomId))
+                    }
+                    .do(onNext: { messages in
+                        messagesRelay.accept(messages)
+                        Logger.socket.notice("Messages synced on foreground - count: \(messages.count, privacy: .public)")
+                    })
+                    .map { _ in () }
+                    .catch { error in
+                        Logger.socket.error("Failed to sync messages on foreground - \(error.localizedDescription)")
+                        return .just(())
+                    }
+            }
+            .subscribe()
+            .disposed(by: disposeBag)
+
         let messageSent = input.sendButtonTapped
             .withUnretained(self)
             .flatMapLatest { owner, content -> Observable<Void> in

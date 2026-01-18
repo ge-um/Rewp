@@ -65,7 +65,7 @@ final class TokenAuthenticator: Authenticator {
         with response: HTTPURLResponse,
         failDueToAuthenticationError error: Error
     ) -> Bool {
-        return response.statusCode == 419
+        return response.statusCode == 419 || response.statusCode == 401
     }
 
     func isRequest(
@@ -75,3 +75,4 @@ final class TokenAuthenticator: Authenticator {
         return urlRequest.headers["Authorization"] == credential.accessToken
     }
 }
+ 

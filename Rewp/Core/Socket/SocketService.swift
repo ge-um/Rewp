@@ -14,6 +14,7 @@ import OSLog
 protocol SocketServiceProtocol {
     var isConnected: Observable<Bool> { get }
     var receivedMessage: Observable<ChatMessage> { get }
+    var activeRoomId: String? { get }
 
     func connect(roomId: String)
     func disconnect()
@@ -28,6 +29,11 @@ final class SocketService: SocketServiceProtocol {
     private let receivedMessageRelay = PublishRelay<ChatMessage>()
 
     private var currentUserId: String?
+    private var currentRoomId: String?
+
+    var activeRoomId: String? {
+        return currentRoomId
+    }
 
     var isConnected: Observable<Bool> {
         return isConnectedRelay.asObservable()
@@ -81,6 +87,7 @@ final class SocketService: SocketServiceProtocol {
         setupEventHandlers()
         socket?.connect()
 
+        currentRoomId = roomId
         Logger.socket.notice("Connecting to chat room - \(roomId, privacy: .public)")
     }
 
@@ -88,6 +95,7 @@ final class SocketService: SocketServiceProtocol {
         socket?.disconnect()
         socket = nil
         manager = nil
+        currentRoomId = nil
         isConnectedRelay.accept(false)
         Logger.socket.notice("Socket disconnected")
     }
