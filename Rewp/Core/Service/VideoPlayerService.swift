@@ -15,6 +15,7 @@ final class VideoPlayerService {
     private var currentItem: AVPlayerItem?
     private var timeObserver: Any?
     private let disposeBag = DisposeBag()
+    private var itemDisposeBag = DisposeBag()
     private var pendingSeekTime: CMTime?
     private var pendingAutoPlay: Bool = false
     private var currentSubtitleTrack: SubtitleTrack?
@@ -65,6 +66,9 @@ final class VideoPlayerService {
     }
 
     func loadVideo(url: String, subtitles: [SubtitleInfo]) {
+        player.pause()
+        itemDisposeBag = DisposeBag()
+
         self.availableSubtitles = subtitles
         Logger.video.notice("Loading video - availableSubtitles: \(subtitles.count)")
         playbackState.accept(.loading)
@@ -91,7 +95,7 @@ final class VideoPlayerService {
                         Logger.video.error("Subtitle download failed - \(error.localizedDescription)")
                     }
                 )
-                .disposed(by: disposeBag)
+                .disposed(by: itemDisposeBag)
         } else {
             selectedSubtitleLanguage.accept(nil)
             currentSubtitleTrack = nil
@@ -105,32 +109,11 @@ final class VideoPlayerService {
         }
 
         let asset = AVURLAsset(url: url)
-        let keys = ["playable", "duration", "tracks"]
+        let newItem = AVPlayerItem(asset: asset)
 
-        Task { [weak self] in
-            guard let self else { return }
-            do {
-                let isPlayable = try await asset.load(.isPlayable)
-                guard isPlayable else {
-                    let failure = NSError(domain: "Asset not playable", code: -1)
-                    await MainActor.run {
-                        self.playbackState.accept(.failed(failure))
-                    }
-                    return
-                }
-
-                let newItem = await AVPlayerItem(asset: asset, automaticallyLoadedAssetKeys: keys)
-                await MainActor.run {
-                    self.currentItem = newItem
-                    self.player.replaceCurrentItem(with: newItem)
-                    self.bindPlayerItem(newItem)
-                }
-            } catch {
-                await MainActor.run {
-                    self.playbackState.accept(.failed(error))
-                }
-            }
-        }
+        currentItem = newItem
+        player.replaceCurrentItem(with: newItem)
+        bindPlayerItem(newItem)
     }
 
     private func bindPlayerItem(_ newItem: AVPlayerItem) {
@@ -158,14 +141,18 @@ final class VideoPlayerService {
                     }
                 case .failed:
                     let error = newItem.error ?? NSError(domain: "Unknown error", code: -1)
-                    Logger.video.error("Player item failed - \(error.localizedDescription)")
+                    let nsError = error as NSError
+                    Logger.video.error("Player item failed - code: \(nsError.code), domain: \(nsError.domain), description: \(error.localizedDescription)")
+                    if let underlyingError = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
+                        Logger.video.error("Underlying error - code: \(underlyingError.code), domain: \(underlyingError.domain)")
+                    }
                     owner.playbackState.accept(.failed(error))
                 @unknown default:
                     Logger.video.debug("Player item status: unknown default")
                     break
                 }
             })
-            .disposed(by: disposeBag)
+            .disposed(by: itemDisposeBag)
 
         observeDuration(item: newItem)
             .withUnretained(self)
@@ -175,7 +162,7 @@ final class VideoPlayerService {
                     owner.duration.accept(durationSeconds)
                 }
             })
-            .disposed(by: disposeBag)
+            .disposed(by: itemDisposeBag)
     }
 
     func play() {
@@ -218,7 +205,7 @@ final class VideoPlayerService {
                         Logger.video.error("Subtitle switch failed - \(error.localizedDescription)")
                     }
                 )
-                .disposed(by: disposeBag)
+                .disposed(by: itemDisposeBag)
         } else {
             Logger.video.notice("Turning off subtitles")
             selectedSubtitleInfo = nil
@@ -246,6 +233,7 @@ final class VideoPlayerService {
     func reset() {
         player.pause()
         player.replaceCurrentItem(with: nil)
+        itemDisposeBag = DisposeBag()
         playbackState.accept(.idle)
         currentTime.accept(0)
         duration.accept(0)
