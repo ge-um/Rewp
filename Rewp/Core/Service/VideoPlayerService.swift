@@ -52,6 +52,7 @@ final class VideoPlayerService {
 
     init(subtitleService: SubtitleService) {
         self.subtitleService = subtitleService
+        player.appliesMediaSelectionCriteriaAutomatically = false
         setupTimeObserver()
         setupNotifications()
     }
@@ -68,6 +69,8 @@ final class VideoPlayerService {
         Logger.video.notice("Loading video - availableSubtitles: \(subtitles.count)")
         playbackState.accept(.loading)
 
+        createPlayerItem(videoUrl: url)
+
         let defaultSubtitle = subtitles.first(where: { $0.isDefault }) ?? subtitles.first
         selectedSubtitleInfo = defaultSubtitle
 
@@ -83,18 +86,15 @@ final class VideoPlayerService {
                     onNext: { owner, track in
                         Logger.video.debug("Subtitle downloaded - \(track.subtitles.count) entries")
                         owner.currentSubtitleTrack = track
-                        owner.createPlayerItem(videoUrl: url)
                     },
-                    onError: { [weak self] error in
+                    onError: { error in
                         Logger.video.error("Subtitle download failed - \(error.localizedDescription)")
-                        self?.createPlayerItem(videoUrl: url)
                     }
                 )
                 .disposed(by: disposeBag)
         } else {
             selectedSubtitleLanguage.accept(nil)
             currentSubtitleTrack = nil
-            createPlayerItem(videoUrl: url)
         }
     }
 
