@@ -58,8 +58,10 @@ final class MapSearchViewController: UIViewController {
     private let rentFilterTappedTrigger = PublishSubject<Void>()
     private let rentFilterAppliedTrigger = PublishSubject<(min: Int, max: Int)>()
     private let rentFilterResetTrigger = PublishSubject<Void>()
+    private let sidoAnnotationSelectedTrigger = PublishSubject<SidoAnnotation>()
 
     private var currentFilterOverlay: RangeFilterOverlay?
+    private var isSidoMode = false
     private var currentFilterType: FilterType?
 
     private let disposeBag = DisposeBag()
@@ -145,6 +147,11 @@ final class MapSearchViewController: UIViewController {
             forAnnotationViewWithReuseIdentifier: EstateClusterAnnotationView.identifier
         )
 
+        mapView.register(
+            SidoAnnotationView.self,
+            forAnnotationViewWithReuseIdentifier: SidoAnnotationView.identifier
+        )
+
         let koreaCenter = CLLocationCoordinate2D(latitude: 36.0, longitude: 127.5)
         let boundaryRegion = MKCoordinateRegion(
             center: koreaCenter,
@@ -204,6 +211,7 @@ final class MapSearchViewController: UIViewController {
             searchLocationSelected: searchLocationSelectedTrigger.asObservable(),
             currentLocationTapped: currentLocationTappedTrigger.asObservable(),
             annotationSelected: annotationSelectedTrigger.asObservable(),
+            sidoAnnotationSelected: sidoAnnotationSelectedTrigger.asObservable(),
             estateCardTapped: estateCardTappedTrigger.asObservable(),
             mapTapped: mapTappedTrigger.asObservable(),
             areaFilterTapped: areaFilterTappedTrigger.asObservable(),
@@ -222,6 +230,18 @@ final class MapSearchViewController: UIViewController {
         output.annotations
             .drive(with: self) { owner, annotations in
                 owner.updateAnnotations(annotations: annotations)
+            }
+            .disposed(by: disposeBag)
+
+        output.sidoAnnotations
+            .drive(with: self) { owner, sidoAnnotations in
+                owner.updateSidoAnnotations(annotations: sidoAnnotations)
+            }
+            .disposed(by: disposeBag)
+
+        output.showSidoMode
+            .drive(with: self) { owner, isSidoMode in
+                owner.isSidoMode = isSidoMode
             }
             .disposed(by: disposeBag)
 
@@ -409,8 +429,14 @@ final class MapSearchViewController: UIViewController {
     }
 
     private func updateAnnotations(annotations: [MKAnnotation]) {
-        let currentAnnotations = mapView.annotations.filter { !($0 is MKUserLocation) }
+        let currentAnnotations = mapView.annotations.filter { !($0 is MKUserLocation) && !($0 is SidoAnnotation) }
         mapView.removeAnnotations(currentAnnotations)
+        mapView.addAnnotations(annotations)
+    }
+
+    private func updateSidoAnnotations(annotations: [SidoAnnotation]) {
+        let currentSidoAnnotations = mapView.annotations.compactMap { $0 as? SidoAnnotation }
+        mapView.removeAnnotations(currentSidoAnnotations)
         mapView.addAnnotations(annotations)
     }
 
@@ -518,6 +544,16 @@ extension MapSearchViewController: MKMapViewDelegate {
             return nil
         }
 
+        if let sidoAnnotation = annotation as? SidoAnnotation {
+            let annotationView = mapView.dequeueReusableAnnotationView(
+                withIdentifier: SidoAnnotationView.identifier,
+                for: annotation
+            ) as? SidoAnnotationView
+
+            annotationView?.configure(with: sidoAnnotation)
+            return annotationView
+        }
+
         if let clusterAnnotation = annotation as? EstateClusterAnnotation {
             if currentZoom >= 16 {
                 let annotationView = mapView.dequeueReusableAnnotationView(
@@ -557,6 +593,12 @@ extension MapSearchViewController: MKMapViewDelegate {
         guard let annotation = view.annotation else { return }
 
         if annotation is MKUserLocation {
+            return
+        }
+
+        if let sidoAnnotation = annotation as? SidoAnnotation {
+            sidoAnnotationSelectedTrigger.onNext(sidoAnnotation)
+            mapView.deselectAnnotation(annotation, animated: false)
             return
         }
 

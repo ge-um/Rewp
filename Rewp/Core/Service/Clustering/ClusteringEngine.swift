@@ -144,6 +144,8 @@ final class ClusteringEngine<T: ClusterPoint> {
 
             let buildStart = CFAbsoluteTimeGetCurrent()
             var currentZoom = self.maxZoom - 1
+            var startZoom: Int?
+            var endZoom: Int?
 
             while currentZoom >= clampedZoom {
                 if !self.builtZoomLevels.contains(currentZoom) {
@@ -155,13 +157,20 @@ final class ClusteringEngine<T: ClusterPoint> {
                     self.trees[currentZoom] = KDBush(points: clusters, nodeSize: self.nodeSize)
                     self.builtZoomLevels.insert(currentZoom)
                     Logger.map.notice("Lazy built zoom \(currentZoom): \(clusters.count) clusters")
+
+                    if startZoom == nil { startZoom = currentZoom }
+                    endZoom = currentZoom
                 }
                 currentZoom -= 1
             }
 
             self.isBuilding[clampedZoom] = false
             let buildTime = CFAbsoluteTimeGetCurrent() - buildStart
-            Logger.map.notice("=== Lazy build COMPLETE: \(String(format: "%.3f", buildTime))s ===")
+            if let start = startZoom, let end = endZoom {
+                Logger.map.notice("=== Lazy build COMPLETE: \(String(format: "%.3f", buildTime))s (zoom \(start) → \(end)) ===")
+            } else {
+                Logger.map.notice("=== Lazy build COMPLETE: \(String(format: "%.3f", buildTime))s (no new trees) ===")
+            }
 
             DispatchQueue.main.async { completion() }
         }

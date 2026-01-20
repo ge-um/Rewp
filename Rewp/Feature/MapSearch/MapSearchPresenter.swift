@@ -17,6 +17,7 @@ final class MapSearchPresenter {
     private let geocodeService: GeocodeService
     private let locationManager: LocationManager
     private let amenitySearchService: AmenitySearchService
+    private let sidoBoundaryService: SidoBoundaryService
     private let disposeBag = DisposeBag()
 
     private var isEstatesLoaded = false
@@ -24,13 +25,17 @@ final class MapSearchPresenter {
     private var pendingRegionData: (region: MKCoordinateRegion, zoom: Int)?
     private var currentFilter = EstateFilter()
     private var loadedEstates: [EstateDTO] = []
+    private var cachedSidoCounts: [String: (sido: Sido, count: Int)] = [:]
 
-    init(estateRepository: EstateRepository, clusteringEngine: ClusteringEngine<EstateDTO>, geocodeService: GeocodeService = .shared, locationManager: LocationManager = .shared, amenitySearchService: AmenitySearchService = .shared) {
+    static let sidoModeZoomThreshold = 10
+
+    init(estateRepository: EstateRepository, clusteringEngine: ClusteringEngine<EstateDTO>, geocodeService: GeocodeService = .shared, locationManager: LocationManager = .shared, amenitySearchService: AmenitySearchService = .shared, sidoBoundaryService: SidoBoundaryService = .shared) {
         self.estateRepository = estateRepository
         self.clusteringEngine = clusteringEngine
         self.geocodeService = geocodeService
         self.locationManager = locationManager
         self.amenitySearchService = amenitySearchService
+        self.sidoBoundaryService = sidoBoundaryService
     }
     
     struct Input {
@@ -39,6 +44,7 @@ final class MapSearchPresenter {
         let searchLocationSelected: Observable<CLLocationCoordinate2D>
         let currentLocationTapped: Observable<Void>
         let annotationSelected: Observable<(annotation: MKAnnotation, zoom: Int)>
+        let sidoAnnotationSelected: Observable<SidoAnnotation>
         let estateCardTapped: Observable<String>
         let mapTapped: Observable<Void>
         let areaFilterTapped: Observable<Void>
@@ -54,6 +60,8 @@ final class MapSearchPresenter {
 
     struct Output {
         let annotations: Driver<[MKAnnotation]>
+        let sidoAnnotations: Driver<[SidoAnnotation]>
+        let showSidoMode: Driver<Bool>
         let error: Driver<String>
         let moveToLocation: Driver<MKCoordinateRegion>
         let locationTitle: Driver<String>
@@ -74,6 +82,8 @@ final class MapSearchPresenter {
     
     func transform(input: Input) -> Output {
         let annotationsRelay = PublishRelay<[MKAnnotation]>()
+        let sidoAnnotationsRelay = PublishRelay<[SidoAnnotation]>()
+        let showSidoModeRelay = PublishRelay<Bool>()
         let errorRelay = PublishRelay<String>()
         let moveToLocationRelay = PublishRelay<MKCoordinateRegion>()
         let locationTitleRelay = PublishRelay<String>()
@@ -228,14 +238,49 @@ final class MapSearchPresenter {
 
                 let region = regionData.region
                 let zoom = regionData.zoom
+                let isSidoMode = zoom <= Self.sidoModeZoomThreshold
+                showSidoModeRelay.accept(isSidoMode)
+
+                Logger.map.notice("맵 이동 - zoom: \(zoom, privacy: .public), sidoMode: \(isSidoMode, privacy: .public), center: (\(region.center.latitude, privacy: .public), \(region.center.longitude, privacy: .public))")
+
+                if isSidoMode {
+                    if owner.cachedSidoCounts.isEmpty {
+                        owner.cachedSidoCounts = owner.sidoBoundaryService.countEstates(estates: owner.loadedEstates)
+                    }
+
+                    let sidoAnnotations = owner.cachedSidoCounts.values
+                        .filter { $0.count > 0 }
+                        .map { SidoAnnotation(sido: $0.sido, estateCount: $0.count) }
+
+                    sidoAnnotationsRelay.accept(sidoAnnotations)
+                    annotationsRelay.accept([])
+
+                    owner.geocodeService.reverseGeocodeForLocationTitle(
+                        latitude: region.center.latitude,
+                        longitude: region.center.longitude
+                    )
+                    .asObservable()
+                    .observe(on: MainScheduler.instance)
+                    .subscribe(
+                        onNext: { locationTitle in
+                            locationTitleRelay.accept(locationTitle)
+                        },
+                        onError: { _ in
+                            locationTitleRelay.accept("위치 확인 중...")
+                        }
+                    )
+                    .disposed(by: owner.disposeBag)
+                    return
+                }
+
+                sidoAnnotationsRelay.accept([])
+
                 let bbox = (
                     minLon: region.center.longitude - region.span.longitudeDelta / 2,
                     minLat: region.center.latitude - region.span.latitudeDelta / 2,
                     maxLon: region.center.longitude + region.span.longitudeDelta / 2,
                     maxLat: region.center.latitude + region.span.latitudeDelta / 2
                 )
-
-                Logger.map.notice("맵 이동 - zoom: \(zoom, privacy: .public), center: (\(region.center.latitude, privacy: .public), \(region.center.longitude, privacy: .public))")
 
                 if !owner.clusteringEngine.isZoomReady(zoom) {
                     Logger.map.notice("Zoom \(zoom) not ready - triggering lazy build")
@@ -733,8 +778,25 @@ final class MapSearchPresenter {
             })
             .disposed(by: disposeBag)
 
+        input.sidoAnnotationSelected
+            .map { sidoAnnotation in
+                let targetZoom = Self.sidoModeZoomThreshold + 2
+                let newSpan = MKCoordinateSpan(
+                    latitudeDelta: 360.0 / pow(2.0, Double(targetZoom)),
+                    longitudeDelta: 360.0 / pow(2.0, Double(targetZoom))
+                )
+                return MKCoordinateRegion(
+                    center: sidoAnnotation.sido.center,
+                    span: newSpan
+                )
+            }
+            .bind(to: zoomToClusterRelay)
+            .disposed(by: disposeBag)
+
         return Output(
             annotations: annotationsRelay.asDriver(onErrorDriveWith: .empty()),
+            sidoAnnotations: sidoAnnotationsRelay.asDriver(onErrorDriveWith: .empty()),
+            showSidoMode: showSidoModeRelay.asDriver(onErrorJustReturn: false),
             error: errorRelay.asDriver(onErrorJustReturn: ""),
             moveToLocation: moveToLocationRelay.asDriver(onErrorDriveWith: .empty()),
             locationTitle: locationTitleRelay.asDriver(onErrorJustReturn: "위치 확인 중..."),
