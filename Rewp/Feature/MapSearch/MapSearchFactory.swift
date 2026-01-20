@@ -9,7 +9,7 @@ import Foundation
 
 final class MapSearchFactory {
     static func create(estateRepository: EstateRepository, container: AppContainer) -> MapSearchViewController {
-        let clusteringEngine = ClusteringEngine<EstateDTO>(minZoom: 7)
+        let clusteringEngine = ClusteringEngine<EstateDTO>(minZoom: 11)
         let presenter = MapSearchPresenter(
             estateRepository: estateRepository,
             clusteringEngine: clusteringEngine

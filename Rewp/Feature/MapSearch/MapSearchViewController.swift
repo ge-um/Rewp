@@ -165,8 +165,8 @@ final class MapSearchViewController: UIViewController {
         )
 
         let lastCenter = UserDefaults.standard.lastMapCenter ?? LocationManager.defaultCoordinate
-        let zoom16Span = MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-        let defaultRegion = MKCoordinateRegion(center: lastCenter, span: zoom16Span)
+        let zoom7Span = MKCoordinateSpan(latitudeDelta: 2.5, longitudeDelta: 2.5)
+        let defaultRegion = MKCoordinateRegion(center: lastCenter, span: zoom7Span)
         mapView.setRegion(defaultRegion, animated: false)
     }
 
