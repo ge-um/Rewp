@@ -64,8 +64,6 @@ final class ClusteringEngine<T: ClusterPoint> {
         var treeTime = CFAbsoluteTimeGetCurrent() - treeStart
         Logger.map.notice("Tree zoom \(self.maxZoom + 1): \(String(format: "%.3f", treeTime))s (\(clusters.count) points)")
 
-        buildClusterPointsCache(for: maxZoom + 1, clusters: clusters)
-
         for zoom in stride(from: maxZoom, through: minZoom, by: -1) {
             let beforeCount = clusters.count
 
@@ -78,8 +76,6 @@ final class ClusteringEngine<T: ClusterPoint> {
             treeTime = CFAbsoluteTimeGetCurrent() - treeStart
 
             Logger.map.notice("Zoom \(zoom): cluster \(String(format: "%.3f", clusterTime))s, tree \(String(format: "%.3f", treeTime))s (\(beforeCount) → \(clusters.count))")
-
-            buildClusterPointsCache(for: zoom, clusters: clusters)
         }
 
         let totalTime = CFAbsoluteTimeGetCurrent() - loadStart
@@ -114,7 +110,7 @@ final class ClusteringEngine<T: ClusterPoint> {
             let c = tree.points[id]
             let clusterId = c.isCluster ? "cluster_\(c.zoom)_\(id)" : "single_\(c.zoom)_\(id)"
 
-            let leafIndices = clusterPointsCache[clusterId] ?? (c.originalIndex.map { [$0] } ?? [])
+            let leafIndices = getLeafIndices(for: clusterId, cluster: c, treeIndex: id)
             let childPoints = leafIndices.map { points[$0] }
 
             let cluster = Cluster(
@@ -125,52 +121,47 @@ final class ClusteringEngine<T: ClusterPoint> {
                 actualCount: c.numPoints
             )
             results.append(cluster)
-            Logger.map.debug("  [getClusters] Point[\(id)] → cluster with \(c.numPoints) points (childPoints: \(childPoints.count), cached: \(leafIndices.count))")
+            Logger.map.debug("  [getClusters] Point[\(id)] → cluster with \(c.numPoints) points (childPoints: \(childPoints.count))")
         }
 
         Logger.map.notice("Result: \(results.count) total clusters")
         return results
     }
 
-    private func buildClusterPointsCache(for zoom: Int, clusters: [ClusterOrPoint]) {
-        Logger.map.debug("Building cache for zoom \(zoom) - \(clusters.count) clusters")
-
-        for (index, cluster) in clusters.enumerated() {
-            let clusterId = "cluster_\(zoom)_\(index)"
-
-            if let originalIndex = cluster.originalIndex {
-                clusterPointsCache[clusterId] = [originalIndex]
-            } else {
-                guard let parentId = cluster.parentId,
-                      let parentTree = trees[cluster.zoom + 1] else {
-                    clusterPointsCache[clusterId] = []
-                    continue
-                }
-
-                let parent = parentTree.points[parentId]
-                let r = Double(radius) / (Double(extent) * pow(2.0, Double(cluster.zoom)))
-                let x = longitudeToX(parent.longitude)
-                let y = latitudeToY(parent.latitude)
-                let neighborIds = parentTree.within(x: x, y: y, radius: r)
-
-                var leafIndicesSet: Set<Int> = []
-                leafIndicesSet.reserveCapacity(cluster.numPoints)
-
-                for neighborId in neighborIds {
-                    let neighbor = parentTree.points[neighborId]
-                    if neighbor.zoom <= cluster.zoom { continue }
-
-                    let neighborClusterId = "cluster_\(neighbor.zoom)_\(neighborId)"
-                    if let cachedIndices = clusterPointsCache[neighborClusterId] {
-                        leafIndicesSet.formUnion(cachedIndices)
-                    }
-                }
-
-                clusterPointsCache[clusterId] = Array(leafIndicesSet)
-            }
+    private func getLeafIndices(for clusterId: String, cluster: ClusterOrPoint, treeIndex: Int) -> [Int] {
+        if let cached = clusterPointsCache[clusterId] {
+            return cached
         }
 
-        Logger.map.debug("Cache built for zoom \(zoom) - \(self.clusterPointsCache.count) entries")
+        if let originalIndex = cluster.originalIndex {
+            clusterPointsCache[clusterId] = [originalIndex]
+            return [originalIndex]
+        }
+
+        guard let parentTree = trees[cluster.zoom + 1] else {
+            return []
+        }
+
+        let r = Double(radius) / (Double(extent) * pow(2.0, Double(cluster.zoom)))
+        let x = longitudeToX(cluster.longitude)
+        let y = latitudeToY(cluster.latitude)
+        let neighborIds = parentTree.within(x: x, y: y, radius: r)
+
+        var leafIndicesSet: Set<Int> = []
+        leafIndicesSet.reserveCapacity(cluster.numPoints)
+
+        for neighborId in neighborIds {
+            let neighbor = parentTree.points[neighborId]
+            if neighbor.zoom <= cluster.zoom { continue }
+
+            let neighborClusterId = "cluster_\(neighbor.zoom)_\(neighborId)"
+            let neighborLeaves = getLeafIndices(for: neighborClusterId, cluster: neighbor, treeIndex: neighborId)
+            leafIndicesSet.formUnion(neighborLeaves)
+        }
+
+        let result = Array(leafIndicesSet)
+        clusterPointsCache[clusterId] = result
+        return result
     }
 
     private func buildClustersForZoomLevel(clusters: [ClusterOrPoint], zoom: Int) -> [ClusterOrPoint] {
