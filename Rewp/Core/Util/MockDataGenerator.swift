@@ -22,8 +22,8 @@ enum MockDataGenerator {
                 area: Double.random(in: 10...50),
                 floors: 5,
                 geolocation: Geolocation(
-                    longitude: Double.random(in: 125.0...132.0),
-                    latitude: Double.random(in: 33.0...38.0)
+                    longitude: Double.random(in: 126.0...131.0),
+                    latitude: Double.random(in: 34.0...37.0)
                 ),
                 distance: nil,
                 like_count: 0,

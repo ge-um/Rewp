@@ -95,65 +95,59 @@ final class MapSearchPresenter {
             .do(onNext: { _, _ in
                 Logger.map.notice("MapSearch initialized - loading nationwide estates")
             })
-            .flatMapLatest { owner, _ -> Observable<[EstateDTO]> in
+            .filter { owner, _ in
                 guard !owner.isEstatesLoaded && !owner.isLoadingInitialEstates else {
                     Logger.map.debug("Estates already loaded or loading")
-                    return .empty()
+                    return false
                 }
-
+                return true
+            }
+            .do(onNext: { owner, _ in
                 owner.isLoadingInitialEstates = true
                 isLoadingInitialEstatesRelay.accept(true)
-
-                Logger.map.notice("Fetching nationwide estates - center: (36.5, 127.5), radius: 500000m")
-
-                return owner.estateRepository
-                    .fetchEstatesByLocation(
-                        longitude: 127.5,
-                        latitude: 36.5,
-                        maxDistance: 500000,
-                        category: nil
-                    )
-                    .asObservable()
-                    .do(
-                        onNext: { estates in
-                            owner.isLoadingInitialEstates = false
-                            owner.isEstatesLoaded = true
-                            isLoadingInitialEstatesRelay.accept(false)
-
-                            Logger.map.notice("Nationwide estates loaded - count: \(estates.count)")
-                            owner.clusteringEngine.load(points: estates)
-                            Logger.map.notice("Clustering tree built successfully")
-
-                            if let regionData = owner.pendingRegionData {
-                                let region = regionData.region
-                                let zoom = regionData.zoom
-                                let bbox = (
-                                    minLon: region.center.longitude - region.span.longitudeDelta / 2,
-                                    minLat: region.center.latitude - region.span.latitudeDelta / 2,
-                                    maxLon: region.center.longitude + region.span.longitudeDelta / 2,
-                                    maxLat: region.center.latitude + region.span.latitudeDelta / 2
-                                )
-
-                                let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
-                                let annotations: [MKAnnotation] = clusters.map { cluster in
-                                    EstateClusterAnnotation(cluster: cluster)
-                                }
-                                annotationsRelay.accept(annotations)
-                                Logger.map.notice("Initial clustering complete - found \(annotations.count) annotations")
-                            }
-                        },
-                        onError: { error in
-                            owner.isLoadingInitialEstates = false
-                            isLoadingInitialEstatesRelay.accept(false)
-                            Logger.map.error("Failed to load nationwide estates - \(error.localizedDescription)")
-                        }
-                    )
-                    .catch { error in
-                        errorRelay.accept("전국 매물 정보를 불러올 수 없습니다")
-                        return .empty()
-                    }
+                Logger.map.notice("Using MockData - 5000 estates with wide distribution")
+            })
+            .observe(on: ConcurrentDispatchQueueScheduler(qos: .userInitiated))
+            .map { _, _ in
+                MockDataGenerator.generateEstates(count: 5000)
             }
-            .subscribe()
+            .withUnretained(self)
+            .do(onNext: { owner, estates in
+                Logger.map.notice("Nationwide estates loaded - count: \(estates.count)")
+                owner.clusteringEngine.load(points: estates)
+                Logger.map.notice("Clustering tree built successfully")
+            })
+            .observe(on: MainScheduler.instance)
+            .subscribe(
+                onNext: { owner, _ in
+                    owner.isLoadingInitialEstates = false
+                    owner.isEstatesLoaded = true
+                    isLoadingInitialEstatesRelay.accept(false)
+
+                    if let regionData = owner.pendingRegionData {
+                        let region = regionData.region
+                        let zoom = regionData.zoom
+                        let bbox = (
+                            minLon: region.center.longitude - region.span.longitudeDelta / 2,
+                            minLat: region.center.latitude - region.span.latitudeDelta / 2,
+                            maxLon: region.center.longitude + region.span.longitudeDelta / 2,
+                            maxLat: region.center.latitude + region.span.latitudeDelta / 2
+                        )
+
+                        let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+                        let annotations: [MKAnnotation] = clusters.map { cluster in
+                            EstateClusterAnnotation(cluster: cluster)
+                        }
+                        annotationsRelay.accept(annotations)
+                        Logger.map.notice("Initial clustering complete - found \(annotations.count) annotations")
+                    }
+                },
+                onError: { error in
+                    isLoadingInitialEstatesRelay.accept(false)
+                    Logger.map.error("Failed to load nationwide estates - \(error.localizedDescription)")
+                    errorRelay.accept("전국 매물 정보를 불러올 수 없습니다")
+                }
+            )
             .disposed(by: disposeBag)
 
         input.viewDidLoad
