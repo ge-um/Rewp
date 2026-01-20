@@ -153,15 +153,19 @@ final class MapSearchViewController: UIViewController {
         )
         mapView.cameraBoundary = MKMapView.CameraBoundary(coordinateRegion: boundaryRegion)
         mapView.cameraZoomRange = MKMapView.CameraZoomRange(
-            minCenterCoordinateDistance: 100,
+            minCenterCoordinateDistance: 500,
             maxCenterCoordinateDistance: 1_500_000
         )
 
-        let defaultRegion = MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: 37.5176577, longitude: 126.8864088),
-            span: MKCoordinateSpan(latitudeDelta: 0.0055, longitudeDelta: 0.0055)
-        )
+        let lastCenter = UserDefaults.standard.lastMapCenter ?? LocationManager.defaultCoordinate
+        let zoom16Span = MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+        let defaultRegion = MKCoordinateRegion(center: lastCenter, span: zoom16Span)
         mapView.setRegion(defaultRegion, animated: false)
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        UserDefaults.standard.lastMapCenter = mapView.centerCoordinate
     }
 
     private func getOrCreateFilterOverlay() -> RangeFilterOverlay {

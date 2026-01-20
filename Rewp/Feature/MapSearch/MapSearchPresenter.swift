@@ -23,6 +23,7 @@ final class MapSearchPresenter {
     private var isLoadingInitialEstates = false
     private var pendingRegionData: (region: MKCoordinateRegion, zoom: Int)?
     private var currentFilter = EstateFilter()
+    private var loadedEstates: [EstateDTO] = []
 
     init(estateRepository: EstateRepository, clusteringEngine: ClusteringEngine<EstateDTO>, geocodeService: GeocodeService = .shared, locationManager: LocationManager = .shared, amenitySearchService: AmenitySearchService = .shared) {
         self.estateRepository = estateRepository
@@ -114,8 +115,7 @@ final class MapSearchPresenter {
             .withUnretained(self)
             .do(onNext: { owner, estates in
                 Logger.map.notice("Nationwide estates loaded - count: \(estates.count)")
-                owner.clusteringEngine.load(points: estates)
-                Logger.map.notice("Clustering tree built successfully")
+                owner.loadedEstates = estates
             })
             .observe(on: MainScheduler.instance)
             .subscribe(
@@ -124,23 +124,42 @@ final class MapSearchPresenter {
                     owner.isEstatesLoaded = true
                     isLoadingInitialEstatesRelay.accept(false)
 
-                    if let regionData = owner.pendingRegionData {
-                        let region = regionData.region
-                        let zoom = regionData.zoom
-                        let bbox = (
-                            minLon: region.center.longitude - region.span.longitudeDelta / 2,
-                            minLat: region.center.latitude - region.span.latitudeDelta / 2,
-                            maxLon: region.center.longitude + region.span.longitudeDelta / 2,
-                            maxLat: region.center.latitude + region.span.latitudeDelta / 2
-                        )
-
-                        let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
-                        let annotations: [MKAnnotation] = clusters.map { cluster in
-                            EstateClusterAnnotation(cluster: cluster)
+                    Observable.just(owner.loadedEstates)
+                        .observe(on: ConcurrentDispatchQueueScheduler(qos: .userInitiated))
+                        .map { estates in
+                            owner.clusteringEngine.loadInitial(points: estates)
+                            return ()
                         }
-                        annotationsRelay.accept(annotations)
-                        Logger.map.notice("Initial clustering complete - found \(annotations.count) annotations")
-                    }
+                        .observe(on: MainScheduler.instance)
+                        .subscribe(onNext: { _ in
+                            Logger.map.notice("Initial clustering tree built (zoom 16-17 only)")
+
+                            if let regionData = owner.pendingRegionData {
+                                let region = regionData.region
+                                let zoom = regionData.zoom
+                                let bbox = (
+                                    minLon: region.center.longitude - region.span.longitudeDelta / 2,
+                                    minLat: region.center.latitude - region.span.latitudeDelta / 2,
+                                    maxLon: region.center.longitude + region.span.longitudeDelta / 2,
+                                    maxLat: region.center.latitude + region.span.latitudeDelta / 2
+                                )
+
+                                if owner.clusteringEngine.isZoomReady(zoom) {
+                                    let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+                                    let annotations: [MKAnnotation] = clusters.map { EstateClusterAnnotation(cluster: $0) }
+                                    annotationsRelay.accept(annotations)
+                                    Logger.map.notice("Initial clustering complete - found \(annotations.count) annotations")
+                                } else {
+                                    owner.clusteringEngine.buildTreeLazyIfNeeded(zoom: zoom) {
+                                        let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+                                        let annotations: [MKAnnotation] = clusters.map { EstateClusterAnnotation(cluster: $0) }
+                                        annotationsRelay.accept(annotations)
+                                        Logger.map.notice("Initial lazy clustering complete - found \(annotations.count) annotations")
+                                    }
+                                }
+                            }
+                        })
+                        .disposed(by: owner.disposeBag)
                 },
                 onError: { error in
                     isLoadingInitialEstatesRelay.accept(false)
@@ -217,6 +236,34 @@ final class MapSearchPresenter {
                 )
 
                 Logger.map.notice("맵 이동 - zoom: \(zoom, privacy: .public), center: (\(region.center.latitude, privacy: .public), \(region.center.longitude, privacy: .public))")
+
+                if !owner.clusteringEngine.isZoomReady(zoom) {
+                    Logger.map.notice("Zoom \(zoom) not ready - triggering lazy build")
+                    owner.clusteringEngine.buildTreeLazyIfNeeded(zoom: zoom) {
+                        var clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+
+                        if owner.currentFilter.isActive {
+                            clusters = clusters.compactMap { cluster -> Cluster<EstateDTO>? in
+                                let filteredPoints = cluster.points.filter { owner.currentFilter.matches($0) }
+                                guard !filteredPoints.isEmpty else { return nil }
+                                return Cluster(
+                                    id: cluster.id,
+                                    latitude: cluster.latitude,
+                                    longitude: cluster.longitude,
+                                    points: filteredPoints,
+                                    actualCount: filteredPoints.count,
+                                    amenityInfo: cluster.amenityInfo
+                                )
+                            }
+                        }
+
+                        let annotations: [MKAnnotation] = clusters.map { EstateClusterAnnotation(cluster: $0) }
+                        annotationsRelay.accept(annotations)
+                        Logger.map.notice("Lazy build complete - found \(annotations.count) annotations")
+                    }
+                    return
+                }
+
                 Logger.map.debug("Fast clustering query - zoom: \(zoom, privacy: .public) (NO network, NO tree rebuild)")
 
                 var clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)

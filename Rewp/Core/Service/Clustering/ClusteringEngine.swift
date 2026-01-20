@@ -19,6 +19,10 @@ final class ClusteringEngine<T: ClusterPoint> {
     private var points: [T] = []
     private var clusterPointsCache: [String: [Int]] = [:]
 
+    private var builtZoomLevels: Set<Int> = []
+    private var isBuilding: [Int: Bool] = [:]
+    private let buildQueue = DispatchQueue(label: "clustering.build", qos: .userInitiated)
+
     struct ClusterOrPoint: ClusterPoint {
         let latitude: Double
         let longitude: Double
@@ -82,6 +86,92 @@ final class ClusteringEngine<T: ClusterPoint> {
         Logger.map.notice("=== Clustering COMPLETE: \(String(format: "%.3f", totalTime))s total, \(self.trees.count) zoom levels ===")
     }
 
+    func loadInitial(points: [T]) {
+        let loadStart = CFAbsoluteTimeGetCurrent()
+        self.points = points
+        builtZoomLevels.removeAll()
+        trees.removeAll()
+        clusterPointsCache.removeAll()
+
+        Logger.map.notice("=== Lazy Clustering START: \(points.count) points ===")
+
+        var clusters: [ClusterOrPoint] = points.enumerated().map { index, point in
+            ClusterOrPoint(
+                latitude: point.latitude,
+                longitude: point.longitude,
+                originalIndex: index,
+                parentId: nil,
+                numPoints: 1,
+                zoom: maxZoom + 1
+            )
+        }
+
+        var treeStart = CFAbsoluteTimeGetCurrent()
+        trees[maxZoom + 1] = KDBush(points: clusters, nodeSize: nodeSize)
+        builtZoomLevels.insert(maxZoom + 1)
+        var treeTime = CFAbsoluteTimeGetCurrent() - treeStart
+        Logger.map.notice("Tree zoom \(self.maxZoom + 1): \(String(format: "%.3f", treeTime))s (\(clusters.count) points)")
+
+        let clusterStart = CFAbsoluteTimeGetCurrent()
+        clusters = buildClustersForZoomLevel(clusters: clusters, zoom: maxZoom)
+        let clusterTime = CFAbsoluteTimeGetCurrent() - clusterStart
+
+        treeStart = CFAbsoluteTimeGetCurrent()
+        trees[maxZoom] = KDBush(points: clusters, nodeSize: nodeSize)
+        builtZoomLevels.insert(maxZoom)
+        treeTime = CFAbsoluteTimeGetCurrent() - treeStart
+        Logger.map.notice("Tree zoom \(self.maxZoom): cluster \(String(format: "%.3f", clusterTime))s, tree \(String(format: "%.3f", treeTime))s")
+
+        let totalTime = CFAbsoluteTimeGetCurrent() - loadStart
+        Logger.map.notice("=== Lazy Clustering INITIAL COMPLETE: \(String(format: "%.3f", totalTime))s (zoom \(self.maxZoom + 1), \(self.maxZoom) only) ===")
+    }
+
+    func buildTreeLazyIfNeeded(zoom: Int, completion: @escaping () -> Void) {
+        let clampedZoom = max(zoom, minZoom)
+
+        guard !builtZoomLevels.contains(clampedZoom) else {
+            completion()
+            return
+        }
+
+        guard isBuilding[clampedZoom] != true else { return }
+        isBuilding[clampedZoom] = true
+
+        Logger.map.notice("=== Lazy build triggered for zoom \(clampedZoom) ===")
+
+        buildQueue.async { [weak self] in
+            guard let self = self else { return }
+
+            let buildStart = CFAbsoluteTimeGetCurrent()
+            var currentZoom = self.maxZoom - 1
+
+            while currentZoom >= clampedZoom {
+                if !self.builtZoomLevels.contains(currentZoom) {
+                    guard let parentTree = self.trees[currentZoom + 1] else { break }
+                    let clusters = self.buildClustersForZoomLevel(
+                        clusters: parentTree.points,
+                        zoom: currentZoom
+                    )
+                    self.trees[currentZoom] = KDBush(points: clusters, nodeSize: self.nodeSize)
+                    self.builtZoomLevels.insert(currentZoom)
+                    Logger.map.notice("Lazy built zoom \(currentZoom): \(clusters.count) clusters")
+                }
+                currentZoom -= 1
+            }
+
+            self.isBuilding[clampedZoom] = false
+            let buildTime = CFAbsoluteTimeGetCurrent() - buildStart
+            Logger.map.notice("=== Lazy build COMPLETE: \(String(format: "%.3f", buildTime))s ===")
+
+            DispatchQueue.main.async { completion() }
+        }
+    }
+
+    func isZoomReady(_ zoom: Int) -> Bool {
+        let clampedZoom = max(zoom, minZoom)
+        return builtZoomLevels.contains(clampedZoom)
+    }
+
     func getClusters(bbox: (minLon: Double, minLat: Double, maxLon: Double, maxLat: Double), zoom: Int) -> [Cluster<T>] {
         Logger.map.notice("=== getClusters: zoom \(zoom) ===")
         let adjustedZoom = min(max(zoom, minZoom), maxZoom)
@@ -89,6 +179,10 @@ final class ClusteringEngine<T: ClusterPoint> {
             Logger.map.debug("Zoom adjusted: \(zoom) → \(adjustedZoom)")
         }
 
+        return getKDTreeClusters(bbox: bbox, zoom: adjustedZoom)
+    }
+
+    private func getKDTreeClusters(bbox: (minLon: Double, minLat: Double, maxLon: Double, maxLat: Double), zoom: Int) -> [Cluster<T>] {
         let minX = longitudeToX(bbox.minLon)
         let minY = latitudeToY(bbox.maxLat)
         let maxX = longitudeToX(bbox.maxLon)
@@ -96,8 +190,8 @@ final class ClusteringEngine<T: ClusterPoint> {
         Logger.map.debug("BBox: lon[\(bbox.minLon, privacy: .public)...\(bbox.maxLon, privacy: .public)] lat[\(bbox.minLat, privacy: .public)...\(bbox.maxLat, privacy: .public)]")
         Logger.map.debug("Normalized: x[\(minX, privacy: .public)...\(maxX, privacy: .public)] y[\(minY, privacy: .public)...\(maxY, privacy: .public)]")
 
-        guard let tree = trees[adjustedZoom] else {
-            Logger.map.error("No tree found for zoom \(adjustedZoom)")
+        guard let tree = trees[zoom] else {
+            Logger.map.error("No tree found for zoom \(zoom)")
             return []
         }
 
@@ -243,12 +337,10 @@ final class ClusteringEngine<T: ClusterPoint> {
 }
 
 private extension ClusteringEngine {
-    /// 경도를 정규화된 X 좌표로 변환 (0.0 ~ 1.0)
     func longitudeToX(_ longitude: Double) -> Double {
         return longitude / 360.0 + 0.5
     }
 
-    /// 위도를 정규화된 Y 좌표로 변환 (Web Mercator 투영)
     func latitudeToY(_ latitude: Double) -> Double {
         let sin = sin(latitude * .pi / 180)
         let y = 0.5 - 0.25 * log((1 + sin) / (1 - sin)) / .pi
