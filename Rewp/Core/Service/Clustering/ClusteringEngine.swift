@@ -41,6 +41,7 @@ final class ClusteringEngine<T: ClusterPoint> {
     }
 
     func load(points: [T]) {
+        let loadStart = CFAbsoluteTimeGetCurrent()
         self.points = points
 
         Logger.map.notice("=== Clustering START: \(points.count) points ===")
@@ -58,23 +59,31 @@ final class ClusteringEngine<T: ClusterPoint> {
         }
         Logger.map.debug("Initial clusters created: \(clusters.count) (zoom: \(self.maxZoom + 1))")
 
+        var treeStart = CFAbsoluteTimeGetCurrent()
         trees[maxZoom + 1] = KDBush(points: clusters, nodeSize: nodeSize)
-        Logger.map.notice("--- Building tree for zoom \(self.maxZoom + 1) with \(clusters.count) clusters (no clustering) ---")
+        var treeTime = CFAbsoluteTimeGetCurrent() - treeStart
+        Logger.map.notice("Tree zoom \(self.maxZoom + 1): \(String(format: "%.3f", treeTime))s (\(clusters.count) points)")
 
         buildClusterPointsCache(for: maxZoom + 1, clusters: clusters)
 
         for zoom in stride(from: maxZoom, through: minZoom, by: -1) {
             let beforeCount = clusters.count
-            clusters = buildClustersForZoomLevel(clusters: clusters, zoom: zoom)
-            Logger.map.notice("Clustering zoom \(zoom): \(beforeCount) → \(clusters.count) clusters (reduced by \(beforeCount - clusters.count))")
 
+            let clusterStart = CFAbsoluteTimeGetCurrent()
+            clusters = buildClustersForZoomLevel(clusters: clusters, zoom: zoom)
+            let clusterTime = CFAbsoluteTimeGetCurrent() - clusterStart
+
+            treeStart = CFAbsoluteTimeGetCurrent()
             trees[zoom] = KDBush(points: clusters, nodeSize: nodeSize)
-            Logger.map.debug("Tree created for zoom \(zoom)")
+            treeTime = CFAbsoluteTimeGetCurrent() - treeStart
+
+            Logger.map.notice("Zoom \(zoom): cluster \(String(format: "%.3f", clusterTime))s, tree \(String(format: "%.3f", treeTime))s (\(beforeCount) → \(clusters.count))")
 
             buildClusterPointsCache(for: zoom, clusters: clusters)
         }
 
-        Logger.map.notice("=== Clustering COMPLETE: \(self.trees.count) zoom levels ===")
+        let totalTime = CFAbsoluteTimeGetCurrent() - loadStart
+        Logger.map.notice("=== Clustering COMPLETE: \(String(format: "%.3f", totalTime))s total, \(self.trees.count) zoom levels ===")
     }
 
     func getClusters(bbox: (minLon: Double, minLat: Double, maxLon: Double, maxLat: Double), zoom: Int) -> [Cluster<T>] {
