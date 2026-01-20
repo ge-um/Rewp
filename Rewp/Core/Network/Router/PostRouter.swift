@@ -18,7 +18,7 @@ struct CreatePostRequest: Codable {
 }
 
 enum PostRouter {
-    case geolocationPosts(longitude: Double?, latitude: Double?, limit: String?, product_id: String?, next_cursor: String?)
+    case geolocationPosts(longitude: Double?, latitude: Double?, limit: String?, next_cursor: String?)
     case postDetail(postId: String)
     case createPost(category: String, title: String, content: String, latitude: Double, longitude: Double, files: [String])
     case deletePost(postId: String)
@@ -115,7 +115,7 @@ extension PostRouter: APIRouter {
 
     var queryParameters: [String: String]? {
         switch self {
-        case .geolocationPosts(let longitude, let latitude, let limit, let product_id, let next_cursor):
+        case .geolocationPosts(let longitude, let latitude, let limit, let next_cursor):
             var params: [String: String] = [:]
             if let longitude = longitude {
                 params["longitude"] = "\(longitude)"
@@ -126,9 +126,7 @@ extension PostRouter: APIRouter {
             if let limit = limit {
                 params["limit"] = limit
             }
-            if let product_id = product_id {
-                params["product_id"] = product_id
-            }
+ 
             if let next_cursor = next_cursor {
                 params["next_cursor"] = next_cursor
             }

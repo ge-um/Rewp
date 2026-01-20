@@ -9,7 +9,7 @@ import Foundation
 import RxSwift
 
 protocol PostRepository {
-    func fetchPostsByLocation(longitude: Double?, latitude: Double?, limit: String?, productId: String?, nextCursor: String?) -> Single<PostsResponse>
+    func fetchPostsByLocation(longitude: Double?, latitude: Double?, limit: String?, nextCursor: String?) -> Single<PostsResponse>
     func fetchPostDetail(postId: String) -> Single<PostDetailDTO>
     func createPost(category: String, title: String, content: String, latitude: Double, longitude: Double, files: [String]) -> Single<PostDetailDTO>
     func deletePost(postId: String) -> Single<Void>
@@ -27,13 +27,12 @@ final class PostRepositoryImpl: PostRepository {
         self.authService = authService
     }
 
-    func fetchPostsByLocation(longitude: Double?, latitude: Double?, limit: String?, productId: String?, nextCursor: String?) -> Single<PostsResponse> {
+    func fetchPostsByLocation(longitude: Double?, latitude: Double?, limit: String?, nextCursor: String?) -> Single<PostsResponse> {
         return authService.authenticatedRequest(
             PostRouter.geolocationPosts(
                 longitude: longitude,
                 latitude: latitude,
                 limit: limit,
-                product_id: productId,
                 next_cursor: nextCursor
             )
         )

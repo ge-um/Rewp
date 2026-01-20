@@ -99,7 +99,6 @@ final class CommunityPresenter {
                                 longitude: longitude,
                                 latitude: latitude,
                                 limit: "20",
-                                productId: NetworkConfig.productId,
                                 nextCursor: nil
                             )
                             .asObservable()
@@ -147,7 +146,6 @@ final class CommunityPresenter {
                                 longitude: longitude,
                                 latitude: latitude,
                                 limit: "20",
-                                productId: NetworkConfig.productId,
                                 nextCursor: owner.nextCursor
                             )
                             .asObservable()
