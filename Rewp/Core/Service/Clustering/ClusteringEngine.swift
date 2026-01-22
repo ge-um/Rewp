@@ -19,6 +19,11 @@ final class ClusteringEngine<T: ClusterPoint> {
     private var points: [T] = []
     private var clusterPointsCache: [String: [Int]] = [:]
 
+    private var builtZoomLevels: Set<Int> = []
+    private var isBuilding: [Int: Bool] = [:]
+    private let buildQueue = DispatchQueue(label: "clustering.build", qos: .userInitiated)
+    private let lock = NSLock()
+
     struct ClusterOrPoint: ClusterPoint {
         let latitude: Double
         let longitude: Double
@@ -32,7 +37,7 @@ final class ClusteringEngine<T: ClusterPoint> {
         }
     }
 
-    init(minZoom: Int = 0, maxZoom: Int = 17, radius: Int = 120, extent: Int = 256, nodeSize: Int = 64) {
+    init(minZoom: Int = 0, maxZoom: Int = 16, radius: Int = 120, extent: Int = 256, nodeSize: Int = 64) {
         self.minZoom = minZoom
         self.maxZoom = maxZoom
         self.radius = radius
@@ -40,7 +45,27 @@ final class ClusteringEngine<T: ClusterPoint> {
         self.nodeSize = nodeSize
     }
 
+    private func setTree(_ tree: KDBush<ClusterOrPoint>, for zoom: Int) {
+        lock.lock()
+        trees[zoom] = tree
+        builtZoomLevels.insert(zoom)
+        lock.unlock()
+    }
+
+    private func getTree(for zoom: Int) -> KDBush<ClusterOrPoint>? {
+        lock.lock()
+        defer { lock.unlock() }
+        return trees[zoom]
+    }
+
+    private func isZoomBuilt(_ zoom: Int) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return builtZoomLevels.contains(zoom)
+    }
+
     func load(points: [T]) {
+        let loadStart = CFAbsoluteTimeGetCurrent()
         self.points = points
 
         Logger.map.notice("=== Clustering START: \(points.count) points ===")
@@ -53,28 +78,180 @@ final class ClusteringEngine<T: ClusterPoint> {
                 originalIndex: index,
                 parentId: nil,
                 numPoints: 1,
-                zoom: maxZoom
+                zoom: maxZoom + 1
             )
         }
-        Logger.map.debug("Initial clusters created: \(clusters.count) (zoom: \(self.maxZoom))")
+        Logger.map.debug("Initial clusters created: \(clusters.count) (zoom: \(self.maxZoom + 1))")
 
-        trees[maxZoom] = KDBush(points: clusters, nodeSize: nodeSize)
-        Logger.map.notice("--- Building tree for zoom \(self.maxZoom) with \(clusters.count) clusters (no clustering) ---")
+        var treeStart = CFAbsoluteTimeGetCurrent()
+        var tree = KDBush(points: clusters, nodeSize: nodeSize)
+        setTree(tree, for: maxZoom + 1)
+        var treeTime = CFAbsoluteTimeGetCurrent() - treeStart
+        Logger.map.notice("Tree zoom \(self.maxZoom + 1): \(String(format: "%.3f", treeTime))s (\(clusters.count) points)")
 
-        buildClusterPointsCache(for: maxZoom, clusters: clusters)
-
-        for zoom in stride(from: maxZoom - 1, through: minZoom, by: -1) {
+        for zoom in stride(from: maxZoom, through: minZoom, by: -1) {
             let beforeCount = clusters.count
+
+            let clusterStart = CFAbsoluteTimeGetCurrent()
             clusters = buildClustersForZoomLevel(clusters: clusters, zoom: zoom)
-            Logger.map.notice("Clustering zoom \(zoom): \(beforeCount) → \(clusters.count) clusters (reduced by \(beforeCount - clusters.count))")
+            let clusterTime = CFAbsoluteTimeGetCurrent() - clusterStart
 
-            trees[zoom] = KDBush(points: clusters, nodeSize: nodeSize)
-            Logger.map.debug("Tree created for zoom \(zoom)")
+            treeStart = CFAbsoluteTimeGetCurrent()
+            tree = KDBush(points: clusters, nodeSize: nodeSize)
+            setTree(tree, for: zoom)
+            treeTime = CFAbsoluteTimeGetCurrent() - treeStart
 
-            buildClusterPointsCache(for: zoom, clusters: clusters)
+            Logger.map.notice("Zoom \(zoom): cluster \(String(format: "%.3f", clusterTime))s, tree \(String(format: "%.3f", treeTime))s (\(beforeCount) → \(clusters.count))")
         }
 
-        Logger.map.notice("=== Clustering COMPLETE: \(self.trees.count) zoom levels ===")
+        let totalTime = CFAbsoluteTimeGetCurrent() - loadStart
+        Logger.map.notice("=== Clustering COMPLETE: \(String(format: "%.3f", totalTime))s total, zoom \(self.maxZoom + 1) → \(self.minZoom) ===")
+    }
+
+    func loadInitial(points: [T]) {
+        let loadStart = CFAbsoluteTimeGetCurrent()
+        self.points = points
+
+        lock.lock()
+        builtZoomLevels.removeAll()
+        trees.removeAll()
+        clusterPointsCache.removeAll()
+        lock.unlock()
+
+        Logger.map.notice("=== Background Eager Clustering START: \(points.count) points ===")
+
+        let clusters: [ClusterOrPoint] = points.enumerated().map { index, point in
+            ClusterOrPoint(
+                latitude: point.latitude,
+                longitude: point.longitude,
+                originalIndex: index,
+                parentId: nil,
+                numPoints: 1,
+                zoom: maxZoom + 1
+            )
+        }
+
+        let treeStart = CFAbsoluteTimeGetCurrent()
+        let tree = KDBush(points: clusters, nodeSize: nodeSize)
+        setTree(tree, for: maxZoom + 1)
+        let treeTime = CFAbsoluteTimeGetCurrent() - treeStart
+        Logger.map.notice("Tree zoom \(self.maxZoom + 1): \(String(format: "%.3f", treeTime))s (\(clusters.count) points)")
+
+        let totalTime = CFAbsoluteTimeGetCurrent() - loadStart
+        Logger.map.notice("=== Initial tree COMPLETE: \(String(format: "%.3f", totalTime))s (zoom \(self.maxZoom + 1) only) ===")
+
+        buildRemainingTreesInBackground()
+    }
+
+    private func buildRemainingTreesInBackground() {
+        buildQueue.async { [weak self] in
+            guard let self = self else { return }
+
+            let buildStart = CFAbsoluteTimeGetCurrent()
+            Logger.map.notice("=== Background build START: zoom \(self.maxZoom) → \(self.minZoom) ===")
+
+            var currentZoom = self.maxZoom
+
+            while currentZoom >= self.minZoom {
+                guard !self.isZoomBuilt(currentZoom) else {
+                    currentZoom -= 1
+                    continue
+                }
+
+                guard let parentTree = self.getTree(for: currentZoom + 1) else {
+                    Logger.map.error("Background build: no parent tree for zoom \(currentZoom)")
+                    break
+                }
+
+                let clusterStart = CFAbsoluteTimeGetCurrent()
+                let clusters = self.buildClustersForZoomLevel(
+                    clusters: parentTree.points,
+                    zoom: currentZoom
+                )
+                let clusterTime = CFAbsoluteTimeGetCurrent() - clusterStart
+
+                let treeStart = CFAbsoluteTimeGetCurrent()
+                let tree = KDBush(points: clusters, nodeSize: self.nodeSize)
+                self.setTree(tree, for: currentZoom)
+                let treeTime = CFAbsoluteTimeGetCurrent() - treeStart
+
+                Logger.map.notice("Background zoom \(currentZoom): cluster \(String(format: "%.3f", clusterTime))s, tree \(String(format: "%.3f", treeTime))s (\(clusters.count) clusters)")
+
+                currentZoom -= 1
+            }
+
+            let totalTime = CFAbsoluteTimeGetCurrent() - buildStart
+            Logger.map.notice("=== Background build COMPLETE: \(String(format: "%.3f", totalTime))s (zoom \(self.maxZoom) → \(self.minZoom)) ===")
+        }
+    }
+
+    func buildTreeLazyIfNeeded(zoom: Int, completion: @escaping () -> Void) {
+        let clampedZoom = max(zoom, minZoom)
+
+        guard !isZoomBuilt(clampedZoom) else {
+            completion()
+            return
+        }
+
+        lock.lock()
+        guard isBuilding[clampedZoom] != true else {
+            lock.unlock()
+            return
+        }
+        isBuilding[clampedZoom] = true
+        lock.unlock()
+
+        Logger.map.notice("=== Lazy build triggered for zoom \(clampedZoom) ===")
+
+        buildQueue.async { [weak self] in
+            guard let self = self else { return }
+
+            if self.isZoomBuilt(clampedZoom) {
+                self.lock.lock()
+                self.isBuilding[clampedZoom] = false
+                self.lock.unlock()
+                DispatchQueue.main.async { completion() }
+                return
+            }
+
+            let buildStart = CFAbsoluteTimeGetCurrent()
+            var currentZoom = self.maxZoom - 1
+            var startZoom: Int?
+            var endZoom: Int?
+
+            while currentZoom >= clampedZoom {
+                if !self.isZoomBuilt(currentZoom) {
+                    guard let parentTree = self.getTree(for: currentZoom + 1) else { break }
+                    let clusters = self.buildClustersForZoomLevel(
+                        clusters: parentTree.points,
+                        zoom: currentZoom
+                    )
+                    let tree = KDBush(points: clusters, nodeSize: self.nodeSize)
+                    self.setTree(tree, for: currentZoom)
+                    Logger.map.notice("Lazy built zoom \(currentZoom): \(clusters.count) clusters")
+
+                    if startZoom == nil { startZoom = currentZoom }
+                    endZoom = currentZoom
+                }
+                currentZoom -= 1
+            }
+
+            self.lock.lock()
+            self.isBuilding[clampedZoom] = false
+            self.lock.unlock()
+
+            if let start = startZoom, let end = endZoom {
+                let buildTime = CFAbsoluteTimeGetCurrent() - buildStart
+                Logger.map.notice("=== Lazy build COMPLETE: \(String(format: "%.3f", buildTime))s (zoom \(start) → \(end)) ===")
+            }
+
+            DispatchQueue.main.async { completion() }
+        }
+    }
+
+    func isZoomReady(_ zoom: Int) -> Bool {
+        let clampedZoom = max(zoom, minZoom)
+        return isZoomBuilt(clampedZoom)
     }
 
     func getClusters(bbox: (minLon: Double, minLat: Double, maxLon: Double, maxLat: Double), zoom: Int) -> [Cluster<T>] {
@@ -84,6 +261,10 @@ final class ClusteringEngine<T: ClusterPoint> {
             Logger.map.debug("Zoom adjusted: \(zoom) → \(adjustedZoom)")
         }
 
+        return getKDTreeClusters(bbox: bbox, zoom: adjustedZoom)
+    }
+
+    private func getKDTreeClusters(bbox: (minLon: Double, minLat: Double, maxLon: Double, maxLat: Double), zoom: Int) -> [Cluster<T>] {
         let minX = longitudeToX(bbox.minLon)
         let minY = latitudeToY(bbox.maxLat)
         let maxX = longitudeToX(bbox.maxLon)
@@ -91,8 +272,8 @@ final class ClusteringEngine<T: ClusterPoint> {
         Logger.map.debug("BBox: lon[\(bbox.minLon, privacy: .public)...\(bbox.maxLon, privacy: .public)] lat[\(bbox.minLat, privacy: .public)...\(bbox.maxLat, privacy: .public)]")
         Logger.map.debug("Normalized: x[\(minX, privacy: .public)...\(maxX, privacy: .public)] y[\(minY, privacy: .public)...\(maxY, privacy: .public)]")
 
-        guard let tree = trees[adjustedZoom] else {
-            Logger.map.error("No tree found for zoom \(adjustedZoom)")
+        guard let tree = getTree(for: zoom) else {
+            Logger.map.error("No tree found for zoom \(zoom)")
             return []
         }
 
@@ -105,7 +286,7 @@ final class ClusteringEngine<T: ClusterPoint> {
             let c = tree.points[id]
             let clusterId = c.isCluster ? "cluster_\(c.zoom)_\(id)" : "single_\(c.zoom)_\(id)"
 
-            let leafIndices = clusterPointsCache[clusterId] ?? (c.originalIndex.map { [$0] } ?? [])
+            let leafIndices = getLeafIndices(for: clusterId, cluster: c, treeIndex: id)
             let childPoints = leafIndices.map { points[$0] }
 
             let cluster = Cluster(
@@ -116,52 +297,47 @@ final class ClusteringEngine<T: ClusterPoint> {
                 actualCount: c.numPoints
             )
             results.append(cluster)
-            Logger.map.debug("  [getClusters] Point[\(id)] → cluster with \(c.numPoints) points (childPoints: \(childPoints.count), cached: \(leafIndices.count))")
+            Logger.map.debug("  [getClusters] Point[\(id)] → cluster with \(c.numPoints) points (childPoints: \(childPoints.count))")
         }
 
         Logger.map.notice("Result: \(results.count) total clusters")
         return results
     }
 
-    private func buildClusterPointsCache(for zoom: Int, clusters: [ClusterOrPoint]) {
-        Logger.map.debug("Building cache for zoom \(zoom) - \(clusters.count) clusters")
-
-        for (index, cluster) in clusters.enumerated() {
-            let clusterId = "cluster_\(zoom)_\(index)"
-
-            if let originalIndex = cluster.originalIndex {
-                clusterPointsCache[clusterId] = [originalIndex]
-            } else {
-                guard let parentId = cluster.parentId,
-                      let parentTree = trees[cluster.zoom + 1] else {
-                    clusterPointsCache[clusterId] = []
-                    continue
-                }
-
-                let parent = parentTree.points[parentId]
-                let r = Double(radius) / (Double(extent) * pow(2.0, Double(cluster.zoom)))
-                let x = longitudeToX(parent.longitude)
-                let y = latitudeToY(parent.latitude)
-                let neighborIds = parentTree.within(x: x, y: y, radius: r)
-
-                var leafIndicesSet: Set<Int> = []
-                leafIndicesSet.reserveCapacity(cluster.numPoints)
-
-                for neighborId in neighborIds {
-                    let neighbor = parentTree.points[neighborId]
-                    if neighbor.zoom <= cluster.zoom { continue }
-
-                    let neighborClusterId = "cluster_\(neighbor.zoom)_\(neighborId)"
-                    if let cachedIndices = clusterPointsCache[neighborClusterId] {
-                        leafIndicesSet.formUnion(cachedIndices)
-                    }
-                }
-
-                clusterPointsCache[clusterId] = Array(leafIndicesSet)
-            }
+    private func getLeafIndices(for clusterId: String, cluster: ClusterOrPoint, treeIndex: Int) -> [Int] {
+        if let cached = clusterPointsCache[clusterId] {
+            return cached
         }
 
-        Logger.map.debug("Cache built for zoom \(zoom) - \(self.clusterPointsCache.count) entries")
+        if let originalIndex = cluster.originalIndex {
+            clusterPointsCache[clusterId] = [originalIndex]
+            return [originalIndex]
+        }
+
+        guard let parentTree = getTree(for: cluster.zoom + 1) else {
+            return []
+        }
+
+        let r = Double(radius) / (Double(extent) * pow(2.0, Double(cluster.zoom)))
+        let x = longitudeToX(cluster.longitude)
+        let y = latitudeToY(cluster.latitude)
+        let neighborIds = parentTree.within(x: x, y: y, radius: r)
+
+        var leafIndicesSet: Set<Int> = []
+        leafIndicesSet.reserveCapacity(cluster.numPoints)
+
+        for neighborId in neighborIds {
+            let neighbor = parentTree.points[neighborId]
+            if neighbor.zoom <= cluster.zoom { continue }
+
+            let neighborClusterId = "cluster_\(neighbor.zoom)_\(neighborId)"
+            let neighborLeaves = getLeafIndices(for: neighborClusterId, cluster: neighbor, treeIndex: neighborId)
+            leafIndicesSet.formUnion(neighborLeaves)
+        }
+
+        let result = Array(leafIndicesSet)
+        clusterPointsCache[clusterId] = result
+        return result
     }
 
     private func buildClustersForZoomLevel(clusters: [ClusterOrPoint], zoom: Int) -> [ClusterOrPoint] {
@@ -186,7 +362,7 @@ final class ClusteringEngine<T: ClusterPoint> {
                 continue
             }
 
-            guard let tree = trees[zoom + 1] else {
+            guard let tree = getTree(for: zoom + 1) else {
                 Logger.map.error("  [cluster] No tree for zoom \(zoom + 1)")
                 continue
             }
@@ -243,12 +419,10 @@ final class ClusteringEngine<T: ClusterPoint> {
 }
 
 private extension ClusteringEngine {
-    /// 경도를 정규화된 X 좌표로 변환 (0.0 ~ 1.0)
     func longitudeToX(_ longitude: Double) -> Double {
         return longitude / 360.0 + 0.5
     }
 
-    /// 위도를 정규화된 Y 좌표로 변환 (Web Mercator 투영)
     func latitudeToY(_ latitude: Double) -> Double {
         let sin = sin(latitude * .pi / 180)
         let y = 0.5 - 0.25 * log((1 + sin) / (1 - sin)) / .pi

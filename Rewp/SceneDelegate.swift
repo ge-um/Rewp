@@ -104,6 +104,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             return
         }
 
+        NotificationCenter.default.post(name: .appWillEnterForeground, object: nil)
+
         container.unreadCountSyncService.syncAllUnreadCounts()
             .subscribe(onCompleted: {
                 Logger.chat.notice("Unread counts synchronized on foreground")
@@ -119,9 +121,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {
-        // Called as the scene transitions from the foreground to the background.
-        // Use this method to save data, release shared resources, and store enough scene-specific state information
-        // to restore the scene back to its current state.
+        if container.socketService.activeRoomId != nil {
+            container.socketService.disconnect()
+            Logger.socket.notice("Socket disconnected on background")
+        }
     }
 
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {

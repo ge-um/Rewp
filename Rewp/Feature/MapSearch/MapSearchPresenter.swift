@@ -17,19 +17,25 @@ final class MapSearchPresenter {
     private let geocodeService: GeocodeService
     private let locationManager: LocationManager
     private let amenitySearchService: AmenitySearchService
+    private let sidoBoundaryService: SidoBoundaryService
     private let disposeBag = DisposeBag()
 
     private var isEstatesLoaded = false
     private var isLoadingInitialEstates = false
     private var pendingRegionData: (region: MKCoordinateRegion, zoom: Int)?
     private var currentFilter = EstateFilter()
+    private var loadedEstates: [EstateDTO] = []
+    private var cachedSidoCounts: [String: (sido: Sido, count: Int)] = [:]
 
-    init(estateRepository: EstateRepository, clusteringEngine: ClusteringEngine<EstateDTO>, geocodeService: GeocodeService = .shared, locationManager: LocationManager = .shared, amenitySearchService: AmenitySearchService = .shared) {
+    static let sidoModeZoomThreshold = 10
+
+    init(estateRepository: EstateRepository, clusteringEngine: ClusteringEngine<EstateDTO>, geocodeService: GeocodeService = .shared, locationManager: LocationManager = .shared, amenitySearchService: AmenitySearchService = .shared, sidoBoundaryService: SidoBoundaryService = .shared) {
         self.estateRepository = estateRepository
         self.clusteringEngine = clusteringEngine
         self.geocodeService = geocodeService
         self.locationManager = locationManager
         self.amenitySearchService = amenitySearchService
+        self.sidoBoundaryService = sidoBoundaryService
     }
     
     struct Input {
@@ -38,6 +44,7 @@ final class MapSearchPresenter {
         let searchLocationSelected: Observable<CLLocationCoordinate2D>
         let currentLocationTapped: Observable<Void>
         let annotationSelected: Observable<(annotation: MKAnnotation, zoom: Int)>
+        let sidoAnnotationSelected: Observable<SidoAnnotation>
         let estateCardTapped: Observable<String>
         let mapTapped: Observable<Void>
         let areaFilterTapped: Observable<Void>
@@ -53,6 +60,8 @@ final class MapSearchPresenter {
 
     struct Output {
         let annotations: Driver<[MKAnnotation]>
+        let sidoAnnotations: Driver<[SidoAnnotation]>
+        let showSidoMode: Driver<Bool>
         let error: Driver<String>
         let moveToLocation: Driver<MKCoordinateRegion>
         let locationTitle: Driver<String>
@@ -73,6 +82,8 @@ final class MapSearchPresenter {
     
     func transform(input: Input) -> Output {
         let annotationsRelay = PublishRelay<[MKAnnotation]>()
+        let sidoAnnotationsRelay = PublishRelay<[SidoAnnotation]>()
+        let showSidoModeRelay = PublishRelay<Bool>()
         let errorRelay = PublishRelay<String>()
         let moveToLocationRelay = PublishRelay<MKCoordinateRegion>()
         let locationTitleRelay = PublishRelay<String>()
@@ -92,38 +103,46 @@ final class MapSearchPresenter {
 
         input.viewDidLoad
             .withUnretained(self)
-            .do(onNext: { owner, _ in
-                owner.locationManager.requestWhenInUseAuthorization()
+            .do(onNext: { _, _ in
                 Logger.map.notice("MapSearch initialized - loading nationwide estates")
             })
-            .flatMapLatest { owner, _ -> Observable<[EstateDTO]> in
+            .filter { owner, _ in
                 guard !owner.isEstatesLoaded && !owner.isLoadingInitialEstates else {
                     Logger.map.debug("Estates already loaded or loading")
-                    return .empty()
+                    return false
                 }
-
+                return true
+            }
+            .do(onNext: { owner, _ in
                 owner.isLoadingInitialEstates = true
                 isLoadingInitialEstatesRelay.accept(true)
+                Logger.map.notice("Using MockData - 5000 estates with wide distribution")
+            })
+            .observe(on: ConcurrentDispatchQueueScheduler(qos: .userInitiated))
+            .map { _, _ in
+                MockDataGenerator.generateEstates(count: 5000)
+            }
+            .withUnretained(self)
+            .do(onNext: { owner, estates in
+                Logger.map.notice("Nationwide estates loaded - count: \(estates.count)")
+                owner.loadedEstates = estates
+            })
+            .observe(on: MainScheduler.instance)
+            .subscribe(
+                onNext: { owner, _ in
+                    owner.isLoadingInitialEstates = false
+                    owner.isEstatesLoaded = true
+                    isLoadingInitialEstatesRelay.accept(false)
 
-                Logger.map.notice("Fetching nationwide estates - center: (36.5, 127.5), radius: 500000m")
-
-                return owner.estateRepository
-                    .fetchEstatesByLocation(
-                        longitude: 127.5,
-                        latitude: 36.5,
-                        maxDistance: 500000,
-                        category: nil
-                    )
-                    .asObservable()
-                    .do(
-                        onNext: { estates in
-                            owner.isLoadingInitialEstates = false
-                            owner.isEstatesLoaded = true
-                            isLoadingInitialEstatesRelay.accept(false)
-
-                            Logger.map.notice("Nationwide estates loaded - count: \(estates.count)")
-                            owner.clusteringEngine.load(points: estates)
-                            Logger.map.notice("Clustering tree built successfully")
+                    Observable.just(owner.loadedEstates)
+                        .observe(on: ConcurrentDispatchQueueScheduler(qos: .userInitiated))
+                        .map { estates in
+                            owner.clusteringEngine.loadInitial(points: estates)
+                            return ()
+                        }
+                        .observe(on: MainScheduler.instance)
+                        .subscribe(onNext: { _ in
+                            Logger.map.notice("Initial clustering tree built (zoom 16-17 only)")
 
                             if let regionData = owner.pendingRegionData {
                                 let region = regionData.region
@@ -135,26 +154,29 @@ final class MapSearchPresenter {
                                     maxLat: region.center.latitude + region.span.latitudeDelta / 2
                                 )
 
-                                let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
-                                let annotations: [MKAnnotation] = clusters.map { cluster in
-                                    EstateClusterAnnotation(cluster: cluster)
+                                if owner.clusteringEngine.isZoomReady(zoom) {
+                                    let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+                                    let annotations: [MKAnnotation] = clusters.map { EstateClusterAnnotation(cluster: $0) }
+                                    annotationsRelay.accept(annotations)
+                                    Logger.map.notice("Initial clustering complete - found \(annotations.count) annotations")
+                                } else {
+                                    owner.clusteringEngine.buildTreeLazyIfNeeded(zoom: zoom) {
+                                        let clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+                                        let annotations: [MKAnnotation] = clusters.map { EstateClusterAnnotation(cluster: $0) }
+                                        annotationsRelay.accept(annotations)
+                                        Logger.map.notice("Initial lazy clustering complete - found \(annotations.count) annotations")
+                                    }
                                 }
-                                annotationsRelay.accept(annotations)
-                                Logger.map.notice("Initial clustering complete - found \(annotations.count) annotations")
                             }
-                        },
-                        onError: { error in
-                            owner.isLoadingInitialEstates = false
-                            isLoadingInitialEstatesRelay.accept(false)
-                            Logger.map.error("Failed to load nationwide estates - \(error.localizedDescription)")
-                        }
-                    )
-                    .catch { error in
-                        errorRelay.accept("전국 매물 정보를 불러올 수 없습니다")
-                        return .empty()
-                    }
-            }
-            .subscribe()
+                        })
+                        .disposed(by: owner.disposeBag)
+                },
+                onError: { error in
+                    isLoadingInitialEstatesRelay.accept(false)
+                    Logger.map.error("Failed to load nationwide estates - \(error.localizedDescription)")
+                    errorRelay.accept("전국 매물 정보를 불러올 수 없습니다")
+                }
+            )
             .disposed(by: disposeBag)
 
         input.viewDidLoad
@@ -216,6 +238,43 @@ final class MapSearchPresenter {
 
                 let region = regionData.region
                 let zoom = regionData.zoom
+                let isSidoMode = zoom <= Self.sidoModeZoomThreshold
+                showSidoModeRelay.accept(isSidoMode)
+
+                Logger.map.notice("맵 이동 - zoom: \(zoom, privacy: .public), sidoMode: \(isSidoMode, privacy: .public), center: (\(region.center.latitude, privacy: .public), \(region.center.longitude, privacy: .public))")
+
+                if isSidoMode {
+                    if owner.cachedSidoCounts.isEmpty {
+                        owner.cachedSidoCounts = owner.sidoBoundaryService.countEstates(estates: owner.loadedEstates)
+                    }
+
+                    let sidoAnnotations = owner.cachedSidoCounts.values
+                        .filter { $0.count > 0 }
+                        .map { SidoAnnotation(sido: $0.sido, estateCount: $0.count) }
+
+                    sidoAnnotationsRelay.accept(sidoAnnotations)
+                    annotationsRelay.accept([])
+
+                    owner.geocodeService.reverseGeocodeForLocationTitle(
+                        latitude: region.center.latitude,
+                        longitude: region.center.longitude
+                    )
+                    .asObservable()
+                    .observe(on: MainScheduler.instance)
+                    .subscribe(
+                        onNext: { locationTitle in
+                            locationTitleRelay.accept(locationTitle)
+                        },
+                        onError: { _ in
+                            locationTitleRelay.accept("위치 확인 중...")
+                        }
+                    )
+                    .disposed(by: owner.disposeBag)
+                    return
+                }
+
+                sidoAnnotationsRelay.accept([])
+
                 let bbox = (
                     minLon: region.center.longitude - region.span.longitudeDelta / 2,
                     minLat: region.center.latitude - region.span.latitudeDelta / 2,
@@ -223,7 +282,33 @@ final class MapSearchPresenter {
                     maxLat: region.center.latitude + region.span.latitudeDelta / 2
                 )
 
-                Logger.map.notice("맵 이동 - zoom: \(zoom, privacy: .public), center: (\(region.center.latitude, privacy: .public), \(region.center.longitude, privacy: .public))")
+                if !owner.clusteringEngine.isZoomReady(zoom) {
+                    Logger.map.notice("Zoom \(zoom) not ready - triggering lazy build")
+                    owner.clusteringEngine.buildTreeLazyIfNeeded(zoom: zoom) {
+                        var clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
+
+                        if owner.currentFilter.isActive {
+                            clusters = clusters.compactMap { cluster -> Cluster<EstateDTO>? in
+                                let filteredPoints = cluster.points.filter { owner.currentFilter.matches($0) }
+                                guard !filteredPoints.isEmpty else { return nil }
+                                return Cluster(
+                                    id: cluster.id,
+                                    latitude: cluster.latitude,
+                                    longitude: cluster.longitude,
+                                    points: filteredPoints,
+                                    actualCount: filteredPoints.count,
+                                    amenityInfo: cluster.amenityInfo
+                                )
+                            }
+                        }
+
+                        let annotations: [MKAnnotation] = clusters.map { EstateClusterAnnotation(cluster: $0) }
+                        annotationsRelay.accept(annotations)
+                        Logger.map.notice("Lazy build complete - found \(annotations.count) annotations")
+                    }
+                    return
+                }
+
                 Logger.map.debug("Fast clustering query - zoom: \(zoom, privacy: .public) (NO network, NO tree rebuild)")
 
                 var clusters = owner.clusteringEngine.getClusters(bbox: bbox, zoom: zoom)
@@ -693,8 +778,25 @@ final class MapSearchPresenter {
             })
             .disposed(by: disposeBag)
 
+        input.sidoAnnotationSelected
+            .map { sidoAnnotation in
+                let targetZoom = Self.sidoModeZoomThreshold + 2
+                let newSpan = MKCoordinateSpan(
+                    latitudeDelta: 360.0 / pow(2.0, Double(targetZoom)),
+                    longitudeDelta: 360.0 / pow(2.0, Double(targetZoom))
+                )
+                return MKCoordinateRegion(
+                    center: sidoAnnotation.sido.center,
+                    span: newSpan
+                )
+            }
+            .bind(to: zoomToClusterRelay)
+            .disposed(by: disposeBag)
+
         return Output(
             annotations: annotationsRelay.asDriver(onErrorDriveWith: .empty()),
+            sidoAnnotations: sidoAnnotationsRelay.asDriver(onErrorDriveWith: .empty()),
+            showSidoMode: showSidoModeRelay.asDriver(onErrorJustReturn: false),
             error: errorRelay.asDriver(onErrorJustReturn: ""),
             moveToLocation: moveToLocationRelay.asDriver(onErrorDriveWith: .empty()),
             locationTitle: locationTitleRelay.asDriver(onErrorJustReturn: "위치 확인 중..."),

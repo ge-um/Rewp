@@ -11,6 +11,7 @@ extension Notification.Name {
     static let chatMessageReceived = Notification.Name("chatMessageReceived")
     static let currentChatRoomChanged = Notification.Name("currentChatRoomChanged")
     static let chatListNeedsRefresh = Notification.Name("chatListNeedsRefresh")
+    static let appWillEnterForeground = Notification.Name("appWillEnterForeground")
 }
 
 struct ChatMessageReceivedInfo {

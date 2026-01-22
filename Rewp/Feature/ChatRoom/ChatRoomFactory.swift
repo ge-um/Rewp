@@ -14,7 +14,8 @@ final class ChatRoomFactory {
             roomTitle: roomTitle,
             socketService: container.socketService,
             chatRepository: container.chatRepository,
-            authService: container.authService
+            authService: container.authService,
+            networkMonitor: container.networkMonitor
         )
         let viewController = ChatRoomViewController()
 

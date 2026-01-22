@@ -20,22 +20,7 @@ final class TokenAuthenticator: Authenticator {
     func apply(_ credential: TokenCredential, to urlRequest: inout URLRequest) {
         urlRequest.headers.add(.authorization(credential.accessToken))
     }
-
-    func didRequest(
-        _ urlRequest: URLRequest,
-        with response: HTTPURLResponse,
-        failDueToAuthenticationError error: Error
-    ) -> Bool {
-        return response.statusCode == 419 || response.statusCode == 401
-    }
-
-    func isRequest(
-        _ urlRequest: URLRequest,
-        authenticatedWith credential: TokenCredential
-    ) -> Bool {
-        return urlRequest.headers["Authorization"] == credential.accessToken
-    }
-
+    
     func refresh(
         _ credential: TokenCredential,
         for session: Session,
@@ -54,14 +39,10 @@ final class TokenAuthenticator: Authenticator {
 
                 switch response.result {
                 case .success(let refreshResponse):
-                    guard let newCredential = TokenCredential.from(
+                    let newCredential = TokenCredential(
                         accessToken: refreshResponse.accessToken,
                         refreshToken: refreshResponse.refreshToken
-                    ) else {
-                        Logger.auth.error("Invalid token format in refresh response")
-                        completion(.failure(AuthError.invalidToken))
-                        return
-                    }
+                    )
 
                     try? self.keychainManager.saveAccessToken(refreshResponse.accessToken)
                     try? self.keychainManager.saveRefreshToken(refreshResponse.refreshToken)
@@ -78,4 +59,20 @@ final class TokenAuthenticator: Authenticator {
                 }
             }
     }
+
+    func didRequest(
+        _ urlRequest: URLRequest,
+        with response: HTTPURLResponse,
+        failDueToAuthenticationError error: Error
+    ) -> Bool {
+        return response.statusCode == 419 || response.statusCode == 401
+    }
+
+    func isRequest(
+        _ urlRequest: URLRequest,
+        authenticatedWith credential: TokenCredential
+    ) -> Bool {
+        return urlRequest.headers["Authorization"] == credential.accessToken
+    }
 }
+ 

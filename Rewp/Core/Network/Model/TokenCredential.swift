@@ -7,28 +7,17 @@
 
 import Foundation
 import Alamofire
-import OSLog
 
 struct TokenCredential: AuthenticationCredential {
     let accessToken: String
     let refreshToken: String
-    let expiration: Date
 
     var requiresRefresh: Bool {
-        let fiveMinutesBeforeExpiration = expiration.addingTimeInterval(-300)
-        return Date() > fiveMinutesBeforeExpiration
+        return false
     }
 
-    static func from(accessToken: String, refreshToken: String) -> TokenCredential? {
-        guard let expiration = JWTDecoder.extractExpiration(from: accessToken) else {
-            Logger.token.error("Failed to extract expiration from token")
-            return nil
-        }
-
-        return TokenCredential(
-            accessToken: accessToken,
-            refreshToken: refreshToken,
-            expiration: expiration
-        )
+    init(accessToken: String, refreshToken: String) {
+        self.accessToken = accessToken
+        self.refreshToken = refreshToken
     }
 }
