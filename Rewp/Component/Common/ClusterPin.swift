@@ -11,7 +11,7 @@ import Then
 
 final class ClusterPin: UIView {
     private let circleContainer = UIView().then {
-        $0.backgroundColor = ColorSystem.deepCream
+        $0.backgroundColor = ColorSystem.deepCream.withAlphaComponent(0.8)
     }
 
     private let countLabel = UILabel().then {
@@ -29,7 +29,7 @@ final class ClusterPin: UIView {
 
     var count: Int = 0 {
         didSet {
-            countLabel.typography(FontSystem.Pretendard.body2, text: "\(count)")
+            countLabel.typography(FontSystem.Pretendard.title1Bold, text: "\(count)")
         }
     }
 
@@ -180,12 +180,17 @@ final class ClusterPin: UIView {
     private var circleSize: CGFloat {
         let digitCount = "\(count)".count
         switch digitCount {
-        case 1, 2:
-            return 52
+        case 1:
+            return 36
+        case 2:
+            return 56
+        case 3:
+            return 76
         default:
-            return 80
+            return 100
         }
     }
+
 
     private func calculateAmenityWidth() -> CGFloat {
         guard let amenityInfo = amenityInfo, !amenityInfo.isEmpty else {
