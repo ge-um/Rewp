@@ -10,6 +10,13 @@ import PinLayout
 import Then
 
 final class ClusterPin: UIView {
+    private let clusterShadow = Shadow(
+        color: UIColor(red: 82/255, green: 81/255, blue: 86/255, alpha: 1),
+        opacity: 0.2,
+        offset: CGSize(width: 0, height: 4),
+        radius: 6
+    )
+
     private let circleContainer = UIView().then {
         $0.backgroundColor = ColorSystem.deepCream.withAlphaComponent(0.8)
     }
@@ -129,6 +136,7 @@ final class ClusterPin: UIView {
             .size(circleDiameter)
 
         circleContainer.layer.cornerRadius = circleDiameter / 2
+        circleContainer.layer.applyShadow(clusterShadow)
 
         countLabel.pin
             .center()
@@ -154,6 +162,8 @@ final class ClusterPin: UIView {
                 .left(centerX - amenityWidth / 2)
                 .width(amenityWidth)
                 .height(amenityHeight)
+
+            amenityContainer.layer.applyShadow(clusterShadow)
 
             var currentX: CGFloat = 8
             for itemView in visibleViews {
