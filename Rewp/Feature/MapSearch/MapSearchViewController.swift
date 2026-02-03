@@ -508,20 +508,20 @@ final class MapSearchViewController: UIViewController {
 
         areaFilterButton.pin
             .left()
-            .width(78)
             .height(32)
+            .sizeToFit(.height)
 
         depositFilterButton.pin
             .after(of: areaFilterButton)
             .marginLeft(8)
-            .width(78)
             .height(32)
+            .sizeToFit(.height)
 
         rentFilterButton.pin
             .after(of: depositFilterButton)
             .marginLeft(8)
-            .width(78)
             .height(32)
+            .sizeToFit(.height)
 
         filterButtonContainer.pin
             .wrapContent()
