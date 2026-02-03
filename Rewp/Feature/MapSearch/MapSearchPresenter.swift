@@ -517,6 +517,9 @@ final class MapSearchPresenter {
                 if let regionData = owner.pendingRegionData {
                     let region = regionData.region
                     let zoom = regionData.zoom
+
+                    guard zoom > Self.sidoModeZoomThreshold else { return }
+
                     let bbox = (
                         minLon: region.center.longitude - region.span.longitudeDelta / 2,
                         minLat: region.center.latitude - region.span.latitudeDelta / 2,
@@ -556,6 +559,9 @@ final class MapSearchPresenter {
                 if let regionData = owner.pendingRegionData {
                     let region = regionData.region
                     let zoom = regionData.zoom
+
+                    guard zoom > Self.sidoModeZoomThreshold else { return }
+
                     let bbox = (
                         minLon: region.center.longitude - region.span.longitudeDelta / 2,
                         minLat: region.center.latitude - region.span.latitudeDelta / 2,
@@ -609,6 +615,9 @@ final class MapSearchPresenter {
                 if let regionData = owner.pendingRegionData {
                     let region = regionData.region
                     let zoom = regionData.zoom
+
+                    guard zoom > Self.sidoModeZoomThreshold else { return }
+
                     let bbox = (
                         minLon: region.center.longitude - region.span.longitudeDelta / 2,
                         minLat: region.center.latitude - region.span.latitudeDelta / 2,
@@ -651,6 +660,9 @@ final class MapSearchPresenter {
                 if let regionData = owner.pendingRegionData {
                     let region = regionData.region
                     let zoom = regionData.zoom
+
+                    guard zoom > Self.sidoModeZoomThreshold else { return }
+
                     let bbox = (
                         minLon: region.center.longitude - region.span.longitudeDelta / 2,
                         minLat: region.center.latitude - region.span.latitudeDelta / 2,
@@ -703,6 +715,9 @@ final class MapSearchPresenter {
                 if let regionData = owner.pendingRegionData {
                     let region = regionData.region
                     let zoom = regionData.zoom
+
+                    guard zoom > Self.sidoModeZoomThreshold else { return }
+
                     let bbox = (
                         minLon: region.center.longitude - region.span.longitudeDelta / 2,
                         minLat: region.center.latitude - region.span.latitudeDelta / 2,
@@ -742,6 +757,9 @@ final class MapSearchPresenter {
                 if let regionData = owner.pendingRegionData {
                     let region = regionData.region
                     let zoom = regionData.zoom
+
+                    guard zoom > Self.sidoModeZoomThreshold else { return }
+
                     let bbox = (
                         minLon: region.center.longitude - region.span.longitudeDelta / 2,
                         minLat: region.center.latitude - region.span.latitudeDelta / 2,
