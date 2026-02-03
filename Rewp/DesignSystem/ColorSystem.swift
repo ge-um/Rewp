@@ -8,7 +8,7 @@
 import UIKit
 
 enum ColorSystem {
-    static let deepCream = UIColor(hex: "#DAC8B1")
+    static let deepCream = UIColor(hex: "#567DF3")
     static let brightCream = UIColor(hex: "#F1DCC1")
     static let deepCoast = UIColor(hex: "#298E9C")
     static let brightCoast = UIColor(hex: "#71C9D6")
