@@ -104,7 +104,7 @@ final class MapSearchPresenter {
         input.viewDidLoad
             .withUnretained(self)
             .do(onNext: { _, _ in
-                Logger.map.notice("MapSearch initialized - loading nationwide estates")
+                Logger.map.notice("MapSearch initialized - loading nationwide estates from server")
             })
             .filter { owner, _ in
                 guard !owner.isEstatesLoaded && !owner.isLoadingInitialEstates else {
@@ -116,15 +116,24 @@ final class MapSearchPresenter {
             .do(onNext: { owner, _ in
                 owner.isLoadingInitialEstates = true
                 isLoadingInitialEstatesRelay.accept(true)
-                Logger.map.notice("Using MockData - 5000 estates with wide distribution")
+                Logger.map.notice("Fetching estates from server API")
             })
-            .observe(on: ConcurrentDispatchQueueScheduler(qos: .userInitiated))
-            .map { _, _ in
-                MockDataGenerator.generateEstates(count: 5000)
+            .flatMap { owner, _ in
+                owner.estateRepository.fetchEstatesByLocation(
+                    longitude: 127.8,
+                    latitude: 36.5,
+                    maxDistance: 500000,
+                    category: nil
+                )
+                .asObservable()
+                .catch { error in
+                    Logger.map.error("Server API failed: \(error.localizedDescription)")
+                    return .just([])
+                }
             }
             .withUnretained(self)
             .do(onNext: { owner, estates in
-                Logger.map.notice("Nationwide estates loaded - count: \(estates.count)")
+                Logger.map.notice("Nationwide estates loaded from server - count: \(estates.count)")
                 owner.loadedEstates = estates
             })
             .observe(on: MainScheduler.instance)
@@ -181,28 +190,17 @@ final class MapSearchPresenter {
 
         input.viewDidLoad
             .take(1)
-            .withUnretained(self)
-            .flatMap { owner, _ in
-                owner.geocodeService.reverseGeocodeForLocationTitle(
-                    latitude: LocationManager.defaultCoordinate.latitude,
-                    longitude: LocationManager.defaultCoordinate.longitude
-                )
-                .asObservable()
-                .catch { error in
-                    Logger.location.error("Initial geocode failed, using default address")
-                    return .just(LocationManager.defaultAddress)
-                }
-            }
+            .map { _ in "대한민국" }
             .bind(to: locationTitleRelay)
             .disposed(by: disposeBag)
 
-        locationManager.currentLocation
-            .take(1)
-            .map { location in
-                Logger.location.notice("Moving to current location - latitude: \(location.coordinate.latitude, privacy: .public), longitude: \(location.coordinate.longitude, privacy: .public)")
+        Observable.just(())
+            .map { _ in
+                let koreaCenter = CLLocationCoordinate2D(latitude: 36.5, longitude: 127.8)
+                Logger.location.notice("Setting initial region to Korea center - latitude: \(koreaCenter.latitude, privacy: .public), longitude: \(koreaCenter.longitude, privacy: .public)")
                 return MKCoordinateRegion(
-                    center: location.coordinate,
-                    span: MKCoordinateSpan(latitudeDelta: 0.0055, longitudeDelta: 0.0055)
+                    center: koreaCenter,
+                    span: MKCoordinateSpan(latitudeDelta: 8.0, longitudeDelta: 6.0)
                 )
             }
             .bind(to: initialRegionRelay)
