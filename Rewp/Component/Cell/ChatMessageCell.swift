@@ -18,9 +18,13 @@ final class ChatMessageCell: UITableViewCell, IsIdentifiable {
     }
 
     private let bubbleView = UIView().then {
-        $0.backgroundColor = ColorSystem.brightCoast
+        $0.backgroundColor = ColorSystem.deepCream
         $0.layer.cornerRadius = 16
         $0.layer.maskedCorners = [.layerMinXMinYCorner, .layerMinXMaxYCorner, .layerMaxXMaxYCorner]
+        $0.layer.shadowColor = UIColor(hex: "#525156").cgColor
+        $0.layer.shadowOffset = CGSize(width: 0, height: 4)
+        $0.layer.shadowRadius = 12
+        $0.layer.shadowOpacity = 0.1
     }
 
     private let messageLabel = UILabel().then {
