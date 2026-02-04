@@ -85,6 +85,6 @@ final class CategoryCardSmall: UIView {
         iconImageView.pin
             .right(12)
             .bottom(12)
-            .size(36)
+            .size(40)
     }
 }

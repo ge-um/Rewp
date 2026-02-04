@@ -14,8 +14,12 @@ final class NewsAdItem: UIView {
     private let payloadValue: String?
 
     private let containerView = UIView().then {
-        $0.backgroundColor = ColorSystem.gray15
+        $0.backgroundColor = ColorSystem.gray0
         $0.layer.cornerRadius = 12
+        $0.layer.shadowColor = UIColor.black.cgColor
+        $0.layer.shadowOpacity = 0.06
+        $0.layer.shadowOffset = CGSize(width: 0, height: 2)
+        $0.layer.shadowRadius = 8
     }
 
     private let textContainerView = UIView()

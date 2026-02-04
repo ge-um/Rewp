@@ -54,6 +54,13 @@ class FeedViewController: UIViewController {
         icon: UIImage(named: "Storefront")
     )
 
+    private let attendanceBannerContainer = UIView().then {
+        $0.backgroundColor = .clear
+        $0.isHidden = true
+    }
+
+    private var attendanceBannerView: NewsAdItem?
+
     private let recentSearchTitleLabel = SectionTitleLabel(title: "최근검색 매물")
 
     private let recentSearchScrollView = UIScrollView().then {
@@ -89,7 +96,6 @@ class FeedViewController: UIViewController {
     private let hotEstateTapRelay = PublishRelay<String>()
     private let newsAdTapRelay = PublishRelay<(String, String)>()
     private let recentlyViewedEstateTappedRelay = PublishRelay<String>()
-    private var currentNewsAds: [BannerAdItem] = []
     private let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
@@ -114,6 +120,7 @@ class FeedViewController: UIViewController {
 
         contentView.addSubview(searchBar)
         contentView.addSubview(categoryGridView)
+        contentView.addSubview(attendanceBannerContainer)
         contentView.addSubview(recentSearchTitleLabel)
         contentView.addSubview(recentSearchScrollView)
         contentView.addSubview(hotTitleLabel)
@@ -207,7 +214,7 @@ class FeedViewController: UIViewController {
 
         output.newsAds
             .drive(with: self) { owner, newsAds in
-                owner.currentNewsAds = newsAds
+                owner.updateAttendanceBanner(newsAds: newsAds)
             }
             .disposed(by: disposeBag)
 
@@ -314,28 +321,46 @@ class FeedViewController: UIViewController {
             .width(smallCardWidth)
             .height(90)
 
-        recentSearchTitleLabel.pin
-            .below(of: categoryGridView)
-            .marginTop(16)
-            .horizontally(20)
-            .height(32)
+        if !attendanceBannerContainer.isHidden, let bannerView = attendanceBannerView {
+            attendanceBannerContainer.pin
+                .below(of: categoryGridView)
+                .marginTop(16)
+                .horizontally()
+                .height(96)
+
+            bannerView.pin
+                .vertically()
+                .horizontally(horizontalPadding)
+
+            recentSearchTitleLabel.pin
+                .below(of: attendanceBannerContainer)
+                .marginTop(16)
+                .horizontally(20)
+                .height(32)
+        } else {
+            recentSearchTitleLabel.pin
+                .below(of: categoryGridView)
+                .marginTop(16)
+                .horizontally(20)
+                .height(32)
+        }
 
         recentSearchScrollView.pin
             .below(of: recentSearchTitleLabel)
             .horizontally(20)
-            .height(104)
+            .height(96)
 
         recentSearchContainerView.pin
             .top()
             .left()
-            .height(104)
+            .height(96)
 
         recentSearchContainerView.flex.layout(mode: .adjustWidth)
         recentSearchScrollView.contentSize = recentSearchContainerView.frame.size
 
         hotTitleLabel.pin
             .below(of: recentSearchScrollView)
-            .marginTop(16)
+            .marginTop(4)
             .horizontally(20)
             .height(32)
 
@@ -401,33 +426,11 @@ class FeedViewController: UIViewController {
     }
 
     private func mixTopicsWithAds(topics: [TopicItem], newsAds: [BannerAdItem]) -> [UIView] {
-        let adPositions = [1]
-
         var result: [UIView] = []
 
         for (index, topic) in topics.enumerated() {
             let hashtagItem = createTappableNewsItem(from: topic)
             result.append(hashtagItem)
-
-            if let adIndex = adPositions.firstIndex(of: index),
-               adIndex < newsAds.count {
-                result.append(ItemDivider())
-
-                let bannerAd = newsAds[adIndex]
-                let adData = bannerAd.toNewsAdItem()
-                let newsAdItem = NewsAdItem(
-                    title: adData.title,
-                    description: adData.description,
-                    payloadType: adData.payloadType,
-                    payloadValue: adData.payloadValue
-                )
-
-                newsAdItem.onTap = { [weak self] in
-                    self?.newsAdTapRelay.accept((bannerAd.payloadType, bannerAd.payloadValue))
-                }
-
-                result.append(newsAdItem)
-            }
 
             if index < topics.count - 1 {
                 result.append(ItemDivider())
@@ -491,5 +494,33 @@ class FeedViewController: UIViewController {
     private func openAttendanceWebView(urlPath: String) {
         let webVC = container.makeAttendanceWebViewController(urlPath: urlPath)
         navigationController?.pushViewController(webVC, animated: true)
+    }
+
+    private func updateAttendanceBanner(newsAds: [BannerAdItem]) {
+        attendanceBannerView?.removeFromSuperview()
+        attendanceBannerView = nil
+
+        guard let bannerAd = newsAds.first else {
+            attendanceBannerContainer.isHidden = true
+            view.setNeedsLayout()
+            return
+        }
+
+        let adData = bannerAd.toNewsAdItem()
+        let bannerView = NewsAdItem(
+            title: adData.title,
+            description: adData.description,
+            payloadType: adData.payloadType,
+            payloadValue: adData.payloadValue
+        )
+
+        bannerView.onTap = { [weak self] in
+            self?.newsAdTapRelay.accept((bannerAd.payloadType, bannerAd.payloadValue))
+        }
+
+        attendanceBannerContainer.addSubview(bannerView)
+        attendanceBannerContainer.isHidden = false
+        attendanceBannerView = bannerView
+        view.setNeedsLayout()
     }
 }

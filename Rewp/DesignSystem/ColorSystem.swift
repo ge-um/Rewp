@@ -21,7 +21,7 @@ enum ColorSystem {
     static let gray0 = UIColor(hex: "#FFFFFF")
     static let gray15 = UIColor(hex: "#F9F9F9")
     static let gray30 = UIColor(hex: "#EAEAEA")
-    static let gray45 = UIColor(hex: "#D8D6D7")
+    static let gray45 = UIColor(hex: "#D6D7D8")
     static let gray60 = UIColor(hex: "#ABABAE")
     static let gray75 = UIColor(hex: "#6A6A6E")
     static let gray90 = UIColor(hex: "#434347")
