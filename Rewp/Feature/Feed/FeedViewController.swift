@@ -26,21 +26,33 @@ class FeedViewController: UIViewController {
     private let contentView = UIView()
 
     private let searchBar = SearchBar()
-    private let bannerCarousel = BannerCarousel()
 
-    private let categoryScrollView = UIScrollView().then {
-        $0.showsHorizontalScrollIndicator = false
-    }
+    private let categoryGridView = UIView()
 
-    private let categoryContainerView = UIView()
+    private lazy var oneRoomCard = CategoryCardLarge(
+        title: "원/투룸",
+        icon: UIImage(named: "OneRoom")
+    )
 
-    private lazy var categoryButtons: [CategoryButton] = [
-        CategoryButton(icon: UIImage(named: "OneRoom"), title: "원룸"),
-        CategoryButton(icon: UIImage(named: "Officetel"), title: "오피스텔"),
-        CategoryButton(icon: UIImage(named: "Apartment"), title: "아파트"),
-        CategoryButton(icon: UIImage(named: "Villa"), title: "빌라"),
-        CategoryButton(icon: UIImage(named: "Storefront"), title: "상가")
-    ]
+    private lazy var apartmentCard = CategoryCardLarge(
+        title: "아파트",
+        icon: UIImage(named: "Apartment")
+    )
+
+    private lazy var villaCard = CategoryCardSmall(
+        title: "주택/빌라",
+        icon: UIImage(named: "Villa")
+    )
+
+    private lazy var officetelCard = CategoryCardSmall(
+        title: "오피스텔",
+        icon: UIImage(named: "Officetel")
+    )
+
+    private lazy var newConstructionCard = CategoryCardSmall(
+        title: "상가",
+        icon: UIImage(named: "Storefront")
+    )
 
     private let recentSearchTitleLabel = SectionTitleLabel(title: "최근검색 매물")
 
@@ -100,9 +112,8 @@ class FeedViewController: UIViewController {
 
         scrollView.addSubview(contentView)
 
-        contentView.addSubview(bannerCarousel)
         contentView.addSubview(searchBar)
-        contentView.addSubview(categoryScrollView)
+        contentView.addSubview(categoryGridView)
         contentView.addSubview(recentSearchTitleLabel)
         contentView.addSubview(recentSearchScrollView)
         contentView.addSubview(hotTitleLabel)
@@ -116,18 +127,11 @@ class FeedViewController: UIViewController {
             self.navigationController?.pushViewController(mapSearchVC, animated: true)
         }
 
-        categoryScrollView.addSubview(categoryContainerView)
-        categoryContainerView.flex
-            .direction(.row)
-            .alignItems(.center)
-            .define { flex in
-                categoryButtons.forEach { button in
-                    flex.addItem(button)
-                        .width(56)
-                        .height(76)
-                        .marginRight(17.5)
-                }
-            }
+        categoryGridView.addSubview(oneRoomCard)
+        categoryGridView.addSubview(apartmentCard)
+        categoryGridView.addSubview(villaCard)
+        categoryGridView.addSubview(officetelCard)
+        categoryGridView.addSubview(newConstructionCard)
 
         recentSearchScrollView.addSubview(recentSearchContainerView)
         recentSearchContainerView.flex
@@ -158,10 +162,6 @@ class FeedViewController: UIViewController {
     }
 
     private func bind() {
-        bannerCarousel.onBannerTapped = { [weak self] estateId in
-            self?.bannerTapRelay.accept(estateId)
-        }
-
         let input = FeedPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
             viewWillAppear: viewWillAppearTrigger.asObservable(),
@@ -173,12 +173,6 @@ class FeedViewController: UIViewController {
         )
 
         let output = presenter.transform(input: input)
-
-        output.banners
-            .drive(with: self) { owner, banners in
-                owner.bannerCarousel.configure(with: banners)
-            }
-            .disposed(by: disposeBag)
 
         output.hotEstates
             .drive(with: self) { owner, hotEstates in
@@ -266,33 +260,62 @@ class FeedViewController: UIViewController {
             .top()
             .horizontally()
 
-        bannerCarousel.pin
-            .top()
-            .left()
-            .right()
-            .height(335)
-
         searchBar.pin
             .top(view.pin.safeArea.top + 16)
             .hCenter()
             .width(350)
             .height(40)
 
-        categoryScrollView.pin
-            .below(of: bannerCarousel)
-            .horizontally(20)
-            .height(116)
+        let cardSpacing: CGFloat = 8
+        let horizontalPadding: CGFloat = 20
+        let availableWidth = view.bounds.width - (horizontalPadding * 2)
+        let largeCardWidth = (availableWidth - cardSpacing) / 2
+        let smallCardWidth = (availableWidth - cardSpacing * 2) / 3
 
-        categoryContainerView.pin
+        categoryGridView.pin
+            .below(of: searchBar)
+            .marginTop(20)
+            .horizontally(horizontalPadding)
+            .height(210)
+
+        oneRoomCard.pin
             .top()
             .left()
-            .height(116)
+            .width(largeCardWidth)
+            .height(110)
 
-        categoryContainerView.flex.layout(mode: .adjustWidth)
-        categoryScrollView.contentSize = categoryContainerView.frame.size
+        apartmentCard.pin
+            .top()
+            .after(of: oneRoomCard)
+            .marginLeft(cardSpacing)
+            .width(largeCardWidth)
+            .height(110)
+
+        villaCard.pin
+            .below(of: oneRoomCard)
+            .marginTop(cardSpacing)
+            .left()
+            .width(smallCardWidth)
+            .height(90)
+
+        officetelCard.pin
+            .below(of: oneRoomCard)
+            .marginTop(cardSpacing)
+            .after(of: villaCard)
+            .marginLeft(cardSpacing)
+            .width(smallCardWidth)
+            .height(90)
+
+        newConstructionCard.pin
+            .below(of: apartmentCard)
+            .marginTop(cardSpacing)
+            .after(of: officetelCard)
+            .marginLeft(cardSpacing)
+            .width(smallCardWidth)
+            .height(90)
 
         recentSearchTitleLabel.pin
-            .below(of: categoryScrollView)
+            .below(of: categoryGridView)
             .marginTop(16)
             .horizontally(20)
             .height(32)
