@@ -30,7 +30,7 @@ final class SettingsViewController: UIViewController {
     private let logoutButton = UIButton().then {
         $0.setTitle("로그아웃", for: .normal)
         $0.setTitleColor(ColorSystem.gray0, for: .normal)
-        $0.backgroundColor = ColorSystem.deepCoast
+        $0.backgroundColor = ColorSystem.deepCream
         $0.layer.cornerRadius = 8
         $0.titleLabel?.font = FontSystem.Pretendard.body2.font
     }

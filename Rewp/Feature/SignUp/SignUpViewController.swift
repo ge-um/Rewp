@@ -253,7 +253,7 @@ final class SignUpViewController: UIViewController {
         output.isSignUpButtonEnabled
             .drive(with: self) { owner, isEnabled in
                 owner.signUpButton.isEnabled = isEnabled
-                owner.signUpButton.backgroundColor = isEnabled ? ColorSystem.deepCoast : ColorSystem.gray45
+                owner.signUpButton.backgroundColor = isEnabled ? ColorSystem.deepCream : ColorSystem.gray45
             }
             .disposed(by: disposeBag)
     }
