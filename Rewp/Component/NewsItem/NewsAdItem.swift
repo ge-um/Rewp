@@ -30,7 +30,7 @@ final class NewsAdItem: UIView {
 
     private let calendarImageView = UIImageView().then {
         $0.contentMode = .scaleAspectFit
-        $0.image = UIImage(named: "Calendar")
+        $0.image = UIImage(named: "calendar")
     }
 
     var onTap: (() -> Void)?
@@ -75,24 +75,26 @@ final class NewsAdItem: UIView {
             .vCenter()
             .size(80)
 
+        textContainerView.pin
+            .left(20)
+            .before(of: calendarImageView)
+            .marginRight(12)
+            .vCenter()
+
         titleLabel.pin
             .top()
-            .left()
-            .right()
+            .horizontally()
             .sizeToFit(.width)
 
         descriptionLabel.pin
             .below(of: titleLabel)
-            .left()
-            .right()
+            .marginTop(4)
+            .horizontally()
             .sizeToFit(.width)
 
         textContainerView.pin
-            .left(20)
-            .vCenter()
-            .before(of: calendarImageView)
-            .marginRight(12)
             .wrapContent(.vertically)
+            .vCenter()
     }
 
     override var intrinsicContentSize: CGSize {
