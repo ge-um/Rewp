@@ -27,8 +27,8 @@ final class RecentSearchItem: UIView {
     }
 
     private let recommendBadge = UILabel().then {
-        $0.textColor = ColorSystem.brightWood
-        $0.backgroundColor = ColorSystem.brightCream.withAlphaComponent(0.4)
+        $0.textColor = ColorSystem.deepWood
+        $0.backgroundColor = ColorSystem.recommendBackground
         $0.layer.cornerRadius = 4
         $0.clipsToBounds = true
         $0.textAlignment = .center

@@ -250,7 +250,7 @@ final class LoginViewController: UIViewController {
         output.isEmailLoginButtonEnabled
             .drive(with: self) { owner, isEnabled in
                 owner.emailLoginButton.isEnabled = isEnabled
-                owner.emailLoginButton.backgroundColor = isEnabled ? ColorSystem.deepCoast : ColorSystem.gray45
+                owner.emailLoginButton.backgroundColor = isEnabled ? ColorSystem.deepCream : ColorSystem.gray45
             }
             .disposed(by: disposeBag)
 

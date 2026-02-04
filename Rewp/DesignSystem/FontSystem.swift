@@ -132,16 +132,16 @@ enum FontSystem {
         )
     }
 
-    enum YeongdeokHaeparang {
+    enum Paperlogy {
         static let title1 = Typography(
-            fontName: "Yeongdeok-Haeparang",
+            fontName: "Paperlogy-7Bold",
             size: 22,
-            lineHeight: 150,
+            lineHeight: 100,
             kerning: 0
         )
 
         static let caption1 = Typography(
-            fontName: "Yeongdeok-Haeparang",
+            fontName: "Paperlogy-7Bold",
             size: 12,
             lineHeight: 180,
             kerning: 0

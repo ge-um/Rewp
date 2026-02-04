@@ -36,13 +36,13 @@ final class BannerCarouselCell: UICollectionViewCell {
     }
 
     private let titleLabel = UILabel().then {
-        $0.typography(FontSystem.YeongdeokHaeparang.title1, text: "")
+        $0.typography(FontSystem.Paperlogy.title1, text: "")
         $0.textColor = .white
         $0.numberOfLines = 2
     }
 
     private let descriptionLabel = UILabel().then {
-        $0.typography(FontSystem.YeongdeokHaeparang.caption1, text: "")
+        $0.typography(FontSystem.Paperlogy.caption1, text: "")
         $0.textColor = .white.withAlphaComponent(0.8)
         $0.numberOfLines = 1
     }
@@ -116,8 +116,8 @@ final class BannerCarouselCell: UICollectionViewCell {
 
     func configure(with item: BannerItem) {
         locationLabel.typography(FontSystem.Pretendard.caption2, text: item.location)
-        titleLabel.typography(FontSystem.YeongdeokHaeparang.title1, text: item.title)
-        descriptionLabel.typography(FontSystem.YeongdeokHaeparang.caption1, text: item.description)
+        titleLabel.typography(FontSystem.Paperlogy.title1, text: item.title)
+        descriptionLabel.typography(FontSystem.Paperlogy.caption1, text: item.description)
 
         imageView.setImage(from: item.imageURL)
 

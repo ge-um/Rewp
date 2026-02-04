@@ -21,12 +21,14 @@ final class SidoAnnotationView: MKAnnotationView, IsIdentifiable {
 
     private func setupUI() {
         backgroundColor = .clear
+        displayPriority = .required
+        zPriority = .max
     }
 
     func configure(with annotation: SidoAnnotation) {
         sidoPin?.removeFromSuperview()
 
-        let newPin = SidoPin(name: annotation.sido.name, count: annotation.estateCount)
+        let newPin = SidoPin(name: annotation.sido.shortName, count: annotation.estateCount)
         addSubview(newPin)
         sidoPin = newPin
 

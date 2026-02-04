@@ -41,7 +41,7 @@ final class HotItem: UIView {
 
     private lazy var titleLabel = UILabel().then {
         $0.textColor = ColorSystem.gray0
-        $0.typography(FontSystem.YeongdeokHaeparang.caption1, text: title)
+        $0.typography(FontSystem.Paperlogy.caption1, text: title)
         $0.textAlignment = .right
     }
 

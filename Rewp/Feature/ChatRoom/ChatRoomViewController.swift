@@ -252,7 +252,7 @@ final class ChatRoomViewController: UIViewController {
             .marginBottom(12)
 
         bottomBackgroundView.pin
-            .top(inputBar.frame.minY)
+            .top(inputBar.frame.maxY)
             .horizontally()
             .bottom()
 

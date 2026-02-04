@@ -68,6 +68,12 @@ final class FilterButton: UIView {
     }
     
     override var intrinsicContentSize: CGSize {
-        return CGSize(width: 78, height: 32)
+        let labelSize = titleLabel.sizeThatFits(CGSize(width: CGFloat.greatestFiniteMagnitude, height: 32))
+        return CGSize(width: labelSize.width + 24, height: 32)
+    }
+
+    override func sizeThatFits(_ size: CGSize) -> CGSize {
+        let labelSize = titleLabel.sizeThatFits(CGSize(width: CGFloat.greatestFiniteMagnitude, height: size.height))
+        return CGSize(width: labelSize.width + 24, height: 32)
     }
 }

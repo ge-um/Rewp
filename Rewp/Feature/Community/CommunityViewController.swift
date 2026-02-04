@@ -31,7 +31,7 @@ final class CommunityViewController: UIViewController {
             var config = UIButton.Configuration.filled()
             config.title = category.displayName
             config.baseForegroundColor = index == 0 ? ColorSystem.gray0 : ColorSystem.gray60
-            config.baseBackgroundColor = index == 0 ? ColorSystem.deepCoast : ColorSystem.gray0
+            config.baseBackgroundColor = index == 0 ? ColorSystem.deepCream : ColorSystem.gray0
             config.cornerStyle = .capsule
             config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16)
 
@@ -79,7 +79,7 @@ final class CommunityViewController: UIViewController {
     private lazy var writeButton: UIButton = {
         var config = UIButton.Configuration.filled()
         config.image = UIImage(systemName: "plus")
-        config.baseBackgroundColor = ColorSystem.deepCoast
+        config.baseBackgroundColor = ColorSystem.deepCream
         config.baseForegroundColor = ColorSystem.gray0
         config.cornerStyle = .capsule
         config.contentInsets = NSDirectionalEdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
@@ -276,7 +276,7 @@ final class CommunityViewController: UIViewController {
 
             var config = button.configuration
             config?.baseForegroundColor = isSelected ? ColorSystem.gray0 : ColorSystem.gray60
-            config?.baseBackgroundColor = isSelected ? ColorSystem.deepCoast : ColorSystem.gray0
+            config?.baseBackgroundColor = isSelected ? ColorSystem.deepCream : ColorSystem.gray0
             config?.background.strokeColor = isSelected ? .clear : ColorSystem.gray30
             button.configuration = config
         }

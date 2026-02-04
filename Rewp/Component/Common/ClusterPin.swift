@@ -10,8 +10,15 @@ import PinLayout
 import Then
 
 final class ClusterPin: UIView {
+    private let clusterShadow = Shadow(
+        color: UIColor(red: 82/255, green: 81/255, blue: 86/255, alpha: 1),
+        opacity: 0.2,
+        offset: CGSize(width: 0, height: 4),
+        radius: 6
+    )
+
     private let circleContainer = UIView().then {
-        $0.backgroundColor = ColorSystem.deepCream
+        $0.backgroundColor = ColorSystem.deepCream.withAlphaComponent(0.8)
     }
 
     private let countLabel = UILabel().then {
@@ -29,7 +36,7 @@ final class ClusterPin: UIView {
 
     var count: Int = 0 {
         didSet {
-            countLabel.typography(FontSystem.Pretendard.body2, text: "\(count)")
+            countLabel.typography(FontSystem.Pretendard.title1Bold, text: "\(count)")
         }
     }
 
@@ -129,6 +136,7 @@ final class ClusterPin: UIView {
             .size(circleDiameter)
 
         circleContainer.layer.cornerRadius = circleDiameter / 2
+        circleContainer.layer.applyShadow(clusterShadow)
 
         countLabel.pin
             .center()
@@ -155,6 +163,8 @@ final class ClusterPin: UIView {
                 .width(amenityWidth)
                 .height(amenityHeight)
 
+            amenityContainer.layer.applyShadow(clusterShadow)
+
             var currentX: CGFloat = 8
             for itemView in visibleViews {
                 itemView.container.frame.origin = CGPoint(x: currentX, y: (amenityHeight - itemHeight) / 2)
@@ -180,12 +190,17 @@ final class ClusterPin: UIView {
     private var circleSize: CGFloat {
         let digitCount = "\(count)".count
         switch digitCount {
-        case 1, 2:
-            return 52
+        case 1:
+            return 36
+        case 2:
+            return 56
+        case 3:
+            return 76
         default:
-            return 80
+            return 100
         }
     }
+
 
     private func calculateAmenityWidth() -> CGFloat {
         guard let amenityInfo = amenityInfo, !amenityInfo.isEmpty else {

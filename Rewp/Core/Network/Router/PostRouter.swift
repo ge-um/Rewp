@@ -128,7 +128,7 @@ extension PostRouter: APIRouter {
             }
  
             if let next_cursor = next_cursor {
-                params["next_cursor"] = next_cursor
+                params["next"] = next_cursor
             }
             return params
         case .postDetail, .createPost, .deletePost, .toggleLike, .createComment, .updateComment, .deleteComment, .uploadFiles:

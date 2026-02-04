@@ -34,12 +34,12 @@ final class CustomNavigationBar: UIView {
 
     private let locationIconView = UIImageView().then {
         $0.image = UIImage(named: "Location")?.withRenderingMode(.alwaysTemplate)
-        $0.tintColor = ColorSystem.gray90
+        $0.tintColor = ColorSystem.gray75
         $0.contentMode = .scaleAspectFit
     }
 
     private let locationTitleLabel = UILabel().then {
-        $0.textColor = ColorSystem.gray90
+        $0.textColor = ColorSystem.gray75
         $0.textAlignment = .left
     }
 

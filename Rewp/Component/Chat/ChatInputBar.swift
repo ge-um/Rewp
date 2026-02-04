@@ -39,7 +39,7 @@ final class ChatInputBar: UIView {
 
     private let sendButton = UIButton(type: .system).then {
         $0.setImage(UIImage(systemName: "arrow.up.circle.fill"), for: .normal)
-        $0.tintColor = ColorSystem.brightCoast
+        $0.tintColor = ColorSystem.deepCream
         $0.isEnabled = false
     }
 
@@ -81,7 +81,7 @@ final class ChatInputBar: UIView {
     }
 
     private func setupUI() {
-        backgroundColor = ColorSystem.gray0
+        backgroundColor = .clear
 
         addSubview(containerView)
         containerView.addSubview(attachButton)

@@ -150,8 +150,16 @@ final class MapBubbleButton: UIView {
                          controlPoint: CGPoint(x: 0, y: 0))
         path.close()
 
+        guard let context = UIGraphicsGetCurrentContext() else { return }
+        context.saveGState()
+        context.setShadow(
+            offset: CGSize(width: 0, height: 4),
+            blur: 12,
+            color: UIColor(red: 82/255, green: 81/255, blue: 86/255, alpha: 0.2).cgColor
+        )
         ColorSystem.gray0.setFill()
         path.fill()
+        context.restoreGState()
 
         ColorSystem.gray30.withAlphaComponent(0.2).setStroke()
         path.lineWidth = 1

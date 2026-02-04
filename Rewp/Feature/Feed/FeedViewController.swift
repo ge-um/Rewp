@@ -26,21 +26,40 @@ class FeedViewController: UIViewController {
     private let contentView = UIView()
 
     private let searchBar = SearchBar()
-    private let bannerCarousel = BannerCarousel()
 
-    private let categoryScrollView = UIScrollView().then {
-        $0.showsHorizontalScrollIndicator = false
+    private let categoryGridView = UIView()
+
+    private lazy var oneRoomCard = CategoryCardLarge(
+        title: "원/투룸",
+        icon: UIImage(named: "OneRoom")
+    )
+
+    private lazy var apartmentCard = CategoryCardLarge(
+        title: "아파트",
+        icon: UIImage(named: "Apartment")
+    )
+
+    private lazy var villaCard = CategoryCardSmall(
+        title: "주택/빌라",
+        icon: UIImage(named: "Villa")
+    )
+
+    private lazy var officetelCard = CategoryCardSmall(
+        title: "오피스텔",
+        icon: UIImage(named: "Officetel")
+    )
+
+    private lazy var newConstructionCard = CategoryCardSmall(
+        title: "상가",
+        icon: UIImage(named: "Storefront")
+    )
+
+    private let attendanceBannerContainer = UIView().then {
+        $0.backgroundColor = .clear
+        $0.isHidden = true
     }
 
-    private let categoryContainerView = UIView()
-
-    private lazy var categoryButtons: [CategoryButton] = [
-        CategoryButton(icon: UIImage(named: "OneRoom"), title: "원룸"),
-        CategoryButton(icon: UIImage(named: "Officetel"), title: "오피스텔"),
-        CategoryButton(icon: UIImage(named: "Apartment"), title: "아파트"),
-        CategoryButton(icon: UIImage(named: "Villa"), title: "빌라"),
-        CategoryButton(icon: UIImage(named: "Storefront"), title: "상가")
-    ]
+    private var attendanceBannerView: NewsAdItem?
 
     private let recentSearchTitleLabel = SectionTitleLabel(title: "최근검색 매물")
 
@@ -77,7 +96,6 @@ class FeedViewController: UIViewController {
     private let hotEstateTapRelay = PublishRelay<String>()
     private let newsAdTapRelay = PublishRelay<(String, String)>()
     private let recentlyViewedEstateTappedRelay = PublishRelay<String>()
-    private var currentNewsAds: [BannerAdItem] = []
     private let disposeBag = DisposeBag()
 
     override func viewDidLoad() {
@@ -100,9 +118,9 @@ class FeedViewController: UIViewController {
 
         scrollView.addSubview(contentView)
 
-        contentView.addSubview(bannerCarousel)
         contentView.addSubview(searchBar)
-        contentView.addSubview(categoryScrollView)
+        contentView.addSubview(categoryGridView)
+        contentView.addSubview(attendanceBannerContainer)
         contentView.addSubview(recentSearchTitleLabel)
         contentView.addSubview(recentSearchScrollView)
         contentView.addSubview(hotTitleLabel)
@@ -116,18 +134,11 @@ class FeedViewController: UIViewController {
             self.navigationController?.pushViewController(mapSearchVC, animated: true)
         }
 
-        categoryScrollView.addSubview(categoryContainerView)
-        categoryContainerView.flex
-            .direction(.row)
-            .alignItems(.center)
-            .define { flex in
-                categoryButtons.forEach { button in
-                    flex.addItem(button)
-                        .width(56)
-                        .height(76)
-                        .marginRight(17.5)
-                }
-            }
+        categoryGridView.addSubview(oneRoomCard)
+        categoryGridView.addSubview(apartmentCard)
+        categoryGridView.addSubview(villaCard)
+        categoryGridView.addSubview(officetelCard)
+        categoryGridView.addSubview(newConstructionCard)
 
         recentSearchScrollView.addSubview(recentSearchContainerView)
         recentSearchContainerView.flex
@@ -158,10 +169,6 @@ class FeedViewController: UIViewController {
     }
 
     private func bind() {
-        bannerCarousel.onBannerTapped = { [weak self] estateId in
-            self?.bannerTapRelay.accept(estateId)
-        }
-
         let input = FeedPresenter.Input(
             viewDidLoad: viewDidLoadTrigger.asObservable(),
             viewWillAppear: viewWillAppearTrigger.asObservable(),
@@ -173,12 +180,6 @@ class FeedViewController: UIViewController {
         )
 
         let output = presenter.transform(input: input)
-
-        output.banners
-            .drive(with: self) { owner, banners in
-                owner.bannerCarousel.configure(with: banners)
-            }
-            .disposed(by: disposeBag)
 
         output.hotEstates
             .drive(with: self) { owner, hotEstates in
@@ -213,7 +214,7 @@ class FeedViewController: UIViewController {
 
         output.newsAds
             .drive(with: self) { owner, newsAds in
-                owner.currentNewsAds = newsAds
+                owner.updateAttendanceBanner(newsAds: newsAds)
             }
             .disposed(by: disposeBag)
 
@@ -266,53 +267,100 @@ class FeedViewController: UIViewController {
             .top()
             .horizontally()
 
-        bannerCarousel.pin
-            .top()
-            .left()
-            .right()
-            .height(335)
-
         searchBar.pin
             .top(view.pin.safeArea.top + 16)
             .hCenter()
             .width(350)
             .height(40)
 
-        categoryScrollView.pin
-            .below(of: bannerCarousel)
-            .horizontally(20)
-            .height(116)
+        let cardSpacing: CGFloat = 8
+        let horizontalPadding: CGFloat = 20
+        let availableWidth = view.bounds.width - (horizontalPadding * 2)
+        let largeCardWidth = (availableWidth - cardSpacing) / 2
+        let smallCardWidth = (availableWidth - cardSpacing * 2) / 3
 
-        categoryContainerView.pin
+        categoryGridView.pin
+            .below(of: searchBar)
+            .marginTop(20)
+            .horizontally(horizontalPadding)
+            .height(210)
+
+        oneRoomCard.pin
             .top()
             .left()
-            .height(116)
+            .width(largeCardWidth)
+            .height(110)
 
-        categoryContainerView.flex.layout(mode: .adjustWidth)
-        categoryScrollView.contentSize = categoryContainerView.frame.size
+        apartmentCard.pin
+            .top()
+            .after(of: oneRoomCard)
+            .marginLeft(cardSpacing)
+            .width(largeCardWidth)
+            .height(110)
 
-        recentSearchTitleLabel.pin
-            .below(of: categoryScrollView)
-            .marginTop(16)
-            .horizontally(20)
-            .height(32)
+        villaCard.pin
+            .below(of: oneRoomCard)
+            .marginTop(cardSpacing)
+            .left()
+            .width(smallCardWidth)
+            .height(90)
+
+        officetelCard.pin
+            .below(of: oneRoomCard)
+            .marginTop(cardSpacing)
+            .after(of: villaCard)
+            .marginLeft(cardSpacing)
+            .width(smallCardWidth)
+            .height(90)
+
+        newConstructionCard.pin
+            .below(of: apartmentCard)
+            .marginTop(cardSpacing)
+            .after(of: officetelCard)
+            .marginLeft(cardSpacing)
+            .width(smallCardWidth)
+            .height(90)
+
+        if !attendanceBannerContainer.isHidden, let bannerView = attendanceBannerView {
+            attendanceBannerContainer.pin
+                .below(of: categoryGridView)
+                .marginTop(16)
+                .horizontally()
+                .height(96)
+
+            bannerView.pin
+                .vertically()
+                .horizontally(horizontalPadding)
+
+            recentSearchTitleLabel.pin
+                .below(of: attendanceBannerContainer)
+                .marginTop(16)
+                .horizontally(20)
+                .height(32)
+        } else {
+            recentSearchTitleLabel.pin
+                .below(of: categoryGridView)
+                .marginTop(16)
+                .horizontally(20)
+                .height(32)
+        }
 
         recentSearchScrollView.pin
             .below(of: recentSearchTitleLabel)
             .horizontally(20)
-            .height(104)
+            .height(96)
 
         recentSearchContainerView.pin
             .top()
             .left()
-            .height(104)
+            .height(96)
 
         recentSearchContainerView.flex.layout(mode: .adjustWidth)
         recentSearchScrollView.contentSize = recentSearchContainerView.frame.size
 
         hotTitleLabel.pin
             .below(of: recentSearchScrollView)
-            .marginTop(16)
+            .marginTop(4)
             .horizontally(20)
             .height(32)
 
@@ -378,33 +426,11 @@ class FeedViewController: UIViewController {
     }
 
     private func mixTopicsWithAds(topics: [TopicItem], newsAds: [BannerAdItem]) -> [UIView] {
-        let adPositions = [1]
-
         var result: [UIView] = []
 
         for (index, topic) in topics.enumerated() {
             let hashtagItem = createTappableNewsItem(from: topic)
             result.append(hashtagItem)
-
-            if let adIndex = adPositions.firstIndex(of: index),
-               adIndex < newsAds.count {
-                result.append(ItemDivider())
-
-                let bannerAd = newsAds[adIndex]
-                let adData = bannerAd.toNewsAdItem()
-                let newsAdItem = NewsAdItem(
-                    title: adData.title,
-                    description: adData.description,
-                    payloadType: adData.payloadType,
-                    payloadValue: adData.payloadValue
-                )
-
-                newsAdItem.onTap = { [weak self] in
-                    self?.newsAdTapRelay.accept((bannerAd.payloadType, bannerAd.payloadValue))
-                }
-
-                result.append(newsAdItem)
-            }
 
             if index < topics.count - 1 {
                 result.append(ItemDivider())
@@ -468,5 +494,33 @@ class FeedViewController: UIViewController {
     private func openAttendanceWebView(urlPath: String) {
         let webVC = container.makeAttendanceWebViewController(urlPath: urlPath)
         navigationController?.pushViewController(webVC, animated: true)
+    }
+
+    private func updateAttendanceBanner(newsAds: [BannerAdItem]) {
+        attendanceBannerView?.removeFromSuperview()
+        attendanceBannerView = nil
+
+        guard let bannerAd = newsAds.first else {
+            attendanceBannerContainer.isHidden = true
+            view.setNeedsLayout()
+            return
+        }
+
+        let adData = bannerAd.toNewsAdItem()
+        let bannerView = NewsAdItem(
+            title: adData.title,
+            description: adData.description,
+            payloadType: adData.payloadType,
+            payloadValue: adData.payloadValue
+        )
+
+        bannerView.onTap = { [weak self] in
+            self?.newsAdTapRelay.accept((bannerAd.payloadType, bannerAd.payloadValue))
+        }
+
+        attendanceBannerContainer.addSubview(bannerView)
+        attendanceBannerContainer.isHidden = false
+        attendanceBannerView = bannerView
+        view.setNeedsLayout()
     }
 }

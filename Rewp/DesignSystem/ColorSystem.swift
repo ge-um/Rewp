@@ -8,17 +8,20 @@
 import UIKit
 
 enum ColorSystem {
-    static let deepCream = UIColor(hex: "#DAC8B1")
+    static let deepCream = UIColor(hex: "#567DF3")
     static let brightCream = UIColor(hex: "#F1DCC1")
-    static let deepCoast = UIColor(hex: "#298E9C")
-    static let brightCoast = UIColor(hex: "#71C9D6")
-    static let deepWood = UIColor(hex: "#402A32")
-    static let brightWood = UIColor(hex: "#8C5543")
+    static let brightCoast = UIColor(hex: "#8BADFF")
+    static let deepWood = UIColor(hex: "#0F2D8E")
+    static let brightWood = UIColor(hex: "#2B63E6")
+
+    static let gradientTop = UIColor(hex: "#83ABFB")
+    static let gradientBottom = UIColor(hex: "#567DF3")
+    static let recommendBackground = UIColor(hex: "#B3C6FF")
 
     static let gray0 = UIColor(hex: "#FFFFFF")
     static let gray15 = UIColor(hex: "#F9F9F9")
     static let gray30 = UIColor(hex: "#EAEAEA")
-    static let gray45 = UIColor(hex: "#D8D6D7")
+    static let gray45 = UIColor(hex: "#D6D7D8")
     static let gray60 = UIColor(hex: "#ABABAE")
     static let gray75 = UIColor(hex: "#6A6A6E")
     static let gray90 = UIColor(hex: "#434347")

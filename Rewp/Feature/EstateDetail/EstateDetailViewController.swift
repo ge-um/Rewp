@@ -28,7 +28,7 @@ final class EstateDetailViewController: UIViewController {
     private var currentOrderResponse: CreateOrderResponse?
 
     private let scrollView = UIScrollView().then {
-        $0.backgroundColor = ColorSystem.gray0
+        $0.backgroundColor = ColorSystem.gray15
         $0.showsVerticalScrollIndicator = false
     }
 
@@ -37,20 +37,24 @@ final class EstateDetailViewController: UIViewController {
     private let imageCarousel = ImageCarousel()
 
     private let badgeContainer = UIView().then {
-        $0.layer.borderColor = ColorSystem.deepCoast.cgColor
+        $0.layer.borderColor = ColorSystem.brightWood.cgColor
         $0.layer.borderWidth = 1.5
         $0.layer.cornerRadius = 12
     }
 
-    private let diamondImageView = UIImageView().then {
-        $0.image = UIImage(named: "Safty")?.withRenderingMode(.alwaysTemplate)
-        $0.tintColor = ColorSystem.deepCoast
+    private let dogIconImageView = UIImageView().then {
+        $0.image = UIImage(named: "dog")
+        $0.contentMode = .scaleAspectFit
+    }
+
+    private let catIconImageView = UIImageView().then {
+        $0.image = UIImage(named: "cat")
         $0.contentMode = .scaleAspectFit
     }
 
     private let badgeLabel = UILabel().then {
-        $0.typography(FontSystem.Pretendard.caption1Semibold, text: "구매자 안심매물")
-        $0.textColor = ColorSystem.deepCoast
+        $0.typography(FontSystem.Pretendard.caption1Semibold, text: "입주 가능")
+        $0.textColor = ColorSystem.brightWood
     }
 
     private let timeLabel = UILabel().then {
@@ -66,8 +70,8 @@ final class EstateDetailViewController: UIViewController {
     private let priceContainer = UIView()
 
     private let priceTypeLabel = UILabel().then {
-        $0.typography(FontSystem.YeongdeokHaeparang.title1, text: "")
-        $0.textColor = ColorSystem.gray75
+        $0.typography(FontSystem.Paperlogy.title1, text: "")
+        $0.textColor = ColorSystem.gray90
     }
 
     private let priceLabel = UILabel().then {
@@ -117,6 +121,8 @@ final class EstateDetailViewController: UIViewController {
         $0.typography(FontSystem.Pretendard.caption1Semibold, text: "")
         $0.textColor = ColorSystem.gray60
     }
+
+    private let petInfoSection = PetInfoSection()
 
     private let descriptionDivider = ItemDivider()
 
@@ -218,7 +224,7 @@ final class EstateDetailViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = ColorSystem.gray0
+        view.backgroundColor = ColorSystem.gray15
         setupUI()
         bind()
     }
@@ -234,7 +240,8 @@ final class EstateDetailViewController: UIViewController {
 
         scrollView.addSubview(imageCarousel)
         scrollView.addSubview(badgeContainer)
-        badgeContainer.addSubview(diamondImageView)
+        badgeContainer.addSubview(dogIconImageView)
+        badgeContainer.addSubview(catIconImageView)
         badgeContainer.addSubview(badgeLabel)
         scrollView.addSubview(timeLabel)
         scrollView.addSubview(addressLabel)
@@ -256,6 +263,7 @@ final class EstateDetailViewController: UIViewController {
         scrollView.addSubview(parkingInfoContainer)
         parkingInfoContainer.addSubview(parkingIconImageView)
         parkingInfoContainer.addSubview(parkingInfoLabel)
+        scrollView.addSubview(petInfoSection)
         scrollView.addSubview(descriptionDivider)
         scrollView.addSubview(descriptionTitleLabel)
         scrollView.addSubview(descriptionLabel)
@@ -485,24 +493,28 @@ final class EstateDetailViewController: UIViewController {
             .horizontally()
             .height(250)
 
-        diamondImageView.pin
-            .left(6)
-            .top(4)
+        dogIconImageView.pin
+            .left(8)
+            .vCenter()
+            .size(16)
+
+        catIconImageView.pin
+            .after(of: dogIconImageView)
+            .marginLeft(2)
+            .vCenter()
             .size(16)
 
         badgeLabel.pin
-            .after(of: diamondImageView)
+            .after(of: catIconImageView)
             .marginLeft(4)
-            .marginRight(10)
-            .vCenter(to: diamondImageView.edge.vCenter)
-            .width(76)
-            .height(14)
+            .vCenter()
+            .sizeToFit()
 
         badgeContainer.pin
             .below(of: imageCarousel)
             .marginTop(16)
             .left(20)
-            .width(112)
+            .width(badgeLabel.frame.maxX + 8)
             .height(24)
 
         timeLabel.pin
@@ -523,12 +535,12 @@ final class EstateDetailViewController: UIViewController {
 
         priceTypeLabel.pin
             .left()
-            .bottom()
+            .vCenter()
             .sizeToFit()
 
         priceLabel.pin
             .after(of: priceTypeLabel)
-            .bottom()
+            .vCenter()
             .marginLeft(4)
             .sizeToFit()
 
@@ -547,8 +559,56 @@ final class EstateDetailViewController: UIViewController {
             .horizontally()
             .sizeToFit(.width)
 
-        optionTitleLabel.pin
+        petInfoSection.pin
             .below(of: divider)
+            .marginTop(0)
+            .horizontally()
+            .height(164)
+
+        similarEstatesDivider.pin
+            .below(of: petInfoSection)
+            .marginTop(16)
+            .horizontally()
+            .sizeToFit(.width)
+
+        similarEstatesTitleLabel.pin
+            .below(of: similarEstatesDivider)
+            .marginTop(5)
+            .horizontally(20)
+            .height(32)
+
+        similarEstatesScrollView.pin
+            .below(of: similarEstatesTitleLabel)
+            .marginTop(8)
+            .horizontally(20)
+            .height(104)
+
+        var xOffset: CGFloat = 0
+        similarEstatesItems.enumerated().forEach { index, item in
+            item.pin
+                .left(xOffset)
+                .top()
+                .size(item.intrinsicContentSize)
+            xOffset += item.intrinsicContentSize.width + 8
+        }
+
+        let similarEstatesItemContainerWidth = similarEstatesItems.isEmpty ? 0 : xOffset - 8
+        similarEstatesContainerView.pin
+            .top()
+            .left()
+            .width(similarEstatesItemContainerWidth)
+            .height(88)
+
+        similarEstatesScrollView.contentSize = similarEstatesContainerView.frame.size
+
+        agentDivider.pin
+            .below(of: similarEstatesScrollView)
+            .marginTop(16)
+            .horizontally()
+            .sizeToFit(.width)
+
+        optionTitleLabel.pin
+            .below(of: agentDivider)
             .marginTop(5)
             .horizontally(20)
             .height(32)
@@ -654,51 +714,9 @@ final class EstateDetailViewController: UIViewController {
             .horizontally(20)
             .sizeToFit(.width)
 
-        similarEstatesDivider.pin
+        agentTitleLabel.pin
             .below(of: descriptionLabel)
             .marginTop(24)
-            .horizontally()
-            .sizeToFit(.width)
-
-        similarEstatesTitleLabel.pin
-            .below(of: similarEstatesDivider)
-            .marginTop(5)
-            .horizontally(20)
-            .height(32)
-
-        similarEstatesScrollView.pin
-            .below(of: similarEstatesTitleLabel)
-            .marginTop(8)
-            .horizontally(20)
-            .height(104)
-
-        var xOffset: CGFloat = 0
-        similarEstatesItems.enumerated().forEach { index, item in
-            item.pin
-                .left(xOffset)
-                .top()
-                .size(item.intrinsicContentSize)
-            xOffset += item.intrinsicContentSize.width + 8
-        }
-
-        let similarEstatesItemContainerWidth = similarEstatesItems.isEmpty ? 0 : xOffset - 8
-        similarEstatesContainerView.pin
-            .top()
-            .left()
-            .width(similarEstatesItemContainerWidth)
-            .height(88)
-
-        similarEstatesScrollView.contentSize = similarEstatesContainerView.frame.size
-
-        agentDivider.pin
-            .below(of: similarEstatesScrollView)
-            .marginTop(8)
-            .horizontally()
-            .sizeToFit(.width)
-
-        agentTitleLabel.pin
-            .below(of: agentDivider)
-            .marginTop(5)
             .horizontally(20)
             .height(32)
 
@@ -755,7 +773,7 @@ final class EstateDetailViewController: UIViewController {
         badgeContainer.isHidden = !detail.isSafeEstate
         timeLabel.typography(FontSystem.Pretendard.body3, text: detail.relativeTime)
         addressLabel.typography(FontSystem.Pretendard.body2, text: detail.category)
-        priceTypeLabel.typography(FontSystem.YeongdeokHaeparang.title1, text: detail.priceType)
+        priceTypeLabel.typography(FontSystem.Paperlogy.title1, text: detail.priceType)
         priceLabel.typography(FontSystem.Pretendard.title0, text: detail.price)
         managementFeeLabel.typography(FontSystem.Pretendard.body2, text: detail.managementFeeText)
         creatorPhoneNumber = detail.creatorPhoneNumber
@@ -779,6 +797,14 @@ final class EstateDetailViewController: UIViewController {
         }
 
         parkingInfoLabel.typography(FontSystem.Pretendard.caption1Semibold, text: detail.parkingInfo)
+
+        let mockPetPolicy = PetPolicy(
+            allowedTypes: [.dog, .cat],
+            sizeLimit: .largePossible,
+            maxCount: nil,
+            additionalDeposit: 50
+        )
+        petInfoSection.configure(with: mockPetPolicy)
         descriptionLabel.typography(FontSystem.Pretendard.caption1Regular, text: detail.description)
         agentNameLabel.typography(FontSystem.Pretendard.body1Bold, text: detail.creatorName)
 

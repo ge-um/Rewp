@@ -12,16 +12,14 @@ import OSLog
 
 final class CommunityPresenter {
     private let postRepository: PostRepository
-    private let locationManager: LocationManager
     private let disposeBag = DisposeBag()
     private var selectedCategory: PostCategory = .all
     private var nextCursor: String?
     private var isLoadingMore = false
     private var fetchedPostIds: Set<String> = []
 
-    init(postRepository: PostRepository, locationManager: LocationManager = .shared) {
+    init(postRepository: PostRepository) {
         self.postRepository = postRepository
-        self.locationManager = locationManager
     }
 
     enum PostUpdateType {
@@ -85,29 +83,20 @@ final class CommunityPresenter {
                 owner.nextCursor = nil
                 owner.fetchedPostIds.removeAll()
             })
-            .flatMapLatest { owner, _ -> Observable<PostsResponse> in
-                return owner.locationManager.currentLocation
-                    .take(1)
-                    .timeout(.seconds(2), scheduler: MainScheduler.instance)
-                    .map { location -> (Double?, Double?) in
-                        (location.coordinate.longitude, location.coordinate.latitude)
-                    }
-                    .catchAndReturn((nil, nil))
-                    .flatMap { longitude, latitude in
-                        owner.postRepository
-                            .fetchPostsByLocation(
-                                longitude: longitude,
-                                latitude: latitude,
-                                limit: "20",
-                                nextCursor: nil
-                            )
-                            .asObservable()
-                            .catch { error in
-                                Logger.community.error("Failed to fetch posts - \(error.localizedDescription)")
-                                isLoadingRelay.accept(false)
-                                errorRelay.accept("게시글을 불러올 수 없습니다")
-                                return .empty()
-                            }
+            .flatMapLatest { owner, _ in
+                owner.postRepository
+                    .fetchPostsByLocation(
+                        longitude: nil,
+                        latitude: nil,
+                        limit: "20",
+                        nextCursor: nil
+                    )
+                    .asObservable()
+                    .catch { error in
+                        Logger.community.error("Failed to fetch posts - \(error.localizedDescription)")
+                        isLoadingRelay.accept(false)
+                        errorRelay.accept("게시글을 불러올 수 없습니다")
+                        return .empty()
                     }
             }
             .withUnretained(self)
@@ -125,36 +114,28 @@ final class CommunityPresenter {
 
         input.loadMore
             .withUnretained(self)
-            .filter { owner, _ in
-                !owner.isLoadingMore && owner.nextCursor != nil
+            .compactMap { owner, _ -> (CommunityPresenter, String)? in
+                guard !owner.isLoadingMore, let cursor = owner.nextCursor else { return nil }
+                return (owner, cursor)
             }
             .do(onNext: { owner, _ in
                 owner.isLoadingMore = true
                 isLoadingMoreRelay.accept(true)
             })
-            .flatMapLatest { owner, _ -> Observable<PostsResponse> in
-                return owner.locationManager.currentLocation
-                    .take(1)
-                    .timeout(.seconds(2), scheduler: MainScheduler.instance)
-                    .map { location -> (Double?, Double?) in
-                        (location.coordinate.longitude, location.coordinate.latitude)
-                    }
-                    .catchAndReturn((nil, nil))
-                    .flatMap { longitude, latitude in
-                        owner.postRepository
-                            .fetchPostsByLocation(
-                                longitude: longitude,
-                                latitude: latitude,
-                                limit: "20",
-                                nextCursor: owner.nextCursor
-                            )
-                            .asObservable()
-                            .catch { error in
-                                Logger.community.error("Failed to load more posts - \(error.localizedDescription)")
-                                owner.isLoadingMore = false
-                                isLoadingMoreRelay.accept(false)
-                                return .empty()
-                            }
+            .flatMap { owner, cursor in
+                owner.postRepository
+                    .fetchPostsByLocation(
+                        longitude: nil,
+                        latitude: nil,
+                        limit: "20",
+                        nextCursor: cursor
+                    )
+                    .asObservable()
+                    .catch { error in
+                        Logger.community.error("Failed to load more posts - \(error.localizedDescription)")
+                        owner.isLoadingMore = false
+                        isLoadingMoreRelay.accept(false)
+                        return .empty()
                     }
             }
             .withUnretained(self)

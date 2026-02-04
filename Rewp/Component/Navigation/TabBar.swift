@@ -22,7 +22,7 @@ enum TabBarItem: Int, CaseIterable {
         switch self {
         case .home: return "홈"
         case .community: return "커뮤니티"
-        case .favorites: return "관심매물"
+        case .favorites: return "라이브"
         case .chat: return "채팅"
         case .settings: return "설정"
         }
@@ -32,7 +32,7 @@ enum TabBarItem: Int, CaseIterable {
         switch self {
         case .home: return UIImage(named: "Home_Empty")
         case .community: return UIImage(systemName: "bubble.left.and.bubble.right")
-        case .favorites: return UIImage(named: "Interest_Empty")
+        case .favorites: return UIImage(named: "Video")
         case .chat: return UIImage(systemName: "bubble.left")
         case .settings: return UIImage(named: "Setting_Empty")
         }
@@ -42,7 +42,7 @@ enum TabBarItem: Int, CaseIterable {
         switch self {
         case .home: return UIImage(named: "Home_Fill")
         case .community: return UIImage(systemName: "bubble.left.and.bubble.right.fill")
-        case .favorites: return UIImage(named: "Interest_Fill")
+        case .favorites: return UIImage(named: "Video_Filled")
         case .chat: return UIImage(systemName: "bubble.left.fill")
         case .settings: return UIImage(named: "Setting_Fill")
         }

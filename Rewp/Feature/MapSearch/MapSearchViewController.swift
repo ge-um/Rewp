@@ -463,12 +463,20 @@ final class MapSearchViewController: UIViewController {
 
         UIView.animate(withDuration: 0.3) {
             self.estateCardScrollView.alpha = 1
+            self.currentLocationButton.pin
+                .right(20)
+                .bottom(self.view.pin.safeArea.bottom + 132 + 12)
+                .size(48)
         }
     }
 
     private func hideEstateCardScrollView() {
         UIView.animate(withDuration: 0.3) {
             self.estateCardScrollView.alpha = 0
+            self.currentLocationButton.pin
+                .right(20)
+                .bottom(self.view.pin.safeArea.bottom + 20)
+                .size(48)
         } completion: { _ in
             self.estateCardScrollView.isHidden = true
         }
@@ -508,20 +516,20 @@ final class MapSearchViewController: UIViewController {
 
         areaFilterButton.pin
             .left()
-            .width(78)
             .height(32)
+            .sizeToFit(.height)
 
         depositFilterButton.pin
             .after(of: areaFilterButton)
             .marginLeft(8)
-            .width(78)
             .height(32)
+            .sizeToFit(.height)
 
         rentFilterButton.pin
             .after(of: depositFilterButton)
             .marginLeft(8)
-            .width(78)
             .height(32)
+            .sizeToFit(.height)
 
         filterButtonContainer.pin
             .wrapContent()
@@ -532,9 +540,9 @@ final class MapSearchViewController: UIViewController {
             .size(48)
 
         estateCardScrollView.pin
-            .bottom(view.pin.safeArea.bottom + 20)
+            .bottom(view.pin.safeArea.bottom)
             .horizontally()
-            .height(166)
+            .height(132)
     }
 }
 

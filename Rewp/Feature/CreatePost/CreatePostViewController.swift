@@ -49,7 +49,7 @@ final class CreatePostViewController: UIViewController, KeyboardHandling {
     private lazy var submitButton: UIButton = {
         var config = UIButton.Configuration.plain()
         config.title = "완료"
-        config.baseForegroundColor = ColorSystem.deepCoast
+        config.baseForegroundColor = ColorSystem.deepCream
         config.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0)
 
         let button = UIButton(configuration: config)
@@ -75,7 +75,7 @@ final class CreatePostViewController: UIViewController, KeyboardHandling {
             var config = UIButton.Configuration.filled()
             config.title = category.displayName
             config.baseForegroundColor = index == 0 ? ColorSystem.gray0 : ColorSystem.gray60
-            config.baseBackgroundColor = index == 0 ? ColorSystem.deepCoast : ColorSystem.gray0
+            config.baseBackgroundColor = index == 0 ? ColorSystem.deepCream : ColorSystem.gray0
             config.cornerStyle = .capsule
             config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16)
 
@@ -260,7 +260,7 @@ final class CreatePostViewController: UIViewController, KeyboardHandling {
 
         output.isSubmitEnabled
             .drive(with: self) { owner, isEnabled in
-                owner.submitButton.configuration?.baseForegroundColor = isEnabled ? ColorSystem.deepCoast : ColorSystem.gray45
+                owner.submitButton.configuration?.baseForegroundColor = isEnabled ? ColorSystem.deepCream : ColorSystem.gray45
             }
             .disposed(by: disposeBag)
 
@@ -304,7 +304,7 @@ final class CreatePostViewController: UIViewController, KeyboardHandling {
 
             var config = button.configuration
             config?.baseForegroundColor = isSelected ? ColorSystem.gray0 : ColorSystem.gray60
-            config?.baseBackgroundColor = isSelected ? ColorSystem.deepCoast : ColorSystem.gray0
+            config?.baseBackgroundColor = isSelected ? ColorSystem.deepCream : ColorSystem.gray0
             config?.background.strokeColor = isSelected ? .clear : ColorSystem.gray30
             button.configuration = config
         }

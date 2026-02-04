@@ -21,9 +21,9 @@ final class SectionTitleLabel: UIView {
     }
 
     private let viewAllButton = UIButton(type: .system).then {
-        $0.setTitle("View All", for: .normal)
+        $0.setTitle("더보기", for: .normal)
         $0.titleLabel?.typography(FontSystem.Pretendard.caption1Semibold)
-        $0.setTitleColor(ColorSystem.deepCoast, for: .normal)
+        $0.setTitleColor(ColorSystem.deepCream, for: .normal)
     }
 
     var viewAllTap: Observable<Void> {
