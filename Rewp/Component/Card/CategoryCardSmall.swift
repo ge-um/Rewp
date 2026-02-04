@@ -17,8 +17,8 @@ final class CategoryCardSmall: UIView {
 
     private let gradientLayer = CAGradientLayer().then {
         $0.colors = [
-            UIColor(hex: "#83ABFB").cgColor,
-            UIColor(hex: "#567DF3").cgColor
+            ColorSystem.gradientTop.cgColor,
+            ColorSystem.gradientBottom.cgColor
         ]
         $0.startPoint = CGPoint(x: 0.5, y: 0)
         $0.endPoint = CGPoint(x: 0.5, y: 1)

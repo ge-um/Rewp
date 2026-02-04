@@ -14,6 +14,10 @@ enum ColorSystem {
     static let deepWood = UIColor(hex: "#0F2D8E")
     static let brightWood = UIColor(hex: "#2B63E6")
 
+    static let gradientTop = UIColor(hex: "#83ABFB")
+    static let gradientBottom = UIColor(hex: "#567DF3")
+    static let recommendBackground = UIColor(hex: "#B3C6FF")
+
     static let gray0 = UIColor(hex: "#FFFFFF")
     static let gray15 = UIColor(hex: "#F9F9F9")
     static let gray30 = UIColor(hex: "#EAEAEA")
