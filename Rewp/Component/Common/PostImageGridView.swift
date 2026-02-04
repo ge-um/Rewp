@@ -94,16 +94,24 @@ final class PostImageGridView: UIView {
             dispatchGroup.enter()
 
             KingfisherManager.shared.retrieveImage(with: url) { [weak self] result in
-                defer { dispatchGroup.leave() }
+                let aspectRatio: CGFloat
+                let image: UIImage?
 
                 switch result {
                 case .success(let imageResult):
-                    let image = imageResult.image
-                    let aspectRatio = image.size.width / image.size.height
-                    self?.aspectRatios[index] = aspectRatio
-                    self?.imageViews[index].image = image
+                    image = imageResult.image
+                    aspectRatio = imageResult.image.size.width / imageResult.image.size.height
                 case .failure:
-                    self?.aspectRatios[index] = 1.0
+                    image = nil
+                    aspectRatio = 1.0
+                }
+
+                DispatchQueue.main.async {
+                    self?.aspectRatios[index] = aspectRatio
+                    if let image = image {
+                        self?.imageViews[index].image = image
+                    }
+                    dispatchGroup.leave()
                 }
             }
         }

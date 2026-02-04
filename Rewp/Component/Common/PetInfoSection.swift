@@ -105,7 +105,6 @@ final class PetInfoSection: UIView {
         super.layoutSubviews()
 
         let horizontalMargin: CGFloat = 20
-        let rowHeight: CGFloat = 40
         let rowPadding: CGFloat = 16
 
         divider.pin
