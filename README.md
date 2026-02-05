@@ -34,7 +34,7 @@
 | 네트워크 | Alamofire, Kingfisher, Socket.IO |
 | 아키텍처 | MVP + Input/Output, Repository Pattern |
 | 인증 | KakaoSDK, AuthenticationService |
-| Firebase | Cloud Messaging |
+| Firebase | Firebase Cloud Messaging |
 | 프레임워크 | MapKit, CoreLocation, PhotosUI, WebKit |
 
 ## 아키텍처
